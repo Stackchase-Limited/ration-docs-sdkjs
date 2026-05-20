@@ -2736,7 +2736,10 @@ CGraphicObjects.prototype =
                 return null;
         }
         this.handleEventMode = HANDLE_EVENT_MODE_CURSOR;
+        var savedNoNeedUpdateCursorType = this.noNeedUpdateCursorType;
+        this.noNeedUpdateCursorType = true;
         var cursor_type = this.nullState.onMouseDown(global_mouseEvent, x, y, pageIndex);
+        this.noNeedUpdateCursorType = savedNoNeedUpdateCursorType;
         this.handleEventMode = HANDLE_EVENT_MODE_HANDLE;
         var object;
         if(cursor_type )
@@ -3725,7 +3728,10 @@ CGraphicObjects.prototype =
     {
         var ret;
         this.handleEventMode = HANDLE_EVENT_MODE_CURSOR;
+        var savedNoNeedUpdateCursorType = this.noNeedUpdateCursorType;
+        this.noNeedUpdateCursorType = true;
         ret = this.curState.onMouseDown(global_mouseEvent, x, y, pageIndex);
+        this.noNeedUpdateCursorType = savedNoNeedUpdateCursorType;
         this.handleEventMode = HANDLE_EVENT_MODE_HANDLE;
         if(isRealObject(ret))
         {
