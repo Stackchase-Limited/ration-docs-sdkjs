@@ -1196,6 +1196,7 @@
 		drawingConstructorsMap[AscDFH.historyitem_CNvPr_SetHlinkClick] = CT_Hyperlink;
 		drawingConstructorsMap[AscDFH.historyitem_CNvPr_SetHlinkHover] = CT_Hyperlink;
 		drawingConstructorsMap[AscDFH.historyitem_CustomPropertiesAddProperty] = CCustomProperty;
+		drawingConstructorsMap[AscDFH.historyitem_CSld_SetBg] = CBg;
 
 		AscDFH.changesFactory[AscDFH.historyitem_DefaultShapeDefinition_SetSpPr] = CChangesDrawingsObject;
 		AscDFH.changesFactory[AscDFH.historyitem_DefaultShapeDefinition_SetBodyPr] = CChangesDrawingsObjectNoId;
