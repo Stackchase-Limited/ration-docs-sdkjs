@@ -349,6 +349,19 @@
 	return this;
   }
 
+  WorkbookView.prototype._isActiveCellDynamicArrayNotMain = function () {
+    if (!AscCommonExcel.bIsSupportDynamicArrays) {
+      return false;
+    }
+    var ws = this.getWorksheet();
+    var selection = ws && ws.model.getSelection();
+    var activeCell = selection && selection.activeCell;
+    if (!activeCell) {
+      return false;
+    }
+    return ws.model.dynamicArrayManager.isSpilledNotFirstCell(activeCell.col, activeCell.row);
+  };
+
   WorkbookView.prototype._init = function(fontRenderingMode) {
     var self = this;
 
@@ -1299,9 +1312,12 @@
       if (this.lastSendInfoRangeIsSelectOnShape) {
         this.input.disabled = true;
         this.input.value = '';
+        this.input.style.color = '';
       } else {
         this.input.disabled = false;
         this.input.value = this.oSelectionInfo.text;
+        // spilled (non-anchor) dynamic array cell: show the anchor's formula greyed out
+        this.input.style.color = this._isActiveCellDynamicArrayNotMain() ? 'rgb(150, 150, 150)' : '';
       }
 	  AscCommon.applyElementDirection(this.input);
     }

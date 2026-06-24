@@ -19629,10 +19629,20 @@ function isAllowPasteLink(pastedWb) {
 		// Hide comment edit window
 		this.model.workbook.handlers.trigger("asc_onHideComment");
 
-		var _fragmentsTmp = c.getValueForEdit2();
+		var isDynamicArrayNotMainCell = AscCommonExcel.bIsSupportDynamicArrays &&
+			this.model.dynamicArrayManager.isSpilledNotFirstCell(col, row);
+
 		var fragments = [];
-		for (var i = 0; i < _fragmentsTmp.length; ++i) {
-			fragments.push(_fragmentsTmp[i].clone());
+		if (isDynamicArrayNotMainCell) {
+			var emptyFragment = new AscCommonExcel.Fragment();
+			emptyFragment.setFragmentText("");
+			emptyFragment.format = font.clone();
+			fragments.push(emptyFragment);
+		} else {
+			var _fragmentsTmp = c.getValueForEdit2();
+			for (var i = 0; i < _fragmentsTmp.length; ++i) {
+				fragments.push(_fragmentsTmp[i].clone());
+			}
 		}
 
 		var arrAutoComplete = this.getCellAutoCompleteValues(cell, kMaxAutoCompleteCellEdit);
@@ -19654,6 +19664,9 @@ function isAllowPasteLink(pastedWb) {
 			bbox: c.bbox,
 			cellNumFormat: c.getNumFormatType(),
 			saveValueCallback: function (val, flags, callback) {
+				if (isDynamicArrayNotMainCell && 0 === AscCommonExcel.getFragmentsText(val).length) {
+					return callback ? callback(true) : true;
+				}
 				var saveCellValueCallback = function (success) {
 					if (!success) {
 						if (callback) {

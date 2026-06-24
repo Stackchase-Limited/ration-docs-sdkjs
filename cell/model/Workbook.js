@@ -25800,6 +25800,11 @@
 		return res;
 	};
 
+	CDynamicArrayManager.prototype.isSpilledNotFirstCell = function (col, row) {
+		const ref = this.getDynamicArrayFirstCell(col, row);
+		return !!(ref && (col !== ref.c1 || row !== ref.r1));
+	};
+
 	CDynamicArrayManager.prototype.addChangedArray = function (rangeName, arrayInfo) {
 		if (!rangeName || !arrayInfo) {
 			return;
