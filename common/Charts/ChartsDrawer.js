@@ -781,7 +781,7 @@ CChartsDrawer.prototype =
 						if(legend && legend.legendPos === c_oAscChartLegendShowSettings.top) {
 							y += legend.extY + (standartMarginForCharts / 2) / pxToMM;
 						}
-						if (title !== null && !title.overlay) {
+						if (title !== null && !title.getOverlay()) {
 							y += title.extY + (standartMarginForCharts / 2) / pxToMM;
 						}
 						break;
@@ -823,7 +823,7 @@ CChartsDrawer.prototype =
 						if(legend && legend.legendPos === c_oAscChartLegendShowSettings.top) {
 							y += legend.extY + (standartMarginForCharts / 2) / pxToMM;
 						}
-						if (title !== null && !title.overlay) {
+						if (title !== null && !title.getOverlay()) {
 							y += title.extY + (standartMarginForCharts / 2) / pxToMM;
 						}
 						break;
@@ -905,7 +905,7 @@ CChartsDrawer.prototype =
 				x = this.calcProp.widthCanvas / 2 / this.calcProp.pxToMM - widthLegend / 2;
 				y = standartMarginForCharts / 2 / this.calcProp.pxToMM;
 
-				if (legend.parent.title !== null && !legend.parent.title.overlay) {
+				if (legend.parent.title !== null && !legend.parent.title.getOverlay()) {
 					y += legend.parent.title.extY + standartMarginForCharts / 2 / this.calcProp.pxToMM;
 				}
 				break;
@@ -925,7 +925,7 @@ CChartsDrawer.prototype =
 				x = (this.calcProp.widthCanvas - standartMarginForCharts / 2) / this.calcProp.pxToMM - widthLegend;
 				y = standartMarginForCharts / 2 / this.calcProp.pxToMM;
 
-				if (legend.parent.title !== null && !legend.parent.title.overlay) {
+				if (legend.parent.title !== null && !legend.parent.title.getOverlay()) {
 					y += legend.parent.title.extY + standartMarginForCharts / 2 / this.calcProp.pxToMM;
 				}
 				break;
@@ -1046,7 +1046,7 @@ CChartsDrawer.prototype =
 
 		//TITLE
 		var topMainTitle = 0;
-		if (chartSpace.chart.title !== null && !chartSpace.chart.title.overlay) {
+		if (chartSpace.chart.title !== null && !chartSpace.chart.title.getOverlay()) {
 			topMainTitle += chartSpace.chart.title.extY;
 		}
 
