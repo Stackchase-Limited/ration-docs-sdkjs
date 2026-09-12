@@ -192,6 +192,44 @@ var c_oAscError = Asc.c_oAscError;
 		if (wbModel)
 			printOptionsObj["activeSheet"] = wbModel.getActive();
 
+		// Where inside a sheet the user is looking is view state too, and worse off
+		// than the active sheet. Nothing copies the live scroll position into
+		// Worksheet.sheetViews[0].topLeftCell while the user scrolls - the two
+		// WorksheetView calls to model.updateTopLeftCell are commented out - and the
+		// one path that does, WorkbookView.executeWithCurrentTopLeftCell, runs only
+		// around a full-binary write (cell/api.js asc_DownloadAs), which a desktop
+		// save does not do: it ships *changes*, which x2t applies to the Editor.bin
+		// written at open time. So the saved file carries the scroll position from
+		// when it was opened, and reopening lands on A1. Ship the live top-left cell
+		// of every sheet that has a view, as "<sheet index>:<A1-style ref>" pairs.
+		// ONLYOFFICE/DesktopEditors#1868.
+		var wbView = asc["editor"].wb;
+		if (wbView && wbView.wsViews) {
+			var aTopLeftCells = [];
+			for (var nSheet in wbView.wsViews) {
+				var oWS = wbView.wsViews[nSheet];
+				if (!oWS)
+					continue;
+				var oTopLeftCell = oWS.getCurrentTopLeftCell();
+				// null is the model's own way of spelling A1: see
+				// Worksheet.prototype.generateTopLeftCellFromRange, which returns it
+				// both for the origin and for the frozen-pane case it cannot express,
+				// and executeWithCurrentTopLeftCell, which stores exactly this value
+				// before a full-binary write. Send it explicitly, so that scrolling
+				// back to the top also clears a stale stored position.
+				// Formatted from the range rather than with getName(), because
+				// getName() honours g_R1C1Mode and the file format wants A1 style.
+				var sRef = "A1";
+				if (oTopLeftCell) {
+					sRef = AscCommon.g_oCellAddressUtils.colnumToColstr(oTopLeftCell.c1 + 1) +
+						(oTopLeftCell.r1 + 1);
+				}
+				aTopLeftCells.push(nSheet + ":" + sRef);
+			}
+			if (aTopLeftCells.length)
+				printOptionsObj["topLeftCells"] = aTopLeftCells.join(";");
+		}
+
 		return printOptionsObj;
 	};
 
