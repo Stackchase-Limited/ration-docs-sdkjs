@@ -6062,8 +6062,13 @@ background-repeat: no-repeat;\
 			let oImageObject = {};
 			oImageObject.src = sImageUrl;
 			oImageObject.Image = {};
-			oImageObject.Image.width = 50;
-			oImageObject.Image.height = 50;
+			/* The poster frame has just been loaded and checked, so use its real
+			 * size. Hardcoding 50 discarded it and made every inserted video or
+			 * audio clip a 50px box - about 13mm once addImages applies
+			 * g_dKoef_pix_to_mm - with no relation to the media's aspect ratio.
+			 * Fall back to the old constant if the decoded image reports nothing. */
+			oImageObject.Image.width = _image.Image.width > 0 ? _image.Image.width : 50;
+			oImageObject.Image.height = _image.Image.height > 0 ? _image.Image.height : 50;
 			if(sType === "localVideo") {
 				oImageObject.videoUrl = sLink;
 			}
