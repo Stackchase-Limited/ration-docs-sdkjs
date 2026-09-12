@@ -12910,7 +12910,7 @@ function isAllowPasteLink(pastedWb) {
         return d;
     };
 
-    WorksheetView.prototype._calcRangeOffset = function (range, diffRange, checkFrozen) {
+    WorksheetView.prototype._calcRangeOffset = function (range, diffRange, checkFrozen, opt_scrollToStart) {
         let vr = this.visibleRange;
         let ar = range || this._getSelection().getLast();
         if (this.getFormulaEditMode()) {
@@ -12962,11 +12962,18 @@ function isAllowPasteLink(pastedWb) {
 		if (checkFrozen && this.topLeftFrozenCell) {
 			let cFrozen = this.topLeftFrozenCell.getCol0();
 			let rFrozen = this.topLeftFrozenCell.getRow0();
+			// A cell inside a frozen pane is on screen already, so normally there is
+			// nothing to scroll to. Home and Ctrl+Home are the exception: the point of
+			// them is to bring the view itself back to the beginning, and the target
+			// cell is exactly the one that sits in the frozen pane - so without this
+			// the selection jumped to A1 while the sheet stayed where it was.
+			// When we do scroll, stop at the top-left of the unfrozen area: the frozen
+			// rows and columns are drawn separately and must not be scrolled into it.
 			if (ar.r2 < rFrozen) {
-				incY = 0;
+				incY = (opt_scrollToStart && opt_scrollToStart.row) ? Math.min(0, rFrozen - vr.r1) : 0;
 			}
 			if (ar.c2 < cFrozen) {
-				incX = 0;
+				incX = (opt_scrollToStart && opt_scrollToStart.col) ? Math.min(0, cFrozen - vr.c1) : 0;
 			}
 		}
 
@@ -14137,7 +14144,13 @@ function isAllowPasteLink(pastedWb) {
 			comment = this.cellCommentator.getComment(x, y, true);
 			// move active range to offset x,y
 			this._moveActiveCellToOffset(activeCell, x, y);
-			ret = this._calcRangeOffset(null, null, true);
+			// -2.5 is the "go to the beginning" offset (see _calcCellPosition): x for
+			// Home, x and y together for Ctrl+Home.
+			let isScrollToStart = function (d) {
+				return d < -2.0001 && d > -2.9999;
+			};
+			ret = this._calcRangeOffset(null, null, true,
+				{col: isScrollToStart(x), row: isScrollToStart(y)});
 		}
 
 		if (!comment) {
