@@ -1616,7 +1616,8 @@
 
 				var hyperlink;
 				if (cell) {
-					hyperlink = cell.getHyperlink();
+					// includes links produced by HYPERLINK(), not just stored ones
+					hyperlink = cell.getEffectiveHyperlink();
 				}
 
 				for (res = [], i = 0; i < val.length; ++i) {
@@ -1697,7 +1698,8 @@
 				var str = "";
 				var hyperlink;
 				if (cell) {
-					hyperlink = cell.getHyperlink();
+					// includes links produced by HYPERLINK(), not just stored ones
+					hyperlink = cell.getEffectiveHyperlink();
 				}
 
 				for (res = [], i = 0; i < val.length; ++i) {

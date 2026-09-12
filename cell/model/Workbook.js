@@ -20785,6 +20785,50 @@
 	Range.prototype.getHyperlinks=function(){
 		return this._getHyperlinks();
 	};
+	// The worksheet's hyperlink store only holds links that were inserted as such.
+	// A cell whose value comes from HYPERLINK() carries its target on the calculated
+	// value instead, which is why those cells are clickable in the grid but were
+	// losing their link everywhere the stored hyperlink is the only thing consulted
+	// - copying to another application, for one.
+	Range.prototype.getEffectiveHyperlink=function(){
+		var hyperlink = this.getHyperlink();
+		if (null != hyperlink) {
+			return hyperlink;
+		}
+
+		var res = null;
+		this._foreachNoEmpty(function(cell){
+			if (null != res || !cell.isFormula()) {
+				return;
+			}
+			cell.processFormula(function(formulaParsed){
+				if (null != res || !formulaParsed.getFormulaHyperlink()) {
+					return;
+				}
+				// After opening, the value may not be calculated yet.
+				if (null === formulaParsed.value || formulaParsed.getShared()) {
+					formulaParsed.calculate();
+				}
+
+				var value = formulaParsed.value;
+				var sTarget = null;
+				if (value && value.hyperlink) {
+					sTarget = value.hyperlink;
+				} else if (value && AscCommonExcel.cElementType.array === value.type) {
+					var oFirst = value.getElementRowCol(0, 0);
+					sTarget = oFirst && oFirst.hyperlink ? oFirst.hyperlink : null;
+				}
+
+				if (sTarget) {
+					res = new AscCommonExcel.Hyperlink();
+					res.Hyperlink = sTarget;
+					res.setHyperlinkFunction(true);
+				}
+			});
+		});
+
+		return res;
+	};
 	Range.prototype.setHyperlinkOpen=function(val){
 		if(null != val && false == val.isValid())
 			return;
