@@ -7545,6 +7545,23 @@
 		var oGradient1, oGradient2, aWeights, oRule, oRuleElement, bboxCf, formulaParent, parsed1, parsed2;
 		var o, l, cell, ranges, values, value, tmp, dxf, compareFunction, nc, sum;
 		this.sheetMergedStyles.clearConditionalStyle(range);
+		// A broken conditional formatting rule must not be able to take down the editor.
+		// compareFunction is called from the style/render path, so an exception thrown here
+		// escapes to window.onerror, which reports EditingError and forces view mode -
+		// the document then cannot be edited at all. Degrade to "no formatting" instead.
+		var getSafeCompareFunction = function(rule, func) {
+			return function(row, col) {
+				try {
+					return func(row, col);
+				} catch (e) {
+					if (!rule.cfEvalFailed) {
+						rule.cfEvalFailed = true;
+						AscCommon.consoleLog("conditional formatting rule evaluation failed: " + e);
+					}
+					return null;
+				}
+			};
+		};
 		var getCacheFunction = function(rule, setFunc) {
 			var cache = {
 				cache: {},
@@ -7911,7 +7928,7 @@
 						}
 					}
 					if (compareFunction) {
-						this.sheetMergedStyles.setConditionalStyle(oRule, ranges, compareFunction);
+						this.sheetMergedStyles.setConditionalStyle(oRule, ranges, getSafeCompareFunction(oRule, compareFunction));
 					}
 				}
 			}
