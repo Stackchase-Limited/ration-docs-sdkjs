@@ -1874,6 +1874,7 @@ function (window, undefined) {
 		this.curLeft = curLeft;
 		this.curTop = curTop;
 		this.curHeight = curHeight;
+		this.curLineIndex = cur !== null ? cur.lineIndex : undefined;
 
 		if (!window['IS_NATIVE_EDITOR']) {
 
@@ -1948,6 +1949,16 @@ function (window, undefined) {
 				}
 			}
 		};
+		let getLineIndexByBegin = function (_curPos) {
+			if (!t.textRender || !t.textRender.lines) {
+				return;
+			}
+			for (var i = 0; i < t.textRender.lines.length; i++) {
+				if (t.textRender.lines[i].beg === _curPos) {
+					return i;
+				}
+			}
+		};
 		let oldCursorPos = t.cursorPos, _lineIndex;
 		switch (kind) {
 			case kPrevChar:
@@ -1971,7 +1982,21 @@ function (window, undefined) {
 				t.cursorPos = t.textRender.getNextWord(t.cursorPos);
 				break;
 			case kBeginOfLine:
+				// in wrapped text the beginning of a line and the end of the previous one share the
+				// same char index, so resolve it against the line the cursor is drawn on
+				_lineIndex = t.curLineIndex;
+				if (_lineIndex != null && t.textRender.lines && t.textRender.lines[_lineIndex] &&
+					t.cursorPos === t.textRender.lines[_lineIndex].beg) {
+					// already at the beginning of the current line
+					lineIndex = _lineIndex;
+					break;
+				}
 				t.cursorPos = t.textRender.getBeginOfLine(t.cursorPos);
+				// ... and point the renderer at the line we have moved to
+				_lineIndex = getLineIndexByBegin(t.cursorPos);
+				if (_lineIndex != null) {
+					lineIndex = _lineIndex;
+				}
 				break;
 			case kEndOfLine:
 				t.cursorPos = t.textRender.getEndOfLine(t.cursorPos);
