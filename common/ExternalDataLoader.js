@@ -161,21 +161,53 @@
 	CExternalDataPromiseGetter.prototype.resolveStream = function (arrStream, fResolve) {
 		fResolve({stream: arrStream, externalReferenceId: this.externalReference, data: this.data});
 	};
+	/* x2t reports a failure as its process exit code, which the desktop shell now passes
+	   through to the convertFile callback. These are the AVS_FILEUTILS_ERROR_* offsets, so the
+	   small numbers rather than the full values: 90 is ..._CONVERT_DRM and 91 ..._CONVERT_PASSWORD.
+	   They are the same two the main document's own open path treats as "ask for a password". */
+	const c_nConvertErrorDRM = 90;
+	const c_nConvertErrorPassword = 91;
+
+	CExternalDataPromiseGetter.prototype.isPasswordConvertError = function (nError) {
+		return c_nConvertErrorDRM === nError || c_nConvertErrorPassword === nError;
+	};
 	CExternalDataPromiseGetter.prototype.getLocalDesktopPromise = function () {
 		const oThis = this;
 		return new Promise(function (resolve) {
-			if (oThis.fileUrl) {
-				window["AscDesktopEditor"]["convertFile"](oThis.fileUrl, 0x2002, function (_file) {
+			if (!oThis.fileUrl) {
+				oThis.resolveStream(null, resolve);
+				return;
+			}
+
+			const fConvert = function (sPassword, isRetry) {
+				window["AscDesktopEditor"]["convertFile"](oThis.fileUrl, 0x2002, function (_file, nError) {
 					let arrStream = null;
 					if (_file) {
 						arrStream = new Uint8Array(_file["get"]());
 						_file["close"]();
 					}
+
+					/* The referenced workbook is encrypted. Every failure used to arrive as a bare
+					   null and become #REF! with nothing ever asking for a password, which is the
+					   defect - refusing to read an encrypted workbook is right, refusing without
+					   asking is not. There is still no prompt for an external reference, but the
+					   password the user already gave for this document is worth one attempt: a
+					   workbook and the workbook it references are very often protected with the
+					   same one. It never leaves the machine - it goes to the local converter, which
+					   either decrypts the file or does not. https://.../issues/2252 */
+					if (!arrStream && !isRetry && oThis.isPasswordConvertError(nError)) {
+						const sDocumentPassword = oThis.api && oThis.api.currentPassword;
+						if (sDocumentPassword) {
+							fConvert(sDocumentPassword, true);
+							return;
+						}
+					}
+
 					oThis.resolveStream(arrStream, resolve);
-				});
-			} else {
-				oThis.resolveStream(null, resolve);
-			}
+				}, sPassword);
+			};
+
+			fConvert("", false);
 		});
 	};
 
