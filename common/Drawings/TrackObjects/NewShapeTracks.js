@@ -785,14 +785,27 @@ function NewShapeTrack(presetGeom, startX, startY, theme, master, layout, slide,
                     var bNeedCheckExtents = false;
                     if(drawingObjects){
                         if((drawingObjects.cSld || Asc.editor.isPdfEditor()) && !this.isPlaceholderTrack()) {
+                            /* #2442: this was always text_fit_Auto, and the extents check below
+                               then resized the box to its content - keeping the width that was
+                               drawn but collapsing the height to a single line, before anything
+                               had been typed. Honour the configured default instead; it is
+                               text_fit_Auto unless the user has chosen otherwise, so the old
+                               behaviour is what happens by default. Only run the extents check
+                               for text_fit_Auto: for the other two the whole point is that the
+                               size the user drew is the size they get. */
+                            let nDefaultAutoFit = AscFormat.text_fit_Auto;
+                            if (Asc.editor && Asc.editor.asc_getDefaultTextBoxAutoFit) {
+                                nDefaultAutoFit = Asc.editor.asc_getDefaultTextBoxAutoFit();
+                            }
+
                             body_pr.textFit = new AscFormat.CTextFit();
-                            body_pr.textFit.type = AscFormat.text_fit_Auto;
+                            body_pr.textFit.type = nDefaultAutoFit;
                             if (isClickMouseEvent) {
                                 body_pr.wrap = AscFormat.nTWTNone;
                             } else {
                                 body_pr.wrap = AscFormat.nTWTSquare;
                             }
-                            bNeedCheckExtents = true;
+                            bNeedCheckExtents = (AscFormat.text_fit_Auto === nDefaultAutoFit);
                         }
                         else{
                             body_pr.vertOverflow = AscFormat.nVOTClip;

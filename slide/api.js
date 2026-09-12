@@ -6861,6 +6861,30 @@ background-repeat: no-repeat;\
         return -1;
     };
 
+    /* #2442: the AutoFit a newly drawn text box starts with. Dragging a box to a size is
+       an explicit statement of the size wanted, but a new box was always created with
+       text_fit_Auto ("resize shape to fit text"), which collapses it to a single line
+       before anything has been typed - so the size the user just drew is discarded and
+       they have to set "Do not Autofit" on every box by hand.
+       Unset means text_fit_Auto, so nothing changes for anyone who does not ask for it.
+       https://github.com/ONLYOFFICE/DesktopEditors/issues/2442 */
+    asc_docs_api.prototype.asc_setDefaultTextBoxAutoFit = function(nType)
+    {
+        if (AscFormat.text_fit_No !== nType
+            && AscFormat.text_fit_Auto !== nType
+            && AscFormat.text_fit_NormAuto !== nType)
+            return false;
+
+        this.defaultTextBoxAutoFit = nType;
+        return true;
+    };
+    asc_docs_api.prototype.asc_getDefaultTextBoxAutoFit = function()
+    {
+        return (undefined === this.defaultTextBoxAutoFit)
+            ? AscFormat.text_fit_Auto
+            : this.defaultTextBoxAutoFit;
+    };
+
 	asc_docs_api.prototype.asc_getInputLanguage = function()
 	{
 		let keyboardLang = this.asc_getKeyboardLanguage();
@@ -9982,6 +10006,8 @@ background-repeat: no-repeat;\
     asc_docs_api.prototype['asc_spellCheckClearDictionary']       = asc_docs_api.prototype.asc_spellCheckClearDictionary;
     asc_docs_api.prototype['asc_setDefaultLanguage']              = asc_docs_api.prototype.asc_setDefaultLanguage;
     asc_docs_api.prototype['asc_getDefaultLanguage']              = asc_docs_api.prototype.asc_getDefaultLanguage;
+    asc_docs_api.prototype['asc_setDefaultTextBoxAutoFit']        = asc_docs_api.prototype.asc_setDefaultTextBoxAutoFit;
+    asc_docs_api.prototype['asc_getDefaultTextBoxAutoFit']        = asc_docs_api.prototype.asc_getDefaultTextBoxAutoFit;
     asc_docs_api.prototype['asc_getKeyboardLanguage']             = asc_docs_api.prototype.asc_getKeyboardLanguage;
     asc_docs_api.prototype['asc_getInputLanguage']                = asc_docs_api.prototype.asc_getInputLanguage;
     asc_docs_api.prototype['asc_setSpellCheck']                   = asc_docs_api.prototype.asc_setSpellCheck;
