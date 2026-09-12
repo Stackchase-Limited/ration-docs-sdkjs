@@ -1782,7 +1782,8 @@ CDocument.prototype.private_UpdateFieldsOnEndLoad = function()
 		let oField = arrFields[nFieldIndex];
 		if (oField instanceof CComplexField
 			&& oField.GetInstruction()
-			&& AscWord.fieldtype_TIME === oField.GetInstruction().Type)
+			&& (AscWord.fieldtype_TIME === oField.GetInstruction().Type
+				|| AscWord.fieldtype_DATE === oField.GetInstruction().Type))
 		{
 			oField.UpdateTIME(openedAt);
 		}
