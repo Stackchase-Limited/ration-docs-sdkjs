@@ -7743,7 +7743,16 @@
 									return false;
 								};
 							})(oRule, oRule.aRuleElements[0],
-								new AscCommonExcel.CConditionalFormattingFormulaParent(this, oRule, true),
+								// 't', not 'this': this file is strict mode and doExpression is
+								// invoked bare (below, and in the cellIs branch), so 'this' here
+								// is undefined and the formula parent would be built with no
+								// worksheet. The dependency graph then notifies the formula and
+								// onFormulaEvent's Change case throws on this.ws, which the
+								// global handler turns into EditingError and a read-only
+								// document. Every sibling branch of the switch builds this same
+								// parent from the method body, where 'this' is the worksheet.
+								// ONLYOFFICE/DesktopEditors#2418.
+								new AscCommonExcel.CConditionalFormattingFormulaParent(t, oRule, true),
 								bboxCf ? bboxCf.r1 : 0, bboxCf ? bboxCf.c1 : 0));
 						};
 
