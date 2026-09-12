@@ -6041,7 +6041,7 @@ var editor;
 
 	spreadsheet_api.prototype.asc_getKeyboardLanguage = function () {
 		if (undefined !== window["asc_current_keyboard_layout"]) {
-			return window["asc_current_keyboard_layout"];
+			return AscCommon.checkKeyboardLanguageId(window["asc_current_keyboard_layout"]);
 		}
 		return -1;
 	};

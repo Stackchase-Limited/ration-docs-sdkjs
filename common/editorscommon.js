@@ -15612,6 +15612,37 @@
 		return value < min ? min : value > max ? max : value;
 	}
 
+	var g_oSpellcheckLanguagesCache = null;
+
+	/* The desktop shell reports whatever LANGID Windows/macOS/Linux says the active
+	   keyboard layout carries, and the editors adopt it verbatim as the language of
+	   the text typed next. A custom MSKLC layout, or one like "Russian (Ukraine)"
+	   that has no LCID of its own, reports 0x2000 (8192): its primary-language field
+	   (& 0x3FF) is LANG_NEUTRAL, so it is not a language at all, no dictionary can
+	   match it, and spell check silently stops underlining anything. Accept only a
+	   LANGID one of the two authorities recognises - the LCID name table, or the
+	   installed dictionary map - and return -1 otherwise, which is the value the
+	   callers already read as "no keyboard language", leaving the language already
+	   on the document alone.
+	   https://github.com/ONLYOFFICE/DesktopEditors/issues/1179
+	   https://github.com/ONLYOFFICE/DesktopEditors/issues/402 */
+	function checkKeyboardLanguageId(nLangId)
+	{
+		if (!Number.isInteger(nLangId) || nLangId <= 0)
+			return -1;
+
+		if (undefined !== languages[nLangId])
+			return nLangId;
+
+		if (null === g_oSpellcheckLanguagesCache && AscCommon.spellcheckGetLanguages)
+			g_oSpellcheckLanguagesCache = AscCommon.spellcheckGetLanguages();
+
+		if (g_oSpellcheckLanguagesCache && undefined !== g_oSpellcheckLanguagesCache[nLangId])
+			return nLangId;
+
+		return -1;
+	}
+
 	//------------------------------------------------------------export---------------------------------------------------
 	window['AscCommon'] = window['AscCommon'] || {};
 	window["AscCommon"].consoleLog = consoleLog;
@@ -15860,6 +15891,7 @@
 	window["AscCommon"].cStrucTableReservedWords = cStrucTableReservedWords;
 	window["AscCommon"].getArrayRandomElement = getArrayRandomElement;
 	window["AscCommon"].rx_error = rx_error;
+	window["AscCommon"].checkKeyboardLanguageId = checkKeyboardLanguageId;
 })(window);
 
 window["asc_initAdvancedOptions"] = function(_code, _file_hash, _docInfo, csv_data)
