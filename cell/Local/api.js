@@ -181,6 +181,17 @@ var c_oAscError = Asc.c_oAscError;
 		printOptionsObj["documentLayout"] = { "openedAt" : asc["editor"].openedAt };
 		printOptionsObj["locale"] = asc["editor"].asc_getLocale();
 		printOptionsObj["translate"] = AscCommon.translateManager.mapTranslate;
+
+		// Which sheet the user is on is pure view state: Workbook.prototype.setActive
+		// writes nActive with no History entry, so it never enters the change stream.
+		// A desktop save ships *changes*, which x2t applies to the Editor.bin written
+		// when the document was opened, so the activeTab stored there is whatever it
+		// was at open time - and that is the sheet x2t exports to CSV. Ship the real
+		// one in the save parameters instead. ONLYOFFICE/DesktopEditors#1839.
+		var wbModel = asc["editor"].wbModel;
+		if (wbModel)
+			printOptionsObj["activeSheet"] = wbModel.getActive();
+
 		return printOptionsObj;
 	};
 
