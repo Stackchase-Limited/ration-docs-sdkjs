@@ -117,6 +117,7 @@
 
 		this.Button = g_mouse_button_left;          // mouse button
 		this.ButtonOverride = -1;
+		this.IsMacSecondaryClick = false;           // macOS Control+click, held for the matching mouseup
 		this.Type   = g_mouse_event_type_move;      // event type
 
 		this.AltKey   = false;                        // is alt key pressed
@@ -352,10 +353,26 @@
 		return e;
 	}
 
+	/* On macOS a primary click with the Control key held is the system secondary
+	   click. The editors suppress the DOM contextmenu event and raise their own menu
+	   from Button === 2, so this normalisation is the only place the gesture can be
+	   recognised. Deliberately narrow: Cmd+click stays a primary click (Cmd is folded
+	   into CtrlKey for shortcuts but is not the secondary-click modifier), and on
+	   every other platform Ctrl+click means add-to-selection. If a future Chromium
+	   delivers button 2 for this gesture itself, the guard simply never fires.
+	   https://.../issues/2262 */
+	function isMacSecondaryClick(e)
+	{
+		return !!(AscBrowser.isMacOs && e && 0 === e.button && e.ctrlKey && !e.metaKey);
+	}
+
 	function getMouseButton(e)
 	{
 		if (-1 !== global_mouseEvent.ButtonOverride)
 			return global_mouseEvent.ButtonOverride;
+		// the flag keeps the mouseup on button 2 even if Control is released first
+		if (isMacSecondaryClick(e) || (global_mouseEvent.IsMacSecondaryClick && e && 0 === e.button))
+			return g_mouse_button_right;
 		var res = e.button;
 		return (res && -1 !== res) ? res : 0;
 	}
@@ -386,6 +403,12 @@
 
 		global_mouseEvent.Type   = g_mouse_event_type_up;
 		global_mouseEvent.Button = getMouseButton(e);
+		if (global_mouseEvent.IsMacSecondaryClick)
+		{
+			global_mouseEvent.CtrlKey        = false;
+			global_keyboardEvent.CtrlKey     = false;
+			global_mouseEvent.IsMacSecondaryClick = false;
+		}
 
 		var lockedElement = null;
 
@@ -466,7 +489,14 @@
 
 		global_mouseEvent.Type   = g_mouse_event_type_down;
 		let oldButton = global_mouseEvent.Button;
+		global_mouseEvent.IsMacSecondaryClick = isMacSecondaryClick(e);
 		global_mouseEvent.Button = getMouseButton(e);
+		if (global_mouseEvent.IsMacSecondaryClick)
+		{
+			// Control is part of the gesture here, not a modifier held during it
+			global_mouseEvent.CtrlKey        = false;
+			global_keyboardEvent.CtrlKey     = false;
+		}
 
 		if (!global_mouseEvent.IsLocked || !global_mouseEvent.Sender)
 			global_mouseEvent.Sender = (e.srcElement) ? e.srcElement : e.target;
