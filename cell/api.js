@@ -7088,14 +7088,20 @@ var editor;
 	   _adjustPrint.asc_setPrintType(Asc.c_oAscPrintType.EntireWorkbook);
 	   if (_options["adjustOptions"])
 	   {
-		   if (_options["adjustOptions"]["startPageIndex"])
-			   _adjustPrint.asc_setStartPageIndex(_options["adjustOptions"]["startPageIndex"]);
-		   if (_options["adjustOptions"]["endPageIndex"])
-			   _adjustPrint.asc_setEndPageIndex(_options["adjustOptions"]["endPageIndex"]);
-		   if (_options["adjustOptions"]["activeSheetsArray"])
-			   _adjustPrint.asc_setActiveSheetsArray(_options["adjustOptions"]["activeSheetsArray"]);
-		   if (_options["adjustOptions"]["printType"])
-			   _adjustPrint.asc_setPrintType(_options["adjustOptions"]["printType"]);
+		   /* Test for presence, not truth. c_oAscPrintType.ActiveSheets is 0 and
+		    * startPageIndex is 0-based, so a plain truthiness check silently drops
+		    * both - which left the EntireWorkbook default above in place and printed
+		    * or exported the whole workbook when the user had asked for the active
+		    * sheets. */
+		   var _adjust = _options["adjustOptions"];
+		   if (undefined !== _adjust["startPageIndex"] && null !== _adjust["startPageIndex"])
+			   _adjustPrint.asc_setStartPageIndex(_adjust["startPageIndex"]);
+		   if (undefined !== _adjust["endPageIndex"] && null !== _adjust["endPageIndex"])
+			   _adjustPrint.asc_setEndPageIndex(_adjust["endPageIndex"]);
+		   if (_adjust["activeSheetsArray"])
+			   _adjustPrint.asc_setActiveSheetsArray(_adjust["activeSheetsArray"]);
+		   if (undefined !== _adjust["printType"] && null !== _adjust["printType"])
+			   _adjustPrint.asc_setPrintType(_adjust["printType"]);
 	   }
 
 
