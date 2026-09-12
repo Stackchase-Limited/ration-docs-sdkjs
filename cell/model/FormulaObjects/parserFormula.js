@@ -11312,10 +11312,27 @@ function parserFormula( formula, parent, _ws ) {
 					continue;
 				}
 				const nIndexNumValue = oNumber.toNumber() - 1;
+				// A defined name has no getRange - resolve it to the reference it stands for first.
+				if (oTableArrayArg.type === cElementType.name || oTableArrayArg.type === cElementType.name3D) {
+					oTableArrayArg = oTableArrayArg.toRef();
+				}
+				if (!oTableArrayArg || !oTableArrayArg.getRange) {
+					continue;
+				}
+				const oTableArrayArgRange = oTableArrayArg.getRange();
+				if (!oTableArrayArgRange) {
+					continue;
+				}
+				const oTableArrayArgBBox = oTableArrayArgRange.getBBox0();
 				const nIndexTableArray = aRefElements.findIndex(function (oElem) {
-					return oElem.getRange().getBBox0().isEqualAll(oTableArrayArg.getRange().getBBox0());
+					// aRefElements also holds defined names and other elements without getRange.
+					if (!oElem.getRange) {
+						return false;
+					}
+					const oElemRange = oElem.getRange();
+					return !!oElemRange && oElemRange.getBBox0().isEqualAll(oTableArrayArgBBox);
 				});
-				const oTableArrayRange = oTableArrayArg.getRange().clone();
+				const oTableArrayRange = oTableArrayArgRange.clone();
 				const oTableArrayBbox = oTableArrayRange.getBBox0();
 				// Updating Range according index_num value
 				if (oOutStackElem.name === 'VLOOKUP' && nIndexNumValue >= 0) {
