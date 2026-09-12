@@ -3133,6 +3133,15 @@
 		if (this.canSave && this._saveCheck() && this.canSendChanges()) {
 			this.IsUserSave = !isAutoSave;
 
+			/* _prepareSave commits an edit that is still open in an inline editor, and
+			   the pending text only becomes a history change once that editor closes.
+			   So it has to run before we ask whether there is anything to save: asking
+			   first sees the pre-edit state, finds nothing, and drops the typed value
+			   on the floor without telling anyone. https://.../issues/963 */
+			if (!this._prepareSave(isIdle)) {
+				return res;
+			}
+
 			if (this.asc_isDocumentCanSave()
 				|| this._haveChanges()
 				|| this._haveOtherChanges()
@@ -3141,14 +3150,12 @@
 				|| this.forceSaveSendFormRequest
 				|| this.forceSaveDisconnectRequest
 				|| this.forceSaveOformRequest) {
-				if (this._prepareSave(isIdle)) {
-					// Don't allow user to save until save completes (if it started)
-					this.canSave = false;
-					this.CoAuthoringApi.askSaveChanges(function (e) {
-						t._onSaveCallback(e);
-					});
-					res = true;
-				}
+				// Don't allow user to save until save completes (if it started)
+				this.canSave = false;
+				this.CoAuthoringApi.askSaveChanges(function (e) {
+					t._onSaveCallback(e);
+				});
+				res = true;
 			} else if (this.isForceSaveOnUserSave && this.IsUserSave) {
 				this.forceSave();
 			}
