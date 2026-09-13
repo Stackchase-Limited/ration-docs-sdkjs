@@ -2123,8 +2123,25 @@
 
 			this._foreachChanged(function (oCell) {
 				if (oCell) {
+					/* #2426: sample the collapsed state before recalculating, because
+					   recalculating is what changes it. parserFormula.calculate() clears aca/ca
+					   the moment a dynamic array fits again (parserFormula.js, the
+					   checkDynamicRangeByElement branch), so a formula going from collapsed back
+					   to spilled - FILTER whose condition stops matching and then matches again -
+					   had already lost the flag by the time this test ran, was never added to the
+					   volatile list, and so never had its spill re-expanded. Its own cell showed
+					   the new value and the rest of the range stayed blank, which is the report.
+					   Taking it in either state covers both directions: collapsing still schedules
+					   the pass that clears the old spill, and re-expanding now schedules the pass
+					   that writes it back. */
+					const oFormulaBefore = oCell.formulaParsed;
+					const bWasCollapsedDynamicArray = !!(oFormulaBefore && AscCommonExcel.bIsSupportDynamicArrays
+						&& (oFormulaBefore.getDynamicRef() || oFormulaBefore.getArrayFormulaRef())
+						&& oFormulaBefore.aca && oFormulaBefore.ca);
+
 					oCell._checkDirty();
-					if (oCell.formulaParsed && AscCommonExcel.bIsSupportDynamicArrays && (oCell.formulaParsed.getDynamicRef() || oCell.formulaParsed.getArrayFormulaRef()) && oCell.formulaParsed.aca && oCell.formulaParsed.ca) {
+					if (oCell.formulaParsed && AscCommonExcel.bIsSupportDynamicArrays && (oCell.formulaParsed.getDynamicRef() || oCell.formulaParsed.getArrayFormulaRef())
+						&& (bWasCollapsedDynamicArray || (oCell.formulaParsed.aca && oCell.formulaParsed.ca))) {
 						t.addToVolatileArrays(oCell.formulaParsed);
 					}
 					// Enable calculating formula for next cell in chain
