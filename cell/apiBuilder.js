@@ -10279,7 +10279,17 @@
 		let worksheet = this.range.worksheet;
 
 		if (worksheet.getSheetProtection() && worksheet.isIntersectLockedRanges([this.range.bbox])) {
-			//throwException(new Error('Cannot modify protected sheet'));
+			/* #2234: "there is no error message; they are simply not executed". This
+			   returned false and said nothing, so a macro writing to a locked cell on a
+			   protected sheet did nothing at all and reported nothing - and a macro
+			   rarely looks at a return value.
+
+			   Refusing the write is right; Excel will not let VBA write through sheet
+			   protection either. Refusing it in silence is not. Every other place in
+			   this file that hits the same condition throws - twenty-five of them - and
+			   this one line was commented out, in the one method a macro is most likely
+			   to call. */
+			throwException(new Error('Cannot modify protected sheet'));
 			return false;
 		}
 
