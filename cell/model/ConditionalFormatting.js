@@ -2970,8 +2970,20 @@
 					let ws = oWB.getActiveWs();
 					if (ws) {
 						let _f = new AscCommonExcel.parserFormula(val, null, ws);
-						_f.parse(true, true);
-						val = _f.assembleLocale(AscCommonExcel.cFormulaFunctionToLocale, true);
+						/* #2328: this parses the text as the user typed it - in their
+						   locale, so "0,5" and ";" - and then used to assemble it back
+						   into that same locale. The whole point of this function is to
+						   come *from* the interface, so what it stored was locale text,
+						   which every reader afterwards parses with the non-locale
+						   parse() and gets wrong. With a comma decimal separator the
+						   rule silently stopped matching.
+
+						   recalcFormula makes the same distinction correctly two
+						   hundred lines above: assembleLocale going out to the
+						   interface, assemble coming back from it. */
+						if (_f.parse(true, true)) {
+							val = _f.assemble();
+						}
 					}
 				}
 			}
