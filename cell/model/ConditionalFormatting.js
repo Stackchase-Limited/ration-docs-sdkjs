@@ -2142,6 +2142,8 @@
 	function CFormulaCF() {
 		this.Text = null;
 		this._f = null;
+		// #2269: whether _f was built with a parent. See CFormulaCF.prototype.init.
+		this._fHasParent = false;
 
 		return this;
 	}
@@ -2172,6 +2174,29 @@
 		return val.Text === this.Text;
 	};
 	CFormulaCF.prototype.init = function (ws, opt_parent) {
+		/* #2269: conditional formatting stopped applying after a file was reopened. The
+		   rules were all still there with the right ranges and the right formula - they
+		   simply never evaluated, until an edit to any cell made them appear.
+
+		   Two callers reach this. The evaluation path in _updateConditionalFormatting
+		   passes a CConditionalFormattingFormulaParent, which is what a relative
+		   reference in the rule resolves against and what buildDependencies() needs.
+		   Serialize.js calls initRules(ws) while loading the file, which gets here with
+		   no parent at all.
+
+		   Before 5d44c3d3d3 ("[se] By bug 74483", 2025-10-17) the load path did not call
+		   this, so the first init was the parented one and everything was built. That
+		   commit made the load path call it - to correct and reassemble the stored text -
+		   and the `if (!this._f)` guard then swallowed the parented call that came later:
+		   no parent, and no dependencies, for the rest of the session.
+
+		   Keep the text correction, and rebuild once when a parent finally arrives. The
+		   first parented caller wins and is then kept, which is exactly what happened
+		   before that commit - the parent object is created afresh on each update, so
+		   comparing it would rebuild forever. */
+		if (this._f && opt_parent && !this._fHasParent) {
+			this._f = null;
+		}
 		if (!this._f) {
 			this._f = new AscCommonExcel.parserFormula(this.Text, opt_parent, ws);
 			var parseResult = new AscCommonExcel.ParseResult([]);
@@ -2181,6 +2206,7 @@
 				this.Text = this._f.assemble(true);
 			}
 			if (opt_parent) {
+				this._fHasParent = true;
 				//todo realize removeDependencies
 				this._f.buildDependencies();
 			}
