@@ -1941,6 +1941,54 @@ Paragraph.prototype.GetNumberingText = function(bWithoutLvlText)
  * Получаем рассчитанное значение нумерации для данного параграфа вместе с суффиксом
  * @returns {string}
  */
+/**
+ * #2250: a bulleted list copied out of the editor pasted as an unreadable character.
+ *
+ * A bullet is not a bullet character - it is a byte in a symbol font. Our own default
+ * is 0x00B7 in Symbol (NumberingLvl.js), and a document written by Word stores the same
+ * thing shifted into the private use area as 0xF0B7. Either way the glyph only means
+ * "bullet" while the font travels with it.
+ *
+ * The HTML clipboard flavour is fine - it emits a real <li list-style-type:disc> and the
+ * receiving application draws its own bullet. The text/plain flavour has nowhere to put
+ * a font, and was handing over the raw codepoint, so anything that preferred plain text
+ * got a private use character and drew a box.
+ *
+ * Map the ones this product actually produces to their Unicode equivalents. Deliberately
+ * a short list of well-established Word bullet glyphs rather than a full symbol-font
+ * table: a wrong guess here silently substitutes the wrong character, which is worse
+ * than leaving an unusual bullet alone.
+ */
+const SYMBOL_BULLET_TO_UNICODE = {
+	"Symbol" : {
+		0xB7 : 0x2022  // bullet
+	},
+	"Wingdings" : {
+		0xA7 : 0x25AA, // black small square
+		0xD8 : 0x27A2, // three-d top-lighted rightwards arrowhead
+		0xFC : 0x2714  // heavy check mark
+	}
+};
+function MapSymbolFontTextToUnicode(text, fontName)
+{
+	let table = SYMBOL_BULLET_TO_UNICODE[fontName];
+	if (!table)
+		return text;
+
+	let result = "";
+	for (let i = 0; i < text.length; ++i)
+	{
+		let code = text.charCodeAt(i);
+
+		// A symbol font's bytes are stored either directly or offset into the private
+		// use area; both spellings mean the same glyph.
+		let symbolCode = (code >= 0xF000 && code <= 0xF0FF) ? code - 0xF000 : code;
+
+		let mapped = table[symbolCode];
+		result += undefined !== mapped ? String.fromCharCode(mapped) : text.charAt(i);
+	}
+	return result;
+}
 Paragraph.prototype.GetNumberingTextWithSuffix = function(pr)
 {
 	let numText = this.GetNumberingText(false);
@@ -1949,6 +1997,12 @@ Paragraph.prototype.GetNumberingTextWithSuffix = function(pr)
 	
 	let parent = this.GetParent();
 	let numPr  = this.GetNumPr();
+	
+	// #2250: this helper feeds text extraction only - GetSelectedText, GetText and
+	// asc_getText - never the renderer, which needs the symbol font and its own byte.
+	let numTextPr = this.GetNumberingTextPr();
+	if (numTextPr && numTextPr.FontFamily)
+		numText = MapSymbolFontTextToUnicode(numText, numTextPr.FontFamily.Name);
 	
 	let suff = parent.GetNumbering().GetNum(numPr.NumId).GetLvl(numPr.Lvl).GetSuff();
 	if (Asc.c_oAscNumberingSuff.Tab === suff)
