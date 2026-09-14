@@ -5444,6 +5444,16 @@ function BinaryDocumentTableWriter(memory, doc, oMapCommentId, oNumIdMap, copyPa
 		let paraId = par.GetParaId();
 		if (undefined !== paraId && null !== paraId)
 		{
+			// w14:paraId identifies a paragraph within the document and must be unique.
+			// The clipboard binary carries the source paragraph's id (ReadParagraph ->
+			// SetParaId), so pasting a paragraph - or a table row - inside the same
+			// document leaves two paragraphs holding one id, and that duplicate goes
+			// straight out into the saved docx. Keep the first, renumber the rest, the
+			// same way comment durable ids are kept unique in BinaryCommentsTableWriter.
+			while (this.saveParams.usedParaIds[paraId])
+				paraId = AscCommon.CreateDurableId();
+			this.saveParams.usedParaIds[paraId] = 1;
+
 			this.memory.WriteByte(c_oSerParType.ParaID);
 			this.bs.WriteItemWithLength(function(){
 				oThis.memory.WriteLong(paraId);
@@ -17431,6 +17441,7 @@ function DocSaveParams(bMailMergeDocx, bMailMergeHtml, isCompatible, docParts) {
 	this.placeholders = {};
 	this.docParts = docParts;
 	this.fieldMastersPartMap = {};
+	this.usedParaIds = {};
 };
 DocSaveParams.prototype.WriteRunRevisionMove = function(par, callback) {
 	let oEndRun = par.GetParaEndRun();
