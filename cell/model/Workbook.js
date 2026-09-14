@@ -923,7 +923,14 @@
 		},
 		lockRecalExecute: function(callback) {
 			this.lockRecal();
-			callback();
+			// #2443: a throw in the callback must not leave recalculation suspended for the
+			// rest of the session. See the note in Worksheet.prototype._insertColsBefore.
+			try {
+				callback();
+			} catch (e) {
+				this.unlockRecal(true);
+				throw e;
+			}
 			this.unlockRecal();
 		},
 		//defined name
@@ -8252,80 +8259,92 @@
 	Worksheet.prototype._removeRows=function(start, stop){
 		var t = this;
 		this.workbook.dependencyFormulas.lockRecal();
-		AscCommon.History.Create_NewPoint();
-		//start, stop 0 based
-		var nDif = -(stop - start + 1);
-		var oActualRange = new Asc.Range(0, start, gc_nMaxCol0, stop);
-		var offset = new AscCommon.CellBase(nDif, 0);
-		//renameDependencyNodes before move cells to store current location in history
-		var renameRes = this.renameDependencyNodes(offset, oActualRange);
-		var redrawTablesArr = this.autoFilters.insertRows("delCell", oActualRange, c_oAscDeleteOptions.DeleteRows);
-		if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
-			this.updatePivotOffset(oActualRange, offset);
-			this.updateUserProtectedRangesOffset(oActualRange, offset);
-		}
-		if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
-			AscCommon.History.LocalChange = true;
-			this.updateSortStateOffset(oActualRange, offset);
-			this.updateSparklineGroupOffset(oActualRange, offset);
-			this.updateConditionalFormattingOffset(oActualRange, offset);
-			this.updateProtectedRangeOffset(oActualRange, offset);
-			AscCommon.History.LocalChange = false;
-		}
-
-		var collapsedInfo = null, lastRowIndex;
-		var oDefRowPr = new AscCommonExcel.UndoRedoData_RowProp();
-		this.getRange3(start,0,stop,gc_nMaxCol0)._foreachRowNoEmpty(function(row){
-			var oOldProps = row.getHeightProp();
-			lastRowIndex = row.index;
-			if (false === oOldProps.isEqual(oDefRowPr))
-				AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RowProp, t.getId(), row._getUpdateRange(), new UndoRedoData_IndexSimpleProp(row.getIndex(), true, oOldProps, oDefRowPr));
-			row.setStyle(null);
-
-			if(!t.workbook.bRedoChanges) {
-				if(collapsedInfo !== null && collapsedInfo < row.getOutlineLevel()) {
-					collapsedInfo = null;
-				}
-				if(row.getCollapsed()) {
-					collapsedInfo = row.getOutlineLevel();
-					t.setCollapsedRow(false, null, row);
-				}
+		try {
+			AscCommon.History.Create_NewPoint();
+			//start, stop 0 based
+			var nDif = -(stop - start + 1);
+			var oActualRange = new Asc.Range(0, start, gc_nMaxCol0, stop);
+			var offset = new AscCommon.CellBase(nDif, 0);
+			//renameDependencyNodes before move cells to store current location in history
+			var renameRes = this.renameDependencyNodes(offset, oActualRange);
+			var redrawTablesArr = this.autoFilters.insertRows("delCell", oActualRange, c_oAscDeleteOptions.DeleteRows);
+			if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
+				this.updatePivotOffset(oActualRange, offset);
+				this.updateUserProtectedRangesOffset(oActualRange, offset);
+			}
+			if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
+				AscCommon.History.LocalChange = true;
+				this.updateSortStateOffset(oActualRange, offset);
+				this.updateSparklineGroupOffset(oActualRange, offset);
+				this.updateConditionalFormattingOffset(oActualRange, offset);
+				this.updateProtectedRangeOffset(oActualRange, offset);
+				AscCommon.History.LocalChange = false;
 			}
 
-		}, function(cell){
-			t._removeCell(null, null, cell);
-		});
+			var collapsedInfo = null, lastRowIndex;
+			var oDefRowPr = new AscCommonExcel.UndoRedoData_RowProp();
+			this.getRange3(start,0,stop,gc_nMaxCol0)._foreachRowNoEmpty(function(row){
+				var oOldProps = row.getHeightProp();
+				lastRowIndex = row.index;
+				if (false === oOldProps.isEqual(oDefRowPr))
+					AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RowProp, t.getId(), row._getUpdateRange(), new UndoRedoData_IndexSimpleProp(row.getIndex(), true, oOldProps, oDefRowPr));
+				row.setStyle(null);
 
-		//ms doesn't remove collapsed from the deleted row, it inherits this property from the next one
-		if(collapsedInfo !== null && lastRowIndex === stop) {
-			this._getRow(stop + 1, function(row) {
-				//TODO verify!!!
-				//if(collapsedInfo >= row.getOutlineLevel()) {
-					//row.setCollapsed(true);
-					t.setCollapsedRow(true, null, row);
-				//}
+				if(!t.workbook.bRedoChanges) {
+					if(collapsedInfo !== null && collapsedInfo < row.getOutlineLevel()) {
+						collapsedInfo = null;
+					}
+					if(row.getCollapsed()) {
+						collapsedInfo = row.getOutlineLevel();
+						t.setCollapsedRow(false, null, row);
+					}
+				}
+
+			}, function(cell){
+				t._removeCell(null, null, cell);
 			});
+
+			//ms doesn't remove collapsed from the deleted row, it inherits this property from the next one
+			if(collapsedInfo !== null && lastRowIndex === stop) {
+				this._getRow(stop + 1, function(row) {
+					//TODO verify!!!
+					//if(collapsedInfo >= row.getOutlineLevel()) {
+						//row.setCollapsed(true);
+						t.setCollapsedRow(true, null, row);
+					//}
+				});
+			}
+
+			this._updateFormulasParents(start, 0, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes && renameRes.shiftedShared);
+			this.rowsData.deleteRange(start, (-nDif));
+			this._forEachColData(function(sheetMemory) {
+				sheetMemory.deleteRange(start, (-nDif));
+			});
+			//notifyChanged after move cells to get new locations(for intersect ranges)
+			this.workbook.dependencyFormulas.notifyChanged(renameRes && renameRes.changed);
+			AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RemoveRows, this.getId(), new Asc.Range(0, start, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(true, start, stop));
+
+			this.autoFilters.redrawStylesTables(redrawTablesArr);
+
+			if (this.workbook.handlers) {
+				this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, new Asc.Range(0, start, gc_nMaxCol0, stop), this.getId());
+				this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.removeRows, this, new Asc.Range(0, start, gc_nMaxCol0, stop), this.getId());
+			}
+
+			this.workbook.dependencyFormulas.unlockRecal();
+
+			return true;
+		} catch (e) {
+			/* #2443: lockRecal() suspends recalculation and calcTree() returns early while
+			   the counter is above zero, so a throw anywhere in the body above used to leave
+			   the workbook unable to recalculate for the rest of the session - every formula
+			   frozen at a stale value or blank, and a freshly typed one blank too, with no
+			   error shown anywhere. Release the lock while unwinding. unlockRecal(true)
+			   skips the recalculation itself: the model is mid-failure, and running calcTree
+			   over it would at best throw again and mask the original error. */
+			this.workbook.dependencyFormulas.unlockRecal(true);
+			throw e;
 		}
-
-		this._updateFormulasParents(start, 0, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes && renameRes.shiftedShared);
-		this.rowsData.deleteRange(start, (-nDif));
-		this._forEachColData(function(sheetMemory) {
-			sheetMemory.deleteRange(start, (-nDif));
-		});
-		//notifyChanged after move cells to get new locations(for intersect ranges)
-		this.workbook.dependencyFormulas.notifyChanged(renameRes && renameRes.changed);
-		AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RemoveRows, this.getId(), new Asc.Range(0, start, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(true, start, stop));
-
-		this.autoFilters.redrawStylesTables(redrawTablesArr);
-
-		if (this.workbook.handlers) {
-			this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, new Asc.Range(0, start, gc_nMaxCol0, stop), this.getId());
-			this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.removeRows, this, new Asc.Range(0, start, gc_nMaxCol0, stop), this.getId());
-		}
-
-		this.workbook.dependencyFormulas.unlockRecal();
-
-		return true;
 	};
 	Worksheet.prototype.insertRowsBefore=function(index, count){
 		var oRange = this.getRange(new CellAddress(index, 0, 0), new CellAddress(index + count - 1, gc_nMaxCol0, 0));
@@ -8356,66 +8375,78 @@
 	Worksheet.prototype._insertRowsBefore=function(index, count){
 		var t = this;
 		this.workbook.dependencyFormulas.lockRecal();
-		var oActualRange = new Asc.Range(0, index, gc_nMaxCol0, index + count - 1);
-		AscCommon.History.Create_NewPoint();
-		var offset = new AscCommon.CellBase(count, 0);
-		//renameDependencyNodes before move cells to store current location in history
-		var renameRes = this.renameDependencyNodes(offset, oActualRange);
-		var redrawTablesArr = this.autoFilters.insertRows("insCell", oActualRange, c_oAscInsertOptions.InsertColumns);
-		if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
-			this.updatePivotOffset(oActualRange, offset);
-			this.updateUserProtectedRangesOffset(oActualRange, offset);
-		}
-		if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
-			AscCommon.History.LocalChange = true;
-			this.updateSortStateOffset(oActualRange, offset);
-			this.updateSparklineGroupOffset(oActualRange, offset);
-			this.updateConditionalFormattingOffset(oActualRange, offset);
-			this.updateProtectedRangeOffset(oActualRange, offset);
-			AscCommon.History.LocalChange = false;
-		}
+		try {
+			var oActualRange = new Asc.Range(0, index, gc_nMaxCol0, index + count - 1);
+			AscCommon.History.Create_NewPoint();
+			var offset = new AscCommon.CellBase(count, 0);
+			//renameDependencyNodes before move cells to store current location in history
+			var renameRes = this.renameDependencyNodes(offset, oActualRange);
+			var redrawTablesArr = this.autoFilters.insertRows("insCell", oActualRange, c_oAscInsertOptions.InsertColumns);
+			if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
+				this.updatePivotOffset(oActualRange, offset);
+				this.updateUserProtectedRangesOffset(oActualRange, offset);
+			}
+			if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
+				AscCommon.History.LocalChange = true;
+				this.updateSortStateOffset(oActualRange, offset);
+				this.updateSparklineGroupOffset(oActualRange, offset);
+				this.updateConditionalFormattingOffset(oActualRange, offset);
+				this.updateProtectedRangeOffset(oActualRange, offset);
+				AscCommon.History.LocalChange = false;
+			}
 
-		this._updateFormulasParents(index, 0, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes.shiftedShared);
-		var borders;
-		if (index > 0 && !this.workbook.bUndoChanges) {
-			borders = this._getBordersForInsert(oActualRange, true);
-		}
-		//insert new row/cell
-		this.rowsData.insertRange(index, count);
-		this.nRowsCount = Math.max(this.nRowsCount, this.rowsData.getMaxIndex() + 1);
-		this._forEachColData(function(sheetMemory) {
-			sheetMemory.insertRange(index, count);
-			t.cellsByColRowsCount = Math.max(t.cellsByColRowsCount, sheetMemory.getMaxIndex() + 1);
-		});
-		this.nRowsCount = Math.max(this.nRowsCount, this.cellsByColRowsCount);
-		//copy property from row/cell above
-		if (index > 0 && !this.workbook.bUndoChanges)
-		{
-			this.rowsData.copyRangeByChunk((index - 1), 1, index, count);
+			this._updateFormulasParents(index, 0, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes.shiftedShared);
+			var borders;
+			if (index > 0 && !this.workbook.bUndoChanges) {
+				borders = this._getBordersForInsert(oActualRange, true);
+			}
+			//insert new row/cell
+			this.rowsData.insertRange(index, count);
 			this.nRowsCount = Math.max(this.nRowsCount, this.rowsData.getMaxIndex() + 1);
 			this._forEachColData(function(sheetMemory) {
-				sheetMemory.copyRangeByChunk((index - 1), 1, index, count);
+				sheetMemory.insertRange(index, count);
 				t.cellsByColRowsCount = Math.max(t.cellsByColRowsCount, sheetMemory.getMaxIndex() + 1);
 			});
 			this.nRowsCount = Math.max(this.nRowsCount, this.cellsByColRowsCount);
-			//show rows and remain only cell xf property
-			this.getRange3(index, 0, index + count - 1, gc_nMaxCol0)._foreachRowNoEmpty(function(row) {
-				row.setHidden(false);
-			},function(cell) {
-				cell.clearDataKeepXf(borders[cell.nCol]);
-			});
-		}
-		//notifyChanged after move cells to get new locations(for intersect ranges)
-		this.workbook.dependencyFormulas.notifyChanged(renameRes.changed);
-		AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_AddRows, this.getId(), new Asc.Range(0, index, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(true, index, index + count - 1));
+			//copy property from row/cell above
+			if (index > 0 && !this.workbook.bUndoChanges)
+			{
+				this.rowsData.copyRangeByChunk((index - 1), 1, index, count);
+				this.nRowsCount = Math.max(this.nRowsCount, this.rowsData.getMaxIndex() + 1);
+				this._forEachColData(function(sheetMemory) {
+					sheetMemory.copyRangeByChunk((index - 1), 1, index, count);
+					t.cellsByColRowsCount = Math.max(t.cellsByColRowsCount, sheetMemory.getMaxIndex() + 1);
+				});
+				this.nRowsCount = Math.max(this.nRowsCount, this.cellsByColRowsCount);
+				//show rows and remain only cell xf property
+				this.getRange3(index, 0, index + count - 1, gc_nMaxCol0)._foreachRowNoEmpty(function(row) {
+					row.setHidden(false);
+				},function(cell) {
+					cell.clearDataKeepXf(borders[cell.nCol]);
+				});
+			}
+			//notifyChanged after move cells to get new locations(for intersect ranges)
+			this.workbook.dependencyFormulas.notifyChanged(renameRes.changed);
+			AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_AddRows, this.getId(), new Asc.Range(0, index, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(true, index, index + count - 1));
 
-		this.autoFilters.redrawStylesTables(redrawTablesArr);
-		if (this.workbook.handlers) {
-			this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, null, this.getId());
-		}
+			this.autoFilters.redrawStylesTables(redrawTablesArr);
+			if (this.workbook.handlers) {
+				this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, null, this.getId());
+			}
 
-		this.workbook.dependencyFormulas.unlockRecal();
-		return true;
+			this.workbook.dependencyFormulas.unlockRecal();
+			return true;
+		} catch (e) {
+			/* #2443: lockRecal() suspends recalculation and calcTree() returns early while
+			   the counter is above zero, so a throw anywhere in the body above used to leave
+			   the workbook unable to recalculate for the rest of the session - every formula
+			   frozen at a stale value or blank, and a freshly typed one blank too, with no
+			   error shown anywhere. Release the lock while unwinding. unlockRecal(true)
+			   skips the recalculation itself: the model is mid-failure, and running calcTree
+			   over it would at best throw again and mask the original error. */
+			this.workbook.dependencyFormulas.unlockRecal(true);
+			throw e;
+		}
 	};
 	Worksheet.prototype.insertRowsAfter=function(index, count){
 		//index 0 based
@@ -8435,79 +8466,91 @@
 	Worksheet.prototype._removeCols=function(start, stop){
 		var t = this;
 		this.workbook.dependencyFormulas.lockRecal();
-		AscCommon.History.Create_NewPoint();
-		//start, stop 0 based
-		var nDif = -(stop - start + 1), i, j, length;
-		var oActualRange = new Asc.Range(start, 0, stop, gc_nMaxRow0);
-		var offset = new AscCommon.CellBase(0, nDif);
-		//renameDependencyNodes before move cells to store current location in history
-		var renameRes = this.renameDependencyNodes(offset, oActualRange);
-		var redrawTablesArr = this.autoFilters.insertColumn(oActualRange, nDif);
-		if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
-			this.updatePivotOffset(oActualRange, offset);
-			this.updateUserProtectedRangesOffset(oActualRange, offset);
-		}
-		if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
-			AscCommon.History.LocalChange = true;
-			this.updateSortStateOffset(oActualRange, offset);
-			this.updateSparklineGroupOffset(oActualRange, offset);
-			this.updateConditionalFormattingOffset(oActualRange, offset);
-			this.updateProtectedRangeOffset(oActualRange, offset);
-			AscCommon.History.LocalChange = false;
-		}
+		try {
+			AscCommon.History.Create_NewPoint();
+			//start, stop 0 based
+			var nDif = -(stop - start + 1), i, j, length;
+			var oActualRange = new Asc.Range(start, 0, stop, gc_nMaxRow0);
+			var offset = new AscCommon.CellBase(0, nDif);
+			//renameDependencyNodes before move cells to store current location in history
+			var renameRes = this.renameDependencyNodes(offset, oActualRange);
+			var redrawTablesArr = this.autoFilters.insertColumn(oActualRange, nDif);
+			if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
+				this.updatePivotOffset(oActualRange, offset);
+				this.updateUserProtectedRangesOffset(oActualRange, offset);
+			}
+			if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
+				AscCommon.History.LocalChange = true;
+				this.updateSortStateOffset(oActualRange, offset);
+				this.updateSparklineGroupOffset(oActualRange, offset);
+				this.updateConditionalFormattingOffset(oActualRange, offset);
+				this.updateProtectedRangeOffset(oActualRange, offset);
+				AscCommon.History.LocalChange = false;
+			}
 
-		var collapsedInfo = null, lastRowIndex;
-		var oDefColPr = new AscCommonExcel.UndoRedoData_ColProp();
-		this.getRange3(0, start, gc_nMaxRow0,stop)._foreachColNoEmpty(function(col){
-			var nIndex = col.getIndex();
-			var oOldProps = col.getWidthProp();
-			if(false === oOldProps.isEqual(oDefColPr))
-				AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_ColProp, t.getId(), new Asc.Range(nIndex, 0, nIndex, gc_nMaxRow0), new UndoRedoData_IndexSimpleProp(nIndex, false, oOldProps, oDefColPr));
-			col.setStyle(null);
+			var collapsedInfo = null, lastRowIndex;
+			var oDefColPr = new AscCommonExcel.UndoRedoData_ColProp();
+			this.getRange3(0, start, gc_nMaxRow0,stop)._foreachColNoEmpty(function(col){
+				var nIndex = col.getIndex();
+				var oOldProps = col.getWidthProp();
+				if(false === oOldProps.isEqual(oDefColPr))
+					AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_ColProp, t.getId(), new Asc.Range(nIndex, 0, nIndex, gc_nMaxRow0), new UndoRedoData_IndexSimpleProp(nIndex, false, oOldProps, oDefColPr));
+				col.setStyle(null);
 
-			lastRowIndex = col.index;
-			if(!t.workbook.bRedoChanges) {
-				if(collapsedInfo !== null && collapsedInfo < col.getOutlineLevel()) {
-					collapsedInfo = null;
+				lastRowIndex = col.index;
+				if(!t.workbook.bRedoChanges) {
+					if(collapsedInfo !== null && collapsedInfo < col.getOutlineLevel()) {
+						collapsedInfo = null;
+					}
+					if(col.getCollapsed()) {
+						collapsedInfo = col.getOutlineLevel();
+						t.setCollapsedCol(false, null, col);
+					}
 				}
-				if(col.getCollapsed()) {
-					collapsedInfo = col.getOutlineLevel();
-					t.setCollapsedCol(false, null, col);
+			}, function(cell){
+				t._removeCell(null, null, cell);
+			});
+
+			if(collapsedInfo !== null && lastRowIndex === stop) {
+				var curCol = this._getCol(stop + 1);
+				//TODO verify!!!
+				if(curCol /*&& collapsedInfo >= curCol.getOutlineLevel()*/) {
+					t.setCollapsedCol(true, null, curCol);
 				}
 			}
-		}, function(cell){
-			t._removeCell(null, null, cell);
-		});
 
-		if(collapsedInfo !== null && lastRowIndex === stop) {
-			var curCol = this._getCol(stop + 1);
-			//TODO verify!!!
-			if(curCol /*&& collapsedInfo >= curCol.getOutlineLevel()*/) {
-				t.setCollapsedCol(true, null, curCol);
+			this._updateFormulasParents(0, start, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes.shiftedShared);
+			this.cellsByCol.splice(start, stop - start + 1);
+			this.aCols.splice(start, stop - start + 1);
+			for(i = start, length = this.aCols.length; i < length; ++i)
+			{
+				var elem = this.aCols[i];
+				if(null != elem)
+					elem.moveHor(nDif);
 			}
+			//notifyChanged after move cells to get new locations(for intersect ranges)
+			this.workbook.dependencyFormulas.notifyChanged(renameRes.changed);
+			AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RemoveCols, this.getId(), new Asc.Range(start, 0, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(false, start, stop));
+
+			this.autoFilters.redrawStylesTables(redrawTablesArr);
+			if (this.workbook.handlers) {
+				this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, new Asc.Range(start, 0, stop, gc_nMaxRow0), this.getId());
+			}
+
+			this.workbook.dependencyFormulas.unlockRecal();
+
+			return true;
+		} catch (e) {
+			/* #2443: lockRecal() suspends recalculation and calcTree() returns early while
+			   the counter is above zero, so a throw anywhere in the body above used to leave
+			   the workbook unable to recalculate for the rest of the session - every formula
+			   frozen at a stale value or blank, and a freshly typed one blank too, with no
+			   error shown anywhere. Release the lock while unwinding. unlockRecal(true)
+			   skips the recalculation itself: the model is mid-failure, and running calcTree
+			   over it would at best throw again and mask the original error. */
+			this.workbook.dependencyFormulas.unlockRecal(true);
+			throw e;
 		}
-
-		this._updateFormulasParents(0, start, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes.shiftedShared);
-		this.cellsByCol.splice(start, stop - start + 1);
-		this.aCols.splice(start, stop - start + 1);
-		for(i = start, length = this.aCols.length; i < length; ++i)
-		{
-			var elem = this.aCols[i];
-			if(null != elem)
-				elem.moveHor(nDif);
-		}
-		//notifyChanged after move cells to get new locations(for intersect ranges)
-		this.workbook.dependencyFormulas.notifyChanged(renameRes.changed);
-		AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RemoveCols, this.getId(), new Asc.Range(start, 0, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(false, start, stop));
-
-		this.autoFilters.redrawStylesTables(redrawTablesArr);
-		if (this.workbook.handlers) {
-			this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, new Asc.Range(start, 0, stop, gc_nMaxRow0), this.getId());
-		}
-
-		this.workbook.dependencyFormulas.unlockRecal();
-
-		return true;
 	};
 	Worksheet.prototype.insertColsBefore=function(index, count){
 		var oRange = this.getRange3(0, index, gc_nMaxRow0, index + count - 1);
@@ -8515,88 +8558,100 @@
 	};
 	Worksheet.prototype._insertColsBefore=function(index, count){
 		this.workbook.dependencyFormulas.lockRecal();
-		var oActualRange = new Asc.Range(index, 0, index + count - 1, gc_nMaxRow0);
-		AscCommon.History.Create_NewPoint();
-		var offset = new AscCommon.CellBase(0, count);
-		//renameDependencyNodes before move cells to store current location in history
-		var renameRes = this.renameDependencyNodes(offset, oActualRange);
-		var redrawTablesArr = this.autoFilters.insertColumn(oActualRange, count);
-		if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
-			this.updatePivotOffset(oActualRange, offset);
-			this.updateUserProtectedRangesOffset(oActualRange, offset);
-		}
-		if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
-			AscCommon.History.LocalChange = true;
-			this.updateSortStateOffset(oActualRange, offset);
-			this.updateSparklineGroupOffset(oActualRange, offset);
-			this.updateConditionalFormattingOffset(oActualRange, offset);
-			this.updateProtectedRangeOffset(oActualRange, offset);
-			AscCommon.History.LocalChange = false;
-		}
-
-		this._updateFormulasParents(0, index, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes.shiftedShared);
-		var borders;
-		if (index > 0 && !this.workbook.bUndoChanges) {
-			borders = this._getBordersForInsert(oActualRange, false);
-		}
-		//remove tail
-		this.cellsByCol.splice(gc_nMaxCol0 - count + 1, count);
-		for(var i = this.cellsByCol.length - 1; i >= index; --i) {
-			this.cellsByCol[i + count] = this.cellsByCol[i];
-			this.cellsByCol[i] = undefined;
-		}
-		this.setColsCount(Math.max(this.nColsCount, this.getColDataLength()));
-		this.aCols.splice(gc_nMaxCol0 - count + 1, count);
-		for(var i = this.aCols.length - 1; i >= index; --i) {
-			this.aCols[i + count] = this.aCols[i];
-			this.aCols[i] = undefined;
-			if (this.aCols[i + count]) {
-				this.aCols[i + count].moveHor(count);
+		try {
+			var oActualRange = new Asc.Range(index, 0, index + count - 1, gc_nMaxRow0);
+			AscCommon.History.Create_NewPoint();
+			var offset = new AscCommon.CellBase(0, count);
+			//renameDependencyNodes before move cells to store current location in history
+			var renameRes = this.renameDependencyNodes(offset, oActualRange);
+			var redrawTablesArr = this.autoFilters.insertColumn(oActualRange, count);
+			if (false == this.workbook.bUndoChanges && false == this.workbook.bRedoChanges) {
+				this.updatePivotOffset(oActualRange, offset);
+				this.updateUserProtectedRangesOffset(oActualRange, offset);
 			}
-		}
-		this.setColsCount(Math.max(this.nColsCount, this.aCols.length));
-		if (!this.workbook.bUndoChanges) {
-			//copy property from col/cell above
-			var oPrevCol = null;
-			if (index > 0)
-				oPrevCol = this.aCols[index - 1];
-			if (null == oPrevCol && null != this.oAllCol)
-				oPrevCol = this.oAllCol;
-			if (null != oPrevCol) {
+			if (false == this.workbook.bUndoChanges && (false == this.workbook.bRedoChanges || this.workbook.bCollaborativeChanges)) {
 				AscCommon.History.LocalChange = true;
-				for (var i = index; i < index + count; ++i) {
-					var oNewCol =  oPrevCol.clone();
-					oNewCol.setHidden(null);
-					oNewCol.BestFit = null;
-					oNewCol.index = i;
-					this.aCols[i] = oNewCol;
-				}
+				this.updateSortStateOffset(oActualRange, offset);
+				this.updateSparklineGroupOffset(oActualRange, offset);
+				this.updateConditionalFormattingOffset(oActualRange, offset);
+				this.updateProtectedRangeOffset(oActualRange, offset);
 				AscCommon.History.LocalChange = false;
 			}
-			var prevCellsByCol = index > 0 ? this.cellsByCol[index - 1] : null;
-			if (prevCellsByCol) {
-				for(var i = index; i < index + count; ++i) {
-					this.cellsByCol[i] = prevCellsByCol.clone();
-				}
-				this.setColsCount(Math.max(this.nColsCount, this.getColDataLength()));
-				//show rows and remain only cell xf property
-				this.getRange3(0, index, gc_nMaxRow0, index + count - 1)._foreachNoEmpty(function(cell) {
-					cell.clearDataKeepXf(borders[cell.nRow]);
-				});
+
+			this._updateFormulasParents(0, index, gc_nMaxRow0, gc_nMaxCol0, oActualRange, offset, renameRes.shiftedShared);
+			var borders;
+			if (index > 0 && !this.workbook.bUndoChanges) {
+				borders = this._getBordersForInsert(oActualRange, false);
 			}
+			//remove tail
+			this.cellsByCol.splice(gc_nMaxCol0 - count + 1, count);
+			for(var i = this.cellsByCol.length - 1; i >= index; --i) {
+				this.cellsByCol[i + count] = this.cellsByCol[i];
+				this.cellsByCol[i] = undefined;
+			}
+			this.setColsCount(Math.max(this.nColsCount, this.getColDataLength()));
+			this.aCols.splice(gc_nMaxCol0 - count + 1, count);
+			for(var i = this.aCols.length - 1; i >= index; --i) {
+				this.aCols[i + count] = this.aCols[i];
+				this.aCols[i] = undefined;
+				if (this.aCols[i + count]) {
+					this.aCols[i + count].moveHor(count);
+				}
+			}
+			this.setColsCount(Math.max(this.nColsCount, this.aCols.length));
+			if (!this.workbook.bUndoChanges) {
+				//copy property from col/cell above
+				var oPrevCol = null;
+				if (index > 0)
+					oPrevCol = this.aCols[index - 1];
+				if (null == oPrevCol && null != this.oAllCol)
+					oPrevCol = this.oAllCol;
+				if (null != oPrevCol) {
+					AscCommon.History.LocalChange = true;
+					for (var i = index; i < index + count; ++i) {
+						var oNewCol =  oPrevCol.clone();
+						oNewCol.setHidden(null);
+						oNewCol.BestFit = null;
+						oNewCol.index = i;
+						this.aCols[i] = oNewCol;
+					}
+					AscCommon.History.LocalChange = false;
+				}
+				var prevCellsByCol = index > 0 ? this.cellsByCol[index - 1] : null;
+				if (prevCellsByCol) {
+					for(var i = index; i < index + count; ++i) {
+						this.cellsByCol[i] = prevCellsByCol.clone();
+					}
+					this.setColsCount(Math.max(this.nColsCount, this.getColDataLength()));
+					//show rows and remain only cell xf property
+					this.getRange3(0, index, gc_nMaxRow0, index + count - 1)._foreachNoEmpty(function(cell) {
+						cell.clearDataKeepXf(borders[cell.nRow]);
+					});
+				}
+			}
+
+			//notifyChanged after move cells to get new locations(for intersect ranges)
+			this.workbook.dependencyFormulas.notifyChanged(renameRes.changed);
+			AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_AddCols, this.getId(), new Asc.Range(index, 0, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(false, index, index + count - 1));
+
+			this.autoFilters.redrawStylesTables(redrawTablesArr);
+			if (this.workbook.handlers) {
+				this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, null, this.getId());
+			}
+
+			this.workbook.dependencyFormulas.unlockRecal();
+			return true;
+		} catch (e) {
+			/* #2443: lockRecal() suspends recalculation and calcTree() returns early while
+			   the counter is above zero, so a throw anywhere in the body above used to leave
+			   the workbook unable to recalculate for the rest of the session - every formula
+			   frozen at a stale value or blank, and a freshly typed one blank too, with no
+			   error shown anywhere. Release the lock while unwinding. unlockRecal(true)
+			   skips the recalculation itself: the model is mid-failure, and running calcTree
+			   over it would at best throw again and mask the original error. */
+			this.workbook.dependencyFormulas.unlockRecal(true);
+			throw e;
 		}
-
-		//notifyChanged after move cells to get new locations(for intersect ranges)
-		this.workbook.dependencyFormulas.notifyChanged(renameRes.changed);
-		AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_AddCols, this.getId(), new Asc.Range(index, 0, gc_nMaxCol0, gc_nMaxRow0), new UndoRedoData_FromToRowCol(false, index, index + count - 1));
-
-		this.autoFilters.redrawStylesTables(redrawTablesArr);
-		if (this.workbook.handlers) {
-			this.workbook.handlers.trigger("changeDocument", AscCommonExcel.docChangedType.sheetContent, this, null, this.getId());
-		}
-
-		this.workbook.dependencyFormulas.unlockRecal();
-		return true;
 	};
 	Worksheet.prototype.insertColsAfter=function(index, count){
 		//index 0 based
