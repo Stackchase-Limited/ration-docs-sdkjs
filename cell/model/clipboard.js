@@ -946,6 +946,24 @@
 						}
 					});
 
+					// 458a73a5ed "[se] Fix bug 37965" added this clamp to getBinaryForCopy
+					// and to no other caller. _foreachNoEmpty visits nothing when the
+					// selection is entirely empty, so maxCol/maxRow stay at their 0 seed
+					// and land BELOW the selection origin; the html and plain-text loops,
+					// which clamp nothing, then run zero iterations and emit nothing at
+					// all, while the binary flavour still serialises the single cell at
+					// (r1,c1). Select an empty column and the three flavours disagree.
+					// Clamping here rather than at each call site fixes all of them: no
+					// caller can use a result below the origin, and for any selection that
+					// is not entirely empty the clamp is a no-op, because every cell
+					// _foreachNoEmpty visits lies inside the selection already.
+					if (maxCol < selectionRange.c1) {
+						maxCol = selectionRange.c1;
+					}
+					if (maxRow < selectionRange.r1) {
+						maxRow = selectionRange.r1;
+					}
+
 					res = {col: maxCol, row: maxRow};
 				}
 
@@ -1278,71 +1296,85 @@
 							style += "width:" + worksheet.getColumnWidth(col, 1/*pt*/) + "pt" + ";";
 						}
 
+						// A cell with formatting but no value has type null. dc4a593072 "[se] Copy
+						// table optimization (html)" wrapped this ENTIRE block in that test, so such
+						// a cell was emitted as a bare <td> - no fill, no borders, and not even the
+						// width that is computed just above and was then thrown away. Copy a block
+						// where some cells are coloured but blank, paste into Word or LibreOffice,
+						// and the blank ones arrive white and zero-width. Invisible in-app because
+						// the internal binary flavour wins there, which is why it survived.
+						// The styling below is now emitted for every cell; only the VALUE is still
+						// skipped - see the test further down.
+						var align = cell.getAlign();
+						if (!align.getWrap()) {
+							style += "white-space:" + "nowrap" + ";";
+						} else {
+							style += "white-space:" + "normal" + ";";
+						}
+
+						switch (align.getAlignHorizontal()) {
+							case AscCommon.align_Left:
+								style += "text-align:" + "left" + ";";
+								break;
+							case AscCommon.align_Right:
+								style += "text-align:" + "right" + ";";
+								break;
+							case AscCommon.align_Center:
+								style += "text-align:" + "center" + ";";
+								break;
+							case AscCommon.align_Justify:
+								style += "text-align:" + "justify" + ";";
+								break;
+						}
+						switch (align.getAlignVertical()) {
+							case Asc.c_oAscVAlign.Bottom:
+								style += "vertical-align:" + "bottom" + ";";
+								break;
+							case Asc.c_oAscVAlign.Center:
+							case Asc.c_oAscVAlign.Dist:
+							case Asc.c_oAscVAlign.Just:
+								style += "vertical-align:" + "middle" + ";";
+								break;
+							case Asc.c_oAscVAlign.Top:
+								style += "vertical-align:" + "top" + ";";
+								break;
+						}
+
+						//borders
+						b = cell.getBorderFull();
+						var _border;
+						if (mbbox) {
+							var cellMergeFinish = worksheet.model.getCell3(mbbox.r2, mbbox.c2);
+							var borderMergeCell = cellMergeFinish.getBorderFull();
+							_border = makeBorder(borderMergeCell.r);
+							style += _border ? "border-right:" + _border + ";" : "";
+							_border = makeBorder(borderMergeCell.b);
+							style += _border ? "border-bottom:" + makeBorder(borderMergeCell.b) + ";" : "";
+						} else {
+							_border = makeBorder(b.r);
+							style += _border ? "border-right:" + makeBorder(b.r) + ";" : "";
+							_border = makeBorder(b.b);
+							style += _border ? "border-bottom:" + makeBorder(b.b) + ";" : "";
+						}
+						_border = makeBorder(b.l);
+						style += _border ? "border-left:" + makeBorder(b.l) + ";" : "";
+						_border = makeBorder(b.t);
+						style += _border ? "border-top:" + makeBorder(b.t) + ";" : "";
+
+						b = cell.getFillColor();
+						// if b==0 we won't enter the if, although b==0 is nothing other than black fill color.
+						if (b != null) {
+							style += "background-color:" + number2color(b.getRgb()) + ";";
+						}
+
+						td.setAttribute("style", style);
+
+						// The optimization worth keeping: getValue2() is the expensive call (it
+						// checks dirty state, compiles the number format and allocates Fragments),
+						// and for a typeless cell its result is always a single empty fragment,
+						// so the markup it would produce is an empty <span>. Skipping it is right;
+						// skipping the style with it was the overreach.
 						if (cell.getType() !== null) {
-							var align = cell.getAlign();
-							if (!align.getWrap()) {
-								style += "white-space:" + "nowrap" + ";";
-							} else {
-								style += "white-space:" + "normal" + ";";
-							}
-
-							switch (align.getAlignHorizontal()) {
-								case AscCommon.align_Left:
-									style += "text-align:" + "left" + ";";
-									break;
-								case AscCommon.align_Right:
-									style += "text-align:" + "right" + ";";
-									break;
-								case AscCommon.align_Center:
-									style += "text-align:" + "center" + ";";
-									break;
-								case AscCommon.align_Justify:
-									style += "text-align:" + "justify" + ";";
-									break;
-							}
-							switch (align.getAlignVertical()) {
-								case Asc.c_oAscVAlign.Bottom:
-									style += "vertical-align:" + "bottom" + ";";
-									break;
-								case Asc.c_oAscVAlign.Center:
-								case Asc.c_oAscVAlign.Dist:
-								case Asc.c_oAscVAlign.Just:
-									style += "vertical-align:" + "middle" + ";";
-									break;
-								case Asc.c_oAscVAlign.Top:
-									style += "vertical-align:" + "top" + ";";
-									break;
-							}
-
-							//borders
-							b = cell.getBorderFull();
-							var _border;
-							if (mbbox) {
-								var cellMergeFinish = worksheet.model.getCell3(mbbox.r2, mbbox.c2);
-								var borderMergeCell = cellMergeFinish.getBorderFull();
-								_border = makeBorder(borderMergeCell.r);
-								style += _border ? "border-right:" + _border + ";" : "";
-								_border = makeBorder(borderMergeCell.b);
-								style += _border ? "border-bottom:" + makeBorder(borderMergeCell.b) + ";" : "";
-							} else {
-								_border = makeBorder(b.r);
-								style += _border ? "border-right:" + makeBorder(b.r) + ";" : "";
-								_border = makeBorder(b.b);
-								style += _border ? "border-bottom:" + makeBorder(b.b) + ";" : "";
-							}
-							_border = makeBorder(b.l);
-							style += _border ? "border-left:" + makeBorder(b.l) + ";" : "";
-							_border = makeBorder(b.t);
-							style += _border ? "border-top:" + makeBorder(b.t) + ";" : "";
-
-							b = cell.getFillColor();
-							// if b==0 we won't enter the if, although b==0 is nothing other than black fill color.
-							if (b != null) {
-								style += "background-color:" + number2color(b.getRgb()) + ";";
-							}
-
-							td.setAttribute("style", style);
-
 							this._makeNodesFromCellValue(cell.getValue2(), fn, fs, cell).forEach(function (node) {
 								td.appendChild(node);
 							});
@@ -1489,77 +1521,87 @@
 							style += "width:" + worksheet.getColumnWidth(col, 1/*pt*/) + "pt" + ";";
 						}
 
-						if (cell.getType() !== null) {
-							var align = cell.getAlign();
-							if (!align.getWrap()) {
-								style += "white-space:" + "nowrap" + ";";
-							} else {
-								style += "white-space:" + "normal" + ";";
-							}
-
-							switch (align.getAlignHorizontal()) {
-								case AscCommon.align_Left:
-									style += "text-align:" + "left" + ";";
-									break;
-								case AscCommon.align_Right:
-									style += "text-align:" + "right" + ";";
-									break;
-								case AscCommon.align_Center:
-									style += "text-align:" + "center" + ";";
-									break;
-								case AscCommon.align_Justify:
-									style += "text-align:" + "justify" + ";";
-									break;
-							}
-							switch (align.getAlignVertical()) {
-								case Asc.c_oAscVAlign.Bottom:
-									style += "vertical-align:" + "bottom" + ";";
-									break;
-								case Asc.c_oAscVAlign.Center:
-								case Asc.c_oAscVAlign.Dist:
-								case Asc.c_oAscVAlign.Just:
-									style += "vertical-align:" + "middle" + ";";
-									break;
-								case Asc.c_oAscVAlign.Top:
-									style += "vertical-align:" + "top" + ";";
-									break;
-							}
-
-							//borders
-							b = cell.getBorderFull();
-							var _border;
-							if (mbbox) {
-								var cellMergeFinish = worksheet.model.getCell3(mbbox.r2, mbbox.c2);
-								var borderMergeCell = cellMergeFinish.getBorderFull();
-								_border = makeBorder(borderMergeCell.r);
-								style += _border ? "border-right:" + _border + ";" : "";
-								_border = makeBorder(borderMergeCell.b);
-								style += _border ? "border-bottom:" + makeBorder(borderMergeCell.b) + ";" : "";
-							} else {
-								_border = makeBorder(b.r);
-								style += _border ? "border-right:" + makeBorder(b.r) + ";" : "";
-								_border = makeBorder(b.b);
-								style += _border ? "border-bottom:" + makeBorder(b.b) + ";" : "";
-							}
-							_border = makeBorder(b.l);
-							style += _border ? "border-left:" + makeBorder(b.l) + ";" : "";
-							_border = makeBorder(b.t);
-							style += _border ? "border-top:" + makeBorder(b.t) + ";" : "";
-
-							b = cell.getFillColor();
-							// if b==0 we won't enter the if, although b==0 is nothing other than black fill color.
-							if (b != null) {
-								style += "background-color:" + number2color(b.getRgb()) + ";";
-							}
-
-							if (!addByStr(' style=' + '"' + style + '">')) {
-								return false;
-							}
-							if (!addByStr(this._makeNodesFromCellValueStr(cell.getValue2(), fn, fs, cell))) {
-								return false;
-							}
+						// A cell with formatting but no value has type null. dc4a593072 "[se] Copy
+						// table optimization (html)" wrapped this ENTIRE block in that test, so such
+						// a cell was emitted as a bare <td> - no fill, no borders, and not even the
+						// width that is computed just above and was then thrown away. Copy a block
+						// where some cells are coloured but blank, paste into Word or LibreOffice,
+						// and the blank ones arrive white and zero-width. Invisible in-app because
+						// the internal binary flavour wins there, which is why it survived.
+						// The styling below is now emitted for every cell; only the VALUE is still
+						// skipped - see the test further down.
+						var align = cell.getAlign();
+						if (!align.getWrap()) {
+							style += "white-space:" + "nowrap" + ";";
 						} else {
-							if (!addByStr('>')) {
+							style += "white-space:" + "normal" + ";";
+						}
+
+						switch (align.getAlignHorizontal()) {
+							case AscCommon.align_Left:
+								style += "text-align:" + "left" + ";";
+								break;
+							case AscCommon.align_Right:
+								style += "text-align:" + "right" + ";";
+								break;
+							case AscCommon.align_Center:
+								style += "text-align:" + "center" + ";";
+								break;
+							case AscCommon.align_Justify:
+								style += "text-align:" + "justify" + ";";
+								break;
+						}
+						switch (align.getAlignVertical()) {
+							case Asc.c_oAscVAlign.Bottom:
+								style += "vertical-align:" + "bottom" + ";";
+								break;
+							case Asc.c_oAscVAlign.Center:
+							case Asc.c_oAscVAlign.Dist:
+							case Asc.c_oAscVAlign.Just:
+								style += "vertical-align:" + "middle" + ";";
+								break;
+							case Asc.c_oAscVAlign.Top:
+								style += "vertical-align:" + "top" + ";";
+								break;
+						}
+
+						//borders
+						b = cell.getBorderFull();
+						var _border;
+						if (mbbox) {
+							var cellMergeFinish = worksheet.model.getCell3(mbbox.r2, mbbox.c2);
+							var borderMergeCell = cellMergeFinish.getBorderFull();
+							_border = makeBorder(borderMergeCell.r);
+							style += _border ? "border-right:" + _border + ";" : "";
+							_border = makeBorder(borderMergeCell.b);
+							style += _border ? "border-bottom:" + makeBorder(borderMergeCell.b) + ";" : "";
+						} else {
+							_border = makeBorder(b.r);
+							style += _border ? "border-right:" + makeBorder(b.r) + ";" : "";
+							_border = makeBorder(b.b);
+							style += _border ? "border-bottom:" + makeBorder(b.b) + ";" : "";
+						}
+						_border = makeBorder(b.l);
+						style += _border ? "border-left:" + makeBorder(b.l) + ";" : "";
+						_border = makeBorder(b.t);
+						style += _border ? "border-top:" + makeBorder(b.t) + ";" : "";
+
+						b = cell.getFillColor();
+						// if b==0 we won't enter the if, although b==0 is nothing other than black fill color.
+						if (b != null) {
+							style += "background-color:" + number2color(b.getRgb()) + ";";
+						}
+
+						if (!addByStr(' style=' + '"' + style + '">')) {
+							return false;
+						}
+						// The optimization worth keeping: getValue2() is the expensive call (it
+						// checks dirty state, compiles the number format and allocates Fragments),
+						// and for a typeless cell its result is always a single empty fragment,
+						// so the markup it would produce is an empty <span>. Skipping it is right;
+						// skipping the style with it was the overreach.
+						if (cell.getType() !== null) {
+							if (!addByStr(this._makeNodesFromCellValueStr(cell.getValue2(), fn, fs, cell))) {
 								return false;
 							}
 						}
