@@ -205,14 +205,14 @@ CStylesPainter.prototype.get_MergedStyles = function ()
 		for (var i = 0; i < _count_doc; i++)
 		{
 			var style = this.docStyles[i];
-			_map_document[style.Name] = 1;
+			_map_document[style.name] = 1;
 			fAddToPriorityStyles(style);
 		}
 		
 		for (var i = 0; i < _count_default; i++)
 		{
 			var style = this.defaultStyles[i];
-			if (null == _map_document[style.Name])
+			if (null == _map_document[style.name])
 				fAddToPriorityStyles(style);
 		}
 		
@@ -220,11 +220,14 @@ CStylesPainter.prototype.get_MergedStyles = function ()
 		for (var index in aPriorityStyles)
 		{
 			var aSubArray = aPriorityStyles[index];
+			//CStyleImage keeps the style name in "name" - comparing "Name" here made
+			//this sort a no-op, so the gallery listed the headings in whatever order
+			//the style manager happened to hold them, Heading 9 first (#2324)
 			aSubArray.sort(function (a, b)
 			{
-				if (a.Name < b.Name)
+				if (a.name < b.name)
 					return -1;
-				else if (a.Name > b.Name)
+				else if (a.name > b.name)
 					return 1;
 				else
 					return 0;
