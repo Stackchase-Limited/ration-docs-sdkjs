@@ -11679,8 +11679,17 @@ function isAllowPasteLink(pastedWb) {
 	};
 
     WorksheetView.prototype._hitResizeCorner = function (x1, y1, x2, y2) {
-        var wEps = AscCommon.global_mouseEvent.KoefPixToMM, hEps = AscCommon.global_mouseEvent.KoefPixToMM;
-        return Math.abs(x2 - x1) <= wEps + 2 && Math.abs(y2 - y1) <= hEps + 2;
+        //_drawSelectionElement draws the fill handle as a 5px square inside a 2px
+        //border, both doubled on a retina canvas. This test did not follow that:
+        //it allowed a fixed 3 device pixels, so on a 2x display the area you can
+        //grab was a third of the square you are aiming at, and the surrounding
+        //move-border test - which is retina-scaled - won instead (#2425).
+        var retinaKf = this.getRetinaPixelRatio() >= 2 ? 2 : 1;
+        var sizeBorder = (5 + 2) * retinaKf;
+        //the square is drawn from x2 - diffBorder, so this covers all of it
+        var eps = Math.floor(sizeBorder / 2) + retinaKf +
+            (AscCommon.global_mouseEvent.KoefPixToMM - 1) * retinaKf;
+        return Math.abs(x2 - x1) <= eps && Math.abs(y2 - y1) <= eps;
     };
     WorksheetView.prototype._hitInRange = function (range, rangeType, vr, x, y, offsetX, offsetY, opt_pageBreakPreviewRange) {
         var wEps = AscCommon.AscBrowser.convertToRetinaValue(2 * AscCommon.global_mouseEvent.KoefPixToMM, true);
