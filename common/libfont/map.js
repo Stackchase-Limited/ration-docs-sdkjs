@@ -122,7 +122,17 @@
 			["Times New Roman", "Liberation Serif"],
 			["Courier New", "Liberation Mono"],
 			["Segoe", "Segoe UI"],
-			["Cambria", "Caladea"]
+			["Cambria", "Caladea"],
+			// Verdana ships with no metric clone, so a document written in it is
+			// re-measured against whatever the penalty scorer happens to like. Left
+			// to itself the scorer picks Open Sans, whose line box is 1.36182em
+			// against Verdana's 1.21533em - every line 12% taller - which is enough
+			// to push the tail of a full page onto a second one (#1570). DejaVu Sans
+			// descends from Bitstream Vera, drawn to Verdana's proportions: its mean
+			// advance is within 3.9% of Verdana over ASCII (Open Sans: 14.2%) and its
+			// line box within 4.2% (Open Sans: 12.1%). It is also what LibreOffice
+			// substitutes, which is the renderer users compare us against.
+			["Verdana", "DejaVu Sans"]
 		];
 		this.FD_Ascii_Font_Like_Main = {
 			"Cambria Math"  : 0,
@@ -148,7 +158,10 @@
 			"Segoe UI"          : 5,
 
 			"Cambria"           : 6,
-			"Caladea"           : 6
+			"Caladea"           : 6,
+
+			"Verdana"           : 7,
+			"DejaVu Sans"       : 7
 		};
 
 		this.ChangeGlyphsMap = {
