@@ -1242,10 +1242,19 @@
 					this.Api.asc_CheckCopy(copy_data, c_oAscClipboardDataFormat.Text | c_oAscClipboardDataFormat.Html | c_oAscClipboardDataFormat.Internal | c_oAscClipboardDataFormat.Image);
 
 					let clipboardData = {};
-					if (copy_data.data[c_oAscClipboardDataFormat.Text]) {
+					// #1364: test for PRESENCE, not truthiness. An empty string is a
+					// legitimate payload - copying one cell whose displayed text is empty
+					// produces exactly "" - and a falsy test dropped the flavour from the
+					// ClipboardItem altogether, so the write replaced the system clipboard
+					// with an item carrying no text at all. Only a 1x1 selection can reach
+					// this: _getTextFromSheet writes separators BETWEEN cells, so any
+					// larger selection of blank cells still yields a tab or a newline.
+					// pushData, the older path in this same file, already guards on
+					// "_data !== null" - presence is the contract this broke.
+					if (undefined !== copy_data.data[c_oAscClipboardDataFormat.Text] && null !== copy_data.data[c_oAscClipboardDataFormat.Text]) {
 						clipboardData["text/plain"] = new Blob([copy_data.data[c_oAscClipboardDataFormat.Text]], {type: "text/plain"});
 					}
-					if (copy_data.data[c_oAscClipboardDataFormat.Html]) {
+					if (undefined !== copy_data.data[c_oAscClipboardDataFormat.Html] && null !== copy_data.data[c_oAscClipboardDataFormat.Html]) {
 						clipboardData["text/html"] = new Blob([copy_data.data[c_oAscClipboardDataFormat.Html]], {type: "text/html"});
 					}
 					if (copy_data.data[c_oAscClipboardDataFormat.Image]) {
