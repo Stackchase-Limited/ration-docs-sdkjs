@@ -230,6 +230,157 @@
 			}
 		},
 
+		// --- Ration Docs fix for ONLYOFFICE/DesktopEditors#676 --------------------
+		// Copying an image *file* in a Linux file manager (GNOME Files/Nautilus,
+		// Nemo, Caja, Thunar, Dolphin) puts no bitmap data on the clipboard at all.
+		// It puts a list of URIs naming the file on disk. Nautilus <= 40 also leaked
+		// its own marker into text/plain, which is exactly what #676 reports being
+		// pasted as literal text:
+		//     x-special/nautilus-clipboard
+		//     copy
+		//     file:///home/X/Pictures/X.png
+		// No clipboard item has kind 'file' with type 'image/*', so checkImages()
+		// in _private_onpaste finds nothing and the text/plain branch pastes the
+		// marker verbatim.
+		//
+		// Returns the local filesystem paths named by the clipboard, or [].
+		//
+		// SECURITY: only file:// URIs on the local host are ever returned. Every
+		// other scheme is refused, because the native CCefView::GetLocalImageUrl()
+		// hands an unrecognised URL to NSFileDownloader::IsNeedDownload() and then
+		// DownloadSync() - accepting http/https/ftp here would turn a plain Ctrl+V
+		// into an arbitrary synchronous network fetch. A payload that mixes an
+		// acceptable URI with anything else is refused whole, so an ambiguous
+		// clipboard always falls through to the ordinary text paste.
+		getFileManagerImagePaths : function(_clipboard, _text_format)
+		{
+			var _getData = function(type)
+			{
+				try
+				{
+					return (_clipboard && _clipboard.getData) ? (_clipboard.getData(type) || "") : "";
+				}
+				catch (e)
+				{
+				}
+				return "";
+			};
+
+			var _raw = "";
+
+			// the cross-desktop XDG flavour
+			var _uriList = _getData("text/uri-list");
+			if (_uriList && "" !== _uriList)
+				_raw = _uriList;
+
+			// GNOME's own flavour: "copy\n<uri>\n<uri>..."
+			if ("" === _raw)
+			{
+				var _gnome = _getData("x-special/gnome-copied-files");
+				if (_gnome && "" !== _gnome)
+					_raw = _gnome;
+			}
+
+			// Nautilus <= 40 put its marker in text/plain. This is the #676 payload.
+			if ("" === _raw && _text_format && 0 === _text_format.indexOf("x-special/nautilus-clipboard"))
+				_raw = _text_format;
+
+			// A bare file:// line in text/plain with no file-manager marker is NOT
+			// treated as a file reference - pasting that text is a legitimate thing
+			// for a user to want, and we must not silently turn it into an image.
+			if ("" === _raw)
+				return [];
+
+			var _lines = _raw.split(/[\r\n]+/);
+			var _paths = [];
+			for (var i = 0; i < _lines.length; ++i)
+			{
+				var _line = _lines[i].trim();
+				if ("" === _line)
+					continue;
+				if ("#" === _line.charAt(0))
+					continue; // RFC 2483 comment line
+				if ("x-special/nautilus-clipboard" === _line || "copy" === _line || "cut" === _line)
+					continue; // flavour marker / verb line
+
+				if (0 !== _line.indexOf("file://"))
+					return []; // SECURITY: local files only, never a remote URL
+
+				var _rest = _line.substring("file://".length);
+
+				// file://<host>/path - only an empty host or "localhost" is local
+				var _slash = _rest.indexOf("/");
+				if (0 !== _slash)
+				{
+					if (-1 === _slash)
+						return [];
+					if ("localhost" !== _rest.substring(0, _slash))
+						return [];
+					_rest = _rest.substring(_slash);
+				}
+
+				var _path = _rest;
+				try
+				{
+					_path = decodeURIComponent(_rest);
+				}
+				catch (e)
+				{
+					return []; // malformed percent-encoding
+				}
+
+				if ("" === _path || -1 !== _path.indexOf("\u0000"))
+					return [];
+
+				_paths.push(_path);
+			}
+
+			return _paths;
+		},
+
+		// Inserts the images named by a file-manager clipboard payload. Desktop
+		// build only: the local-file bridge does not exist in the web build, where
+		// window["AscDesktopEditor"] is undefined and this is a no-op.
+		// Returns true if it inserted something, in which case the caller must not
+		// go on to paste the raw URI list as text.
+		checkFileManagerImagePaste : function(_clipboard, _text_format)
+		{
+			var _desktop = window["AscDesktopEditor"];
+			if (!_desktop || !_desktop["IsImageFile"] || !_desktop["LocalFileGetImageUrl"])
+				return false;
+
+			if (!this.Api || !this.Api._addImageUrl)
+				return false;
+
+			var _paths = this.getFileManagerImagePaths(_clipboard, _text_format);
+			if (0 === _paths.length)
+				return false;
+
+			var _urls = [];
+			for (var i = 0; i < _paths.length; ++i)
+			{
+				// SECURITY: this is CImageFileFormatChecker::isImageFile(), which
+				// sniffs the file's magic bytes rather than trusting its extension,
+				// so nothing that is not actually a decodable image is ever read
+				// into the document. Anything else refuses the whole payload and we
+				// fall through to the normal paste path.
+				if (!_desktop["IsImageFile"](_paths[i]))
+					return false;
+
+				var _url = _desktop["LocalFileGetImageUrl"](_paths[i]);
+				if (!_url || "error" === _url)
+					return false;
+
+				_urls.push(AscCommon.g_oDocumentUrls.getImageUrl(_url));
+			}
+
+			if (0 === _urls.length)
+				return false;
+
+			this.Api._addImageUrl(_urls);
+			return true;
+		},
+
 		_private_onpaste : function(e)
 		{
 			this._console_log("onpaste");
@@ -327,6 +478,17 @@
 					AscCommon.g_specialPasteHelper.specialPasteData.images = _images.length ? _images : null;
 
 					this.CommonIframe_PasteStart(_html_format, _text_format);
+					return false;
+				}
+
+				// Ration Docs #676: a file manager put image FILES on the clipboard as
+				// URIs rather than bitmap data. Handle them here, before the text
+				// branch below pastes that URI list as literal text. Deliberately
+				// placed AFTER the internal and HTML branches: when real rich content
+				// is also on the clipboard it is the better payload and must still win.
+				if (this.checkFileManagerImagePaste(_clipboard, _text_format))
+				{
+					g_clipboardBase.Paste_End();
 					return false;
 				}
 
