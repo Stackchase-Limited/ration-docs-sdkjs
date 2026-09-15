@@ -96,7 +96,14 @@ function (window, undefined) {
 				break;
 			}
 			case asc.c_oAscHeaderFooterField.fileName: {
-				res = api.DocInfo ? api.DocInfo.Title : "";
+				/* #2275: the sheet name above comes from the model and the page number is
+				   computed, but the file name came only from DocInfo - which is set by
+				   asc_setDocInfo when an *editor* opens a document. The converter that
+				   renders an exported PDF never calls it, so this printed as nothing while
+				   everything beside it was correct. doctrenderer now puts the document's
+				   name on the api itself for that case; DocInfo still wins where it has
+				   one, because an open editor knows better than the converter. */
+				res = (api.DocInfo && api.DocInfo.Title) || api.documentTitle || "";
 				break;
 			}
 			case asc.c_oAscHeaderFooterField.filePath: {
