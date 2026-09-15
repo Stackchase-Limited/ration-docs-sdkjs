@@ -9156,7 +9156,31 @@
 			};
 			if(0 == _start && gc_nMaxRow0 == _stop)
 			{
-				// ToDo implement hiding all rows!
+				//the whole sheet is selected. Giving all 1048576 rows a record of their own is
+				//not an option, so the default row record carries the flag for every row that has
+				//none - the same way setColHidden uses oAllCol. Without this branch "Show" after
+				//Ctrl+A was a no-op, which is the only way to reach the first row once it is hidden
+				//and the only way to clear zeroHeight="1" coming from a file.
+				var allRow = (false == bHidden) ? oThis.getAllRowNoEmpty() : oThis.getAllRow();
+				if(null != allRow && bHidden != allRow.getHidden())
+				{
+					var oAllOldProps = allRow.getHeightProp();
+					allRow.setHidden(bHidden, localChange);
+					var oAllNewProps = allRow.getHeightProp();
+					if(false == oAllOldProps.isEqual(oAllNewProps))
+						AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RowProp, oThis.getId(),
+							allRow._getUpdateRange(),
+							new UndoRedoData_IndexSimpleProp(allRow.index, true, oAllOldProps, oAllNewProps));
+				}
+
+				//and then the rows that do have one
+				oThis._forEachRow(fProcessRow);
+
+				if(startIndex !== null)//save the last rows
+				{
+					updateRange = new Asc.Range(0, startIndex, gc_nMaxCol0, endIndex);
+					AscCommon.History.Add(AscCommonExcel.g_oUndoRedoWorksheet, AscCH.historyitem_Worksheet_RowHide, oThis.getId(), updateRange, new UndoRedoData_FromToRowCol(bHidden, startIndex, endIndex));
+				}
 			}
 			else
 			{
