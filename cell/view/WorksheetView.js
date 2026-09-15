@@ -18352,6 +18352,39 @@ function isAllowPasteLink(pastedWb) {
             r2 = this.model.getRowsCount() - 1;
         }
 
+        // #1018: getRowsCount() is the sheet's row EXTENT, not a cell count - every Row
+        // record raises it (Worksheet._initRow, cell/model/Workbook.js), so a workbook whose
+        // rows carry whole-sheet formatting reports 1048576 while the column holds a hundred
+        // values, and this loop then measures a million empty rows for every selected column.
+        // A row with no cell in THIS column cannot contribute to the WIDTH:
+        // _addCellTextToCache returns at "if (c.isEmptyTextString())" before it measures or
+        // touches the column width, leaves nothing in the text cache, and the loop below
+        // skips it on "ct === undefined". So clamp to the column's own cell extent - the same
+        // bound Range._foreachNoEmptyByCol uses, and no wider than the cells
+        // _calcCellsTextMetrics would have cached anyway. A merge spanning columns is skipped
+        // below in any case, and one spanning only rows is anchored on a real cell in this
+        // column.
+        //
+        // DELIBERATE BEHAVIOUR CHANGE, row heights. The empty-cell branch above is not
+        // silent: when isNotDefaultFont() is true it measures 'A' and calls
+        // _updateRowHeight, which writes through to model.setRowHeight and so MATERIALISES a
+        // Row record for that row. isNotDefaultFont() is true when the COLUMN carries a font
+        // and the row does not (getCompiledStyle falls back to _getColNoEmptyWithAll), which
+        // is exactly the state after formatting whole columns - the #1018 gesture. Before
+        // this clamp, autofitting one styled column grew, and created a Row record for, all
+        // 1048576 rows; that is a second unbounded cost in the same loop, and it made a
+        // column autofit rewrite row heights across the entire sheet. We no longer touch
+        // rows outside the column's cells. Nothing else in the product does either:
+        // _calcCellsTextMetrics and _updateRowsHeight both iterate existing cells only.
+        // Rows that do have a cell here are still sized exactly as before.
+        var colData = this.model.getColDataNoEmpty(col);
+        if (!colData) {
+            r2 = r1 - 1;
+        } else {
+            r1 = Math.max(r1, colData.getMinIndex());
+            r2 = Math.min(r2, colData.getMaxIndex());
+        }
+
         oldColWidth = this.getColumnWidthInSymbols(col);
 
         this.canChangeColWidth = c_oAscCanChangeColWidth.all;
