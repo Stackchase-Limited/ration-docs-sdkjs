@@ -15077,8 +15077,19 @@
         let oParagraph = oDrawingContent.Content[0];
         let oRun;
         function r(dVal) {
-            let dNumVal = (dVal * 10000 + 0.5 >> 0) / 10000;
+            //Math.round, not (x + 0.5 >> 0): the shift truncates to 32 bits, so any
+            //coefficient at or above 214748.3648 wrapped round and printed a completely
+            //different number. It also rounded negatives towards zero.
+            let dNumVal = Math.round(dVal * 10000) / 10000;
             return dNumVal.toString()
+        }
+        //a term joined onto the equation carries its own sign: " - 3.5", never " + -3.5"
+        function joinSigned(sEquation, dVal) {
+            let sAbs = r(Math.abs(dVal));
+            if(sAbs === "0") {
+                return sEquation;
+            }
+            return sEquation + (dVal < 0 ? " - " : " + ") + sAbs;
         }
         switch (this.trendlineType) {
             case AscFormat.TRENDLINE_TYPE_EXP: {
@@ -15095,22 +15106,14 @@
             }
             case AscFormat.TRENDLINE_TYPE_LINEAR: {
                 oRun = new AscWord.ParaRun(oParagraph, false);
-                let s = "y = " + r(aC[0]) + "x";
-                let b = r(aC[1]);
-                if(b !== "0") {
-                    s += (" + " + b);
-                }
+                let s = joinSigned("y = " + r(aC[0]) + "x", aC[1]);
                 oRun.AddText(s);
                 oParagraph.AddToContentToEnd(oRun);
                 break;
             }
             case AscFormat.TRENDLINE_TYPE_LOG: {
                 oRun = new AscWord.ParaRun(oParagraph, false);
-                let s = "y = " + r(aC[0]) + "ln(x)";
-                let b = r(aC[1]);
-                if(b !== "0") {
-                    s += (" + " + b);
-                }
+                let s = joinSigned("y = " + r(aC[0]) + "ln(x)", aC[1]);
                 oRun.AddText(s);
                 oParagraph.AddToContentToEnd(oRun);
                 break;
@@ -15122,11 +15125,12 @@
                 oRun = new AscWord.ParaRun(oParagraph, false);
                 oRun.AddText("y = ");
                 oParagraph.AddToContentToEnd(oRun);
+                let bFirstTerm = true;
                 for(let nC = 0; nC < aC.length; ++nC) {
                     let c = r(Math.abs(aC[nC]));
                     if(c !== "0") {
                         oRun = new AscWord.ParaRun(oParagraph, false);
-                        if(nC > 0) {
+                        if(!bFirstTerm) {
                             if(aC[nC] >= 0) {
                                 oRun.AddText(" + ");
                             }
@@ -15134,13 +15138,21 @@
                                 oRun.AddText(" - ");
                             }
                         }
-                        oRun.AddText(c + "x");
+                        else if(aC[nC] < 0) {
+                            //the leading term prints its own minus - it used to be dropped
+                            //together with the sign, so -2x² came out as 2x²
+                            oRun.AddText("-");
+                        }
+                        bFirstTerm = false;
+                        //aC is ordered highest power first, so the last coefficient is the
+                        //constant term: it takes no x, and used to be printed as "4x"
+                        let sPow = (aC.length - nC - 1) + "";
+                        oRun.AddText(sPow === "0" ? c : (c + "x"));
                         oParagraph.AddToContentToEnd(oRun);
-                        c = (aC.length - nC - 1) + "";
-                        if(c !== "0" && c !== "1") {
+                        if(sPow !== "0" && sPow !== "1") {
                             oRun = new AscWord.ParaRun(oParagraph, false);
                             oRun.SetVertAlign(AscCommon.vertalign_SuperScript);
-                            oRun.AddText(c);
+                            oRun.AddText(sPow);
                             oParagraph.AddToContentToEnd(oRun);
                         }
                     }
