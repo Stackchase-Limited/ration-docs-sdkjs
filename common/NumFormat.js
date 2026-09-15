@@ -4331,7 +4331,10 @@ FormatParser.prototype =
                             }
                         } else {
                             if (nMonthIndex == 0) {
-                                res.sDateFormat = "dd-mmm-yy";
+                                //the same day-month-year format is used wherever the month is written
+                                //out in letters - "Mar 5 2025" and "5 Mar 2025" are one date and must
+                                //not be shown two different ways (#2296)
+                                res.sDateFormat = "d-mmm-yy";
                                 res.m = aDate[0];
                                 res.d = aDate[1];
                                 res.y = aDate[2];
