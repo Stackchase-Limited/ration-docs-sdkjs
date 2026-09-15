@@ -1225,13 +1225,7 @@
 					renderedWidth += self.charWidths[i];
 				}
 
-				let gaps = 0, prevSpace = false, seenNonSpace = false;
-				for (let i = l.beg; i <= effectiveEnd; ++i) {
-					let isSpace = !!self.codesHypSp[self.chars[i]];
-					if (!isSpace && prevSpace && seenNonSpace) ++gaps;
-					if (!isSpace) seenNonSpace = true;
-					prevSpace = isSpace;
-				}
+				let gaps = self._calcJustifyGaps(l.beg, effectiveEnd);
 
 				if (gaps === 0) return 0;
 				return (maxWidth - 1 - renderedWidth) / gaps;
@@ -1321,6 +1315,53 @@
 				return isRtl ? AscCommon.align_Right : AscCommon.align_Left;
 			}
 			return align;
+		};
+		/**
+		 * Whether justification may widen the join in front of the character at some
+		 * position, given the character that precedes it on the same line.
+		 *
+		 * Latin text is spread at its spaces. East Asian text is written without
+		 * spaces at all, so a line of it has no space to spread and used to come out
+		 * flush left however wide the cell was (#2263); Excel spreads such a line
+		 * between the characters themselves, which is what the second rule does.
+		 *
+		 * Both the slack-per-gap computed in _doRender and the pen movement in
+		 * TableCellDrawState.handleBidiFlow go through here, so that they cannot
+		 * disagree about where the slack goes and push the text out of the cell.
+		 *
+		 * @param {Number} prevCharCode  character before it on the line, -1 at line start
+		 * @param {Number} charCode
+		 * @return {Boolean}
+		 */
+		StringRender.prototype._isJustifyBreak = function (prevCharCode, charCode) {
+			if (this.codesHypSp[charCode]) {
+				return false;
+			}
+			if (this.codesHypSp[prevCharCode]) {
+				return true;
+			}
+			return !!(AscCommon.isEastAsianScript(charCode) && AscCommon.isEastAsianScript(prevCharCode));
+		};
+		/**
+		 * Number of places on [beg, end] that justification may widen. Leading spaces
+		 * are not one of them - slack goes between words, not in front of the first.
+		 * @param {Number} beg
+		 * @param {Number} end
+		 * @return {Number}
+		 */
+		StringRender.prototype._calcJustifyGaps = function (beg, end) {
+			let gaps = 0, seenNonSpace = false, prevCharCode = -1;
+			for (let i = beg; i <= end; ++i) {
+				let charCode = this.chars[i];
+				if (seenNonSpace && this._isJustifyBreak(prevCharCode, charCode)) {
+					++gaps;
+				}
+				if (!this.codesHypSp[charCode]) {
+					seenNonSpace = true;
+				}
+				prevCharCode = charCode;
+			}
+			return gaps;
 		};
 		StringRender.prototype.getInternalState = function () {
 			return {
@@ -1440,6 +1481,7 @@
 			this.justifyDx = 0;
 			this.afterSpaceInLine = false;
 			this.seenNonSpaceInLine = false;
+			this.prevCharInLine = -1;
 			this.trailingSpaceStart = Infinity;
 			this.trailingSpaceX = 0;
 			this.positionCallback = null;
@@ -1559,7 +1601,8 @@
 			let char = this.stringRender.chars[charIndex];
 			let isSpace = !!this.stringRender.codesHypSp[char];
 
-			if (!isSpace && this.afterSpaceInLine && this.seenNonSpaceInLine && this.justifyDx) {
+			if (this.seenNonSpaceInLine && this.justifyDx &&
+				this.stringRender._isJustifyBreak(this.prevCharInLine, char)) {
 				this.x += this.justifyDx;
 			}
 
@@ -1568,6 +1611,7 @@
 				this.x += width;
 				if (!isSpace) this.seenNonSpaceInLine = true;
 				this.afterSpaceInLine = isSpace;
+				this.prevCharInLine = char;
 				return;
 			}
 
@@ -1577,6 +1621,7 @@
 					this.x += width;
 					if (!isSpace) this.seenNonSpaceInLine = true;
 					this.afterSpaceInLine = isSpace;
+					this.prevCharInLine = char;
 					return;
 				}
 			}
@@ -1635,6 +1680,7 @@
 			this.x += width;
 			if (!isSpace) this.seenNonSpaceInLine = true;
 			this.afterSpaceInLine = isSpace;
+			this.prevCharInLine = char;
 		};
 
 		TableCellDrawState.prototype.beginLine = function(line, x, y) {
@@ -1644,6 +1690,7 @@
 			this.baseY = y;
 			this.afterSpaceInLine = false;
 			this.seenNonSpaceInLine = false;
+			this.prevCharInLine = -1;
 
 			this.trailingSpaceStart = line ? line.end + 1 : Infinity;
 			this.trailingSpaceX = x;
@@ -1689,6 +1736,7 @@
 			this.justifyDx = 0;
 			this.afterSpaceInLine = false;
 			this.seenNonSpaceInLine = false;
+			this.prevCharInLine = -1;
 			this.trailingSpaceStart = Infinity;
 			this.trailingSpaceX = 0;
 			this.positionCallback = null;
