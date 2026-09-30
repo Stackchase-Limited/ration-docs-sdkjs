@@ -31975,7 +31975,6 @@
 			return null;
 
 		comment.GenerateDurableId();
-		logicDocument.GetApi().sync_AddComment(comment.GetId(), comment.GetData());
 		return new ApiComment(comment);
 	}
 
