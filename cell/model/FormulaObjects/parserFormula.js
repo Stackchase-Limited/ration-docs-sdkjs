@@ -1359,7 +1359,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 			}
 
 			var resValue = new cEmpty();
-			if(!(excludeNestedStAg && cell.formulaParsed && cell.formulaParsed.isFoundNestedStAg())){
+			if(!(excludeNestedStAg && cell && cell.formulaParsed && cell.formulaParsed.isFoundNestedStAg())){
 				var checkTypeVal = checkTypeCell(cell);
 				if(!(excludeErrorsVal && CellValueType.Error === checkTypeVal.type)){
 					resValue = checkTypeVal;
@@ -1767,7 +1767,7 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 				}
 
 				var resValue = new cEmpty();
-				if (!(excludeNestedStAg && cell.formulaParsed && cell.formulaParsed.isFoundNestedStAg())) {
+				if (!(excludeNestedStAg && cell && cell.formulaParsed && cell.formulaParsed.isFoundNestedStAg())) {
 					var checkTypeVal = checkTypeCell(cell);
 					if (!(excludeErrorsVal && CellValueType.Error === checkTypeVal.type)) {
 						resValue = checkTypeVal;
