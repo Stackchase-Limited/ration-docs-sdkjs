@@ -29816,6 +29816,49 @@ function isAllowPasteLink(pastedWb) {
 			return {val: val, formula: formula};
 		};
 
+		//shift the plain cell references of a formula that can't be parsed here, leaving the rest of the text as is
+		var shiftUnparsedFormula = function (sFormula, offset) {
+			var res = sFormula;
+			AscCommonExcel.executeInR1C1Mode(false, function () {
+				var parseResult = new AscCommonExcel.ParseResult([]);
+				var _p_ = new AscCommonExcel.parserFormula(sFormula, null, ws.model);
+				_p_.parse(null, null, parseResult, true);
+				var refPos = parseResult.refPos, parts = [], last = 0;
+				var isRef = function (_elem) {
+					var type = _elem && _elem.type;
+					return type === AscCommonExcel.cElementType.cell || type === AscCommonExcel.cElementType.cellsRange ||
+						type === AscCommonExcel.cElementType.cell3D || type === AscCommonExcel.cElementType.cellsRange3D;
+				};
+				for (var i = 0; i < refPos.length; i++) {
+					var elem = refPos[i].oper, prefix = "";
+					if (refPos[i].isName || !elem || refPos[i].start < last) {
+						continue;
+					}
+					if (elem.type === AscCommonExcel.cElementType.name) {
+						//Sheet!A1 on a sheet missing here is read as a name: shift its cell part separately
+						var text = sFormula.substring(refPos[i].start, refPos[i].end);
+						var sheetEnd = text.lastIndexOf("!");
+						var refParser = sheetEnd > 0 ? new AscCommonExcel.parserFormula(text.substring(sheetEnd + 1), null, ws.model) : null;
+						if (!refParser || !refParser.parse() || refParser.outStack.length !== 1) {
+							continue;
+						}
+						prefix = text.substring(0, sheetEnd + 1);
+						elem = refParser.outStack[0];
+					}
+					if (!isRef(elem)) {
+						continue;
+					}
+					var container = [elem];
+					_p_._changeOffsetElem(elem, container, 0, offset);
+					parts.push(sFormula.substring(last, refPos[i].start), prefix + container[0].toString());
+					last = refPos[i].end;
+				}
+				parts.push(sFormula.substring(last));
+				res = parts.join("");
+			});
+			return res;
+		};
+
 		//set formula - for paste from binary
 		var calculateValueAndBinaryFormula = function (newVal, firstRange, range) {
 			//operation special paste
@@ -29959,6 +30002,11 @@ function isAllowPasteLink(pastedWb) {
 								cm: cmIndex
 							};
 						}
+					} else if (!arrayFormulaRef && !specialPasteProps.transpose && needOperation === null &&
+						rangeStyle.cellValueData && rangeStyle.cellValueData.formula) {
+						//the formula refers to a sheet/table that does not exist here (paste from another workbook) and is
+						//kept as text, but its relative references must still move with the cell, as they do in ms
+						rangeStyle.cellValueData.formula = shiftUnparsedFormula(pastedFormula, offset);
 					}
 				} else if (modelFormula && needOperation !== null) {
 					assemb = applySpecialOperationFormula(cellValueDataDup, modelVal, null, modelFormula, needOperation, isEmptyPasted, isEmptyModel);

@@ -15020,7 +15020,9 @@
             //after the formula becomes shared, ref array of the second starts referencing the first cell
             //therefore when changing the second cell of two shared in _saveCellValueAfterEdit function
             //we take array ref and assign the entered data to it, and therefore the data of the second appears in the first cell
-            if (prevFormula && formula.t !== ECellFormulaType.cellformulatypeArray &&
+            //a formula that failed to parse (e.g. a copied fragment referring to a sheet that is not in the clipboard
+            //workbook) cannot be shifted, so it must not become a shared master: every cell below would get its text
+            if (prevFormula && prevFormula.parsed.isParsed && formula.t !== ECellFormulaType.cellformulatypeArray &&
                 prevFormula.t !== ECellFormulaType.cellformulatypeArray &&
                 prevFormula.nRow + offsetRow === cell.nRow &&
                 AscCommonExcel.compareFormula(prevFormula.formula, prevFormula.refPos, formula.v, offsetRow)) {
