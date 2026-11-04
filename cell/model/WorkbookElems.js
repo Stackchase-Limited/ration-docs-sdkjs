@@ -9356,7 +9356,8 @@ function RangeDataManagerElem(bbox, data)
 				ref = is3DRef.range;
 			}
 		}
-		this.Ref = AscCommonExcel.g_oRangeCache.getAscRange(ref);
+		//#2459: an autofilter ref has no $ in a valid file; earlier builds saved ref="$H$2:$J$5" - read it as plain
+		this.Ref = AscCommonExcel.g_oRangeCache.getAscRange(ref.replace(/\$/g, ""));
 	};
 	AutoFilter.prototype.moveRef = function (col, row) {
 		var ref = this.Ref.clone();

@@ -7976,7 +7976,8 @@
             var res = c_oSerConstants.ReadOk;
             var oThis = this;
             if ( c_oSer_TablePart.Ref == type )
-                oTable.Ref = AscCommonExcel.g_oRangeCache.getAscRange(this.stream.GetString2LE(length));
+                //#2459: a table ref has no $ in a valid file; earlier builds saved ref="$H$2:$J$6" - read it as plain
+                oTable.Ref = AscCommonExcel.g_oRangeCache.getAscRange(this.stream.GetString2LE(length).replace(/\$/g, ""));
             else if ( c_oSer_TablePart.HeaderRowCount == type )
                 oTable.HeaderRowCount = this.stream.GetULongLE();
             else if ( c_oSer_TablePart.TotalsRowCount == type )
