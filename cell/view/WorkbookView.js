@@ -3152,6 +3152,11 @@
 
         var isNotFunction = c_oAscPopUpSelectorType.Func !== type;
 
+        if (c_oAscPopUpSelectorType.TableColumnName === type) {
+            // the list shows the column name as is, inside Table1[...] the characters [ ] # ' @ must be escaped with '
+            name = AscCommon.parserHelp.escapeTableCharacters(name, true);
+        }
+
         let isCellEditMode =  this.getCellEditMode();	// is the editor open
 
         if (isCellEditMode && autoComplete) {
