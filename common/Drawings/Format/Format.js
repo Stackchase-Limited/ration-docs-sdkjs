@@ -16597,6 +16597,46 @@
 			return ret;
 		}
 
+		// alpha modifier of the gradient aGs at nPos (0..100000), linear between the stops around it
+		function GetGradAlphaAtPos(aGs, nPos) {
+			var oPrev = null, oNext = null;
+			for (var i = 0; i < aGs.length; ++i) {
+				var oGs = aGs[i];
+				if (!oGs || !oGs.color || !isRealNumber(oGs.pos)) {
+					continue;
+				}
+				if (oGs.pos <= nPos && (!oPrev || oGs.pos >= oPrev.pos)) {
+					oPrev = oGs;
+				}
+				if (oGs.pos >= nPos && (!oNext || oGs.pos < oNext.pos)) {
+					oNext = oGs;
+				}
+			}
+			var fAlpha = function (oGs) {
+				var nVal = oGs.color.getModValue("alpha");
+				return nVal === null ? 100000 : nVal;
+			};
+			if (!oPrev && !oNext) {
+				return null;
+			}
+			if (!oPrev || !oNext || oPrev.pos === oNext.pos) {
+				return fAlpha(oPrev || oNext);
+			}
+			return (fAlpha(oPrev) + (fAlpha(oNext) - fAlpha(oPrev)) * (nPos - oPrev.pos) / (oNext.pos - oPrev.pos) + 0.5) >> 0;
+		}
+
+		function SetGradStopAlpha(oUniColor, nAlpha) {
+			if (!oUniColor || !isRealNumber(nAlpha) || nAlpha >= 100000 || oUniColor.getModValue("alpha") !== null) {
+				return;
+			}
+			if (!oUniColor.Mods) {
+				oUniColor.setMods(new CColorModifiers());
+			}
+			// a lone wordTint/wordShade is converted only while it is the only modifier
+			oUniColor.convertToPPTXMods();
+			oUniColor.Mods.addMod("alpha", nAlpha);
+		}
+
 		function CorrectUniFill(asc_fill, unifill, editorId) {
 
 			if (asc_fill instanceof CUniFill) {
@@ -16707,20 +16747,28 @@
 							}
 						}
 
+						// The interface sends the stops as plain colors, and CorrectUniColor drops every
+						// modifier, so each stop's own alpha (from the file) is taken from the old stops
+						// and put back: by index when the stops are edited in place, from the old gradient
+						// at the stop's position when a stop is added or removed.
 						if (undefined != _colors && undefined != _positions) {
 							if (_colors.length === _positions.length) {
 								if (ret.fill.colors.length === _colors.length) {
 									for (var i = 0; i < _colors.length; i++) {
 										var _gs = ret.fill.colors[i] ? ret.fill.colors[i] : new CGs();
+										var _gsAlpha = _gs.color ? _gs.color.getModValue("alpha") : null;
 										_gs.color = CorrectUniColor(_colors[i], _gs.color, editorId);
+										SetGradStopAlpha(_gs.color, _gsAlpha);
 										_gs.pos = _positions[i];
 										ret.fill.colors[i] = _gs;
 									}
 								} else {
+									var _oldColors = ret.fill.colors.slice();
 									ret.fill.colors.length = 0;
 									for (var i = 0; i < _colors.length; i++) {
 										var _gs = new CGs();
 										_gs.color = CorrectUniColor(_colors[i], _gs.color, editorId);
+										SetGradStopAlpha(_gs.color, GetGradAlphaAtPos(_oldColors, _positions[i]));
 										_gs.pos = _positions[i];
 
 										ret.fill.colors.push(_gs);
@@ -16730,7 +16778,9 @@
 						} else if (undefined != _colors) {
 							if (_colors.length === ret.fill.colors.length) {
 								for (var i = 0; i < _colors.length; i++) {
+									var _gsAlpha = ret.fill.colors[i].color ? ret.fill.colors[i].color.getModValue("alpha") : null;
 									ret.fill.colors[i].color = CorrectUniColor(_colors[i], ret.fill.colors[i].color, editorId);
+									SetGradStopAlpha(ret.fill.colors[i].color, _gsAlpha);
 								}
 							}
 						} else if (undefined != _positions) {
