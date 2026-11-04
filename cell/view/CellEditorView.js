@@ -2932,6 +2932,8 @@ function (window, undefined) {
 				}
 				case 35: {  // "end"
 					if (!this.enableKeyEvents) {
+						// the formula bar moves its caret natively; pick it up as the arrows do
+						this._delayedUpdateCursorByTopLine();
 						break;
 					}
 
@@ -2949,6 +2951,8 @@ function (window, undefined) {
 				}
 				case 36: { // "home"
 					if (!this.enableKeyEvents) {
+						// the formula bar moves its caret natively; pick it up as the arrows do
+						this._delayedUpdateCursorByTopLine();
 						break;
 					}
 
