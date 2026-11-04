@@ -775,7 +775,9 @@ var g_oFontProperties = {
 		return font && this.getName() === font.getName() && this.getSize() === font.getSize() && this.getBold() === font.getBold() && this.getItalic() === font.getItalic();
 	};
 	Font.prototype.isNormalXfColor = function () {
-		return g_oColorManager.isEqual(this.c, g_StyleCache.normalXf.font.c);
+		//a workbook without a styles part never gets a Normal font: compare with the default font then
+		var normalFont = (g_StyleCache.normalXf && g_StyleCache.normalXf.font) || g_oDefaultFormat.Font;
+		return g_oColorManager.isEqual(this.c, normalFont ? normalFont.c : null);
 	};
 	Font.prototype.clone = function () {
 		var font = new Font();
