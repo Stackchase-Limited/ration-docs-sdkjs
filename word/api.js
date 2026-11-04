@@ -14840,6 +14840,7 @@ background-repeat: no-repeat;\
 		this.groupActionsCounter        = 0;
 		this.groupActionsPr             = {};
 		this.groupActionsExecuteCounter = 0;
+		this.groupActionsOwners         = []; // guid of the plugin that opened each nested group
 	};
 	asc_docs_api.prototype.startGroupActions = function(pr)
 	{
@@ -14848,6 +14849,8 @@ background-repeat: no-repeat;\
 			return;
 
 		++this.groupActionsCounter;
+		let plugins = window.g_asc_plugins;
+		this.groupActionsOwners.push(plugins && plugins.getCurrentPluginGuid ? plugins.getCurrentPluginGuid() : "");
 
 		AscCommon.History.startGroupPoints();
 
@@ -14877,10 +14880,16 @@ background-repeat: no-repeat;\
 			return f.call();
 
 		this.executeGroupActionsStart();
-		let res = f.call();
-		this.updateSelection();
-		this.executeGroupActionsEnd();
-		return res;
+		try
+		{
+			let res = f.call();
+			this.updateSelection();
+			return res;
+		}
+		finally
+		{
+			this.executeGroupActionsEnd();
+		}
 	};
 	asc_docs_api.prototype.executeGroupActionsStart = function()
 	{
@@ -14912,6 +14921,7 @@ background-repeat: no-repeat;\
 			return;
 
 		--this.groupActionsCounter;
+		this.groupActionsOwners.pop();
 
 		// Undoes every point since the matching startGroupPoints and drops them from the history
 		AscCommon.History.cancelGroupPoints();
@@ -14933,6 +14943,7 @@ background-repeat: no-repeat;\
 			return this.cancelGroupActions(pr);
 
 		--this.groupActionsCounter;
+		this.groupActionsOwners.pop();
 
 		// Merges every point since the matching startGroupPoints into one undo point
 		AscCommon.History.endGroupPoints();
@@ -14983,6 +14994,30 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype.setUserScrollGroupActions = function(isUserScroll)
 	{
 		this.groupActionsPr.userScroll = isUserScroll;
+	};
+	// Ration Docs: a group keeps the whole editor locked until the plugin that opened it calls
+	// EndAction("GroupActions"). If that plugin is closed, restarted or removed first, nobody ever will, and
+	// the user cannot type or select until the document is reopened. Called by the plugins manager when a
+	// plugin goes away and after every plugin command; ends (not cancels, so the text inserted so far stays
+	// as one undo point) the innermost groups whose plugin is no longer running. A group of the plugin whose
+	// method is still in progress is left to that method; it is ended once the method returns.
+	asc_docs_api.prototype.endOrphanGroupActions = function()
+	{
+		let plugins = window.g_asc_plugins;
+		if (!plugins)
+			return;
+
+		while (this.isGroupActions())
+		{
+			let owner = this.groupActionsOwners[this.groupActionsOwners.length - 1];
+			if (!owner
+				|| owner === plugins.internalGuid
+				|| plugins.isRunned(owner)
+				|| owner === plugins.getCurrentPluginGuid())
+				break;
+
+			this.endGroupActions({"scrollToTarget" : false});
+		}
 	};
 
 	asc_docs_api.prototype.getJsApi = function()

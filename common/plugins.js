@@ -110,6 +110,7 @@
 
 		// only for Method
 		this.name = "";
+		this.returnAsync = false;
 
 		// only for commands
 		this.closed = false;
@@ -1256,6 +1257,10 @@
 
 			this.api.onPluginClose(guid);
 
+			// Ration Docs: release the editor lock of the GroupActions this plugin left open
+			if (this.api.endOrphanGroupActions)
+				this.api.endOrphanGroupActions();
+
 			if (this.runAndCloseData)
 			{
 				let _tmp = this.runAndCloseData;
@@ -1534,6 +1539,10 @@
 				}
 			}
 
+			// Ration Docs: a method of a plugin closed while it ran may have left a GroupActions open
+			if (this.api.endOrphanGroupActions)
+				this.api.endOrphanGroupActions();
+
 			if (this.queueCommands.length > 0)
 			{
 				let nextCommand = this.queueCommands[0];
@@ -1660,6 +1669,9 @@
 				return;
 			}
 
+			// also on the task: its plugin can be closed before the method is called (queued) or returns
+			this.queueCommands[0].returnAsync = true;
+
 			if (this.runnedPluginsMap[currentPlugin])
 				this.runnedPluginsMap[currentPlugin].methodReturnAsync = true;
 		},
@@ -1681,20 +1693,32 @@
 			
 			let methodName = "pluginMethod_" + name;
 			let methodRetValue = undefined;
+			let task = this.queueCommands[0];
 
 			if (this.api[methodName])
 			{
 				let api = this.api;
 				
-				if ("StartAction" === name || "EndAction" === name)
+				// Ration Docs: an exception used to escape here and leave the command queue stuck on this
+				// task forever: no further plugin command or method ran, so a plugin waiting to call
+				// EndAction("GroupActions") never could and the editor stayed locked.
+				try
 				{
-					methodRetValue = api[methodName].apply(api, value);
+					if ("StartAction" === name || "EndAction" === name)
+					{
+						methodRetValue = api[methodName].apply(api, value);
+					}
+					else
+					{
+						methodRetValue = api.executeGroupActions(function(){
+							return api[methodName].apply(api, value);
+						});
+					}
 				}
-				else
+				catch (err)
 				{
-					methodRetValue = api.executeGroupActions(function(){
-						return api[methodName].apply(api, value);
-					});
+					console.error(err);
+					methodRetValue = undefined;
 				}
 			}
 
@@ -1705,8 +1729,9 @@
 			}
 			else
 			{
+				// the plugin may already be closed (method queued before it was): no runObject then
 				let runObject = this.runnedPluginsMap[guid];
-				if (!runObject.methodReturnAsync)
+				if (runObject ? !runObject.methodReturnAsync : !(task && task.returnAsync))
 					this.shiftCommand(methodRetValue);
 			}
 		}
