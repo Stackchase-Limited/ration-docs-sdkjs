@@ -354,6 +354,32 @@
 									_h = this.content.GetSummaryHeight();
 								}
                 graphics.rect(this.content.X, this.content.Y, _w, _h);
+				// Exact line spacing smaller than the font shrinks the line, but the glyphs are still
+				// drawn at full height and stick out above/below it. The slideshow renders each shape
+				// into a texture of its bounds, so count the glyph extents too or the text is clipped.
+				if (!bEmpty) {
+					let dTop = this.content.Y;
+					let dBottom = this.content.Y + _h;
+					const aContent = this.content.Content;
+					for (let nPara = 0; nPara < aContent.length; ++nPara) {
+						const oPara = aContent[nPara];
+						if (!oPara.Lines || !oPara.Pages || !oPara.Pages[0]) {
+							continue;
+						}
+						for (let nLine = 0; nLine < oPara.Lines.length; ++nLine) {
+							const oLine = oPara.Lines[nLine];
+							const dBaseLine = oPara.Pages[0].Y + oLine.Y;
+							if (!isFinite(dBaseLine) || !oLine.Metrics) {
+								continue;
+							}
+							dTop = Math.min(dTop, dBaseLine - Math.max(oLine.Metrics.TextAscent, oLine.Metrics.TextAscent2));
+							dBottom = Math.max(dBottom, dBaseLine + oLine.Metrics.TextDescent);
+						}
+					}
+					if (dTop < this.content.Y || dBottom > this.content.Y + _h) {
+						graphics.rect(this.content.X, dTop, _w, dBottom - dTop);
+					}
+				}
 				return;
             }
             var old_start_page = this.content.StartPage;
