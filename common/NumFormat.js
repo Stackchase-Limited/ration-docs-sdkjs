@@ -437,7 +437,7 @@ function ParseLocalFormatSymbol(Name)
 			LocaleFormatSymbol['h'] = 'ч';
 			LocaleFormatSymbol['Minute'] = 'М';
 			LocaleFormatSymbol['minute'] = 'м'
-			LocaleFormatSymbol['S'] = 'C';
+			LocaleFormatSymbol['S'] = 'С'; // Cyrillic Es, as 's' below - a Latin 'C' here made 'СС' literal text
 			LocaleFormatSymbol['s'] = 'с';
 			LocaleFormatSymbol['general'] = 'Основной';
 			break;
