@@ -2348,6 +2348,24 @@
 					activeRange.c2 = AscCommon.gc_nMaxCol - 1;
 				}
 
+				//shrink/grow the end of a filter by rowDiff. when the deleted rows take the table's totals row, it is gone
+				//(TotalsRowCount = null), and since the totals row is not part of the table autofilter/sort range they
+				//lose one row less than the table (else <autoFilter>/<sortState> were saved a row short of the data)
+				var changeFilterEnd = function (filter, rowDiff, bDelTotalsRow) {
+					if (bDelTotalsRow) {
+						filter.TotalsRowCount = null;
+					}
+					filter.changeRef(null, rowDiff, null, bDelTotalsRow);
+					if (bDelTotalsRow && rowDiff + 1 !== 0) {
+						if (filter.AutoFilter) {
+							filter.AutoFilter.changeRef(null, rowDiff + 1);
+						}
+						if (filter.SortState) {
+							filter.SortState.changeRef(null, rowDiff + 1);
+						}
+					}
+				};
+
 				var changeFilter = function (filter, bTablePart) {
 					var ref = filter.Ref;
 					var oldFilter = null;
@@ -2367,21 +2385,14 @@
 								filter.TotalsRowCount = null;
 							}
 
-							//the totals row is not part of the table autofilter: the filter loses one row less than the table
-							//(turning totals off and on again left <autoFilter> a row short of the data in the saved file)
-							filter.changeRef(null, diff, null, bDelTotalsRow);
-							if (bDelTotalsRow && diff + 1 !== 0) {
-								if (filter.AutoFilter) {
-									filter.AutoFilter.changeRef(null, diff + 1);
-								}
-								if (filter.SortState) {
-									filter.SortState.changeRef(null, diff + 1);
-								}
-							}
+							//turning totals off deletes the totals row this way (it and on again left <autoFilter> a row short)
+							changeFilterEnd(filter, diff, bDelTotalsRow);
 						} else if (activeRange.r1 > ref.r1 && activeRange.r2 > ref.r2 && activeRange.r1 <= ref.r2) {
 							oldFilter = filter.clone(null);
 							if (diff < 0) {
-								filter.changeRef(null, diff + (activeRange.r2 - ref.r2));
+								//the deleted rows run past the table end and take its totals row with them. it was kept, so the
+								//last remaining data row became the totals row (overwritten with the totals label/formulas)
+								changeFilterEnd(filter, diff + (activeRange.r2 - ref.r2), bTablePart && filter.isTotalsRow());
 							} else {
 								filter.changeRef(null, diff);
 							}
