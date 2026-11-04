@@ -2370,8 +2370,13 @@
 							//the totals row is not part of the table autofilter: the filter loses one row less than the table
 							//(turning totals off and on again left <autoFilter> a row short of the data in the saved file)
 							filter.changeRef(null, diff, null, bDelTotalsRow);
-							if (bDelTotalsRow && filter.AutoFilter && diff + 1 !== 0) {
-								filter.AutoFilter.changeRef(null, diff + 1);
+							if (bDelTotalsRow && diff + 1 !== 0) {
+								if (filter.AutoFilter) {
+									filter.AutoFilter.changeRef(null, diff + 1);
+								}
+								if (filter.SortState) {
+									filter.SortState.changeRef(null, diff + 1);
+								}
 							}
 						} else if (activeRange.r1 > ref.r1 && activeRange.r2 > ref.r2 && activeRange.r1 <= ref.r2) {
 							oldFilter = filter.clone(null);

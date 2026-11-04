@@ -8574,7 +8574,8 @@ function RangeDataManagerElem(bbox, data)
 		if (this.AutoFilter && !bIsNotChangeAutoFilter) {
 			this.AutoFilter.changeRef(col, row, bIsFirst);
 		}
-		if (this.SortState) {
+		//the sort range, like the autofilter, ends at the last data row: adding/removing the totals row leaves it alone
+		if (this.SortState && !bIsNotChangeAutoFilter) {
 			this.SortState.changeRef(col, row, bIsFirst);
 		}
 	};
