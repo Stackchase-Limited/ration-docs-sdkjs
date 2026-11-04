@@ -7694,14 +7694,22 @@ var editor;
 			t.wbModel.dependencyFormulas.lockRecal();
 
 			let pivotTablesChangeRes = [];
-			for (let i = 0; i < pivotTables.length; ++i) {
-				let changeRes = t._changePivot(pivotTables[i], opt_confirmation, true, function (ws, pivot) {
-					pivot.refresh();
-				});
-				pivotTablesChangeRes.push(changeRes);
-				if (c_oAscError.ID.No !== changeRes.error || c_oAscError.ID.No !== changeRes.warning) {
-					break;
+			// #2485: like lockRecalExecute (#2443), a throw while the pivot changes must not leave
+			// recalculation suspended (stale formulas for the rest of the session) or the transaction open.
+			try {
+				for (let i = 0; i < pivotTables.length; ++i) {
+					let changeRes = t._changePivot(pivotTables[i], opt_confirmation, true, function (ws, pivot) {
+						pivot.refresh();
+					});
+					pivotTablesChangeRes.push(changeRes);
+					if (c_oAscError.ID.No !== changeRes.error || c_oAscError.ID.No !== changeRes.warning) {
+						break;
+					}
 				}
+			} catch (e) {
+				t.wbModel.dependencyFormulas.unlockRecal(true);
+				History.EndTransaction();
+				throw e;
 			}
 			t.wbModel.dependencyFormulas.unlockRecal();
 			History.EndTransaction();
@@ -7768,7 +7776,16 @@ var editor;
 			History.Create_NewPoint();
 			History.StartTransaction();
 			t.wbModel.dependencyFormulas.lockRecal();
-			var changeRes = t._changePivot(pivot, confirmation, !doNotAutoFitColumnsWidth, onAction, doNotCheckUnderlyingData);
+			// #2485: like lockRecalExecute (#2443), a throw while the pivot changes must not leave
+			// recalculation suspended (stale formulas for the rest of the session) or the transaction open.
+			var changeRes;
+			try {
+				changeRes = t._changePivot(pivot, confirmation, !doNotAutoFitColumnsWidth, onAction, doNotCheckUnderlyingData);
+			} catch (e) {
+				t.wbModel.dependencyFormulas.unlockRecal(true);
+				History.EndTransaction();
+				throw e;
+			}
 			t.wbModel.dependencyFormulas.unlockRecal();
 			History.EndTransaction();
 			let success = t._changePivotEndCheckError(changeRes, function () {
@@ -7806,7 +7823,16 @@ var editor;
 			History.Create_NewPoint();
 			History.StartTransaction();
 			t.wbModel.dependencyFormulas.lockRecal();
-			var changeRes = onAction(confirmation, pivotTables);
+			// #2485: like lockRecalExecute (#2443), a throw while the pivot changes must not leave
+			// recalculation suspended (stale formulas for the rest of the session) or the transaction open.
+			var changeRes;
+			try {
+				changeRes = onAction(confirmation, pivotTables);
+			} catch (e) {
+				t.wbModel.dependencyFormulas.unlockRecal(true);
+				History.EndTransaction();
+				throw e;
+			}
 			t.wbModel.dependencyFormulas.unlockRecal();
 			History.EndTransaction();
 			let success = t._changePivotEndCheckError(changeRes, onRepeat);
