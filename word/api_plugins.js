@@ -1514,6 +1514,68 @@
 		return direction;
 	}
 
+	// Ration Docs: restored from upstream (removed in sdkjs 5dde32b68f); the bundled AI plugin streams
+	// generated documents through this method and inserts nothing without it.
+	/**
+	 * Insert streamed content.
+	 * @undocumented
+	 * @memberof Api
+	 * @typeofeditors ["CDE"]
+	 * @alias InsertStreamedContent
+	 * @returns {undefined}
+	 * @since 9.2.0
+	 */
+	Api.prototype["pluginMethod_InsertStreamedContent"] = function(streamObj)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument)
+			return null;
+
+		if (streamObj["word"] && streamObj["word"]["removeSelection"])
+			logicDocument.RemoveSelection();
+
+		if (streamObj["undo"])
+			this["pluginMethod_EndAction"]("GroupActions", "", "cancel");
+		
+		let _t = this;
+		function startSilentMode()
+		{
+			window.g_asc_plugins && window.g_asc_plugins.setPluginMethodReturnAsync();
+			
+			logicDocument.TurnOff_Recalculate();
+			logicDocument.TurnOff_InterfaceEvents();
+		}
+		
+		function endSilentMode()
+		{
+			logicDocument.TurnOn_Recalculate();
+			logicDocument.TurnOn_InterfaceEvents();
+			
+			logicDocument.Recalculate();
+			window.g_asc_plugins && window.g_asc_plugins.onPluginMethodReturn(true);
+		}
+		
+		function pasteTail()
+		{
+			if (streamObj["tail"] !== "")
+			{
+				_t["pluginMethod_StartAction"]("GroupActions");
+				_t._pluginMethod_PasteHtml(streamObj["tail"], endSilentMode);
+			}
+			else
+			{
+				endSilentMode();
+			}
+		}
+		
+		startSilentMode();
+		
+		if (streamObj["stable"] !== "")
+			this._pluginMethod_PasteHtml(streamObj["stable"], pasteTail);
+		else
+			pasteTail();
+	};
+
 	/**
 	 * Checks if the document is in the filling form mode.
 	 * @memberof Api

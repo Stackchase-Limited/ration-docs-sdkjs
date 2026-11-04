@@ -1856,7 +1856,13 @@ CHistory.prototype.private_PostProcessingRecalcData = function()
 		
 		let point = this.Points[startIndex];
 		point.Description = AscDFH.historydescription_GroupPoints;
-		
+
+		// A save inside the group sent only part of these points. After merging, SavedIndex would point past
+		// the merged point: the next save would send nothing and its deleteIndex would count the unsent
+		// changes as saved. Mark the merged point unsaved so the whole group is sent again.
+		if (null !== this.SavedIndex && this.SavedIndex >= startIndex)
+			this.Set_SavedIndex(startIndex - 1);
+
 		for (let i = startIndex + 1; i < this.Points.length; ++i)
 		{
 			point.Items = point.Items.concat(this.Points[i].Items);

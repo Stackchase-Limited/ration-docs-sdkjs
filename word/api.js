@@ -14829,7 +14829,162 @@ background-repeat: no-repeat;\
 		logicDocument.RecalculateCurPos();
 		logicDocument.UpdateSelection();
 	};
-	
+
+	// Ration Docs: grouped plugin actions (StartAction/EndAction "GroupActions") for the document editor.
+	// Upstream turned the base implementation into stubs (sdkjs 8954b14a69), so the AI plugin's streamed
+	// insertion could neither group its chunks into one undo step nor roll back the provisional tail
+	// chunk. This restores the last public implementation (common/apiBase.js before 8954b14a69, word
+	// hooks from word/api.js) for the word editor only; cell History has no startGroupPoints.
+	asc_docs_api.prototype.initGroupActions = function()
+	{
+		this.groupActionsCounter        = 0;
+		this.groupActionsPr             = {};
+		this.groupActionsExecuteCounter = 0;
+	};
+	asc_docs_api.prototype.startGroupActions = function(pr)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument || !logicDocument.IsDocumentEditor())
+			return;
+
+		++this.groupActionsCounter;
+
+		AscCommon.History.startGroupPoints();
+
+		if (this.groupActionsCounter > 1)
+			return;
+
+		this.groupActionsExecuteCounter = 0;
+		this.groupActionsPr = {};
+		this.groupActionsPr.lockScroll = !!(pr && pr["lockScroll"]);
+
+		if (this.groupActionsPr.lockScroll && !this.isLockScrollToTarget)
+			this.asc_LockScrollToTarget(true);
+		else
+			this.groupActionsPr.lockScroll = false;
+
+		if (!!(pr && pr["keepSelection"]))
+			this.groupActionsPr.selectionState = logicDocument.SaveDocumentState();
+
+		logicDocument.GetSpellCheckManager().TurnOff();
+
+		AscCommon.CollaborativeEditing.Set_GlobalLock(true);
+		AscCommon.CollaborativeEditing.Set_GlobalLockSelection(true);
+	};
+	asc_docs_api.prototype.executeGroupActions = function(f)
+	{
+		if (!this.isGroupActions())
+			return f.call();
+
+		this.executeGroupActionsStart();
+		let res = f.call();
+		this.updateSelection();
+		this.executeGroupActionsEnd();
+		return res;
+	};
+	asc_docs_api.prototype.executeGroupActionsStart = function()
+	{
+		if (!this.isGroupActions())
+			return;
+
+		++this.groupActionsExecuteCounter;
+		if (this.groupActionsExecuteCounter > 1)
+			return;
+
+		AscCommon.CollaborativeEditing.Set_GlobalLock(false);
+		AscCommon.CollaborativeEditing.Set_GlobalLockSelection(false);
+	};
+	asc_docs_api.prototype.executeGroupActionsEnd = function()
+	{
+		if (!this.isGroupActions())
+			return;
+
+		--this.groupActionsExecuteCounter;
+		if (this.groupActionsExecuteCounter > 0)
+			return;
+
+		AscCommon.CollaborativeEditing.Set_GlobalLock(true);
+		AscCommon.CollaborativeEditing.Set_GlobalLockSelection(true);
+	};
+	asc_docs_api.prototype.cancelGroupActions = function(pr)
+	{
+		if (!this.isGroupActions())
+			return;
+
+		--this.groupActionsCounter;
+
+		// Undoes every point since the matching startGroupPoints and drops them from the history
+		AscCommon.History.cancelGroupPoints();
+
+		if (this.groupActionsCounter > 0)
+			return;
+
+		this._finishGroupActions(false);
+
+		if (!pr || false !== pr["scrollToTarget"])
+			this.scrollToTarget();
+	};
+	asc_docs_api.prototype.endGroupActions = function(pr)
+	{
+		if (!this.isGroupActions())
+			return;
+
+		if (pr && pr["cancel"])
+			return this.cancelGroupActions(pr);
+
+		--this.groupActionsCounter;
+
+		// Merges every point since the matching startGroupPoints into one undo point
+		AscCommon.History.endGroupPoints();
+
+		if (this.groupActionsCounter > 0)
+			return;
+
+		this._finishGroupActions(true);
+
+		if (!pr || (false !== pr["scrollToTarget"] && true !== this.groupActionsPr.userScroll))
+			this.scrollToTarget();
+	};
+	asc_docs_api.prototype._finishGroupActions = function(isFullEnd)
+	{
+		AscCommon.CollaborativeEditing.Set_GlobalLock(false);
+		AscCommon.CollaborativeEditing.Set_GlobalLockSelection(false);
+
+		let logicDocument = this.private_GetLogicDocument();
+		if (logicDocument)
+		{
+			let groupChanges = AscCommon.History.getGroupChanges();
+			AscCommon.History.resetGroupChanges();
+			if (groupChanges.length)
+				logicDocument.RecalculateByChanges(groupChanges);
+
+			if (isFullEnd)
+			{
+				logicDocument.FullRecalc.ScrollToTarget = false;
+				logicDocument.UpdateTargetOnRecalculate = true;
+
+				logicDocument.UpdateInterface();
+				logicDocument.UpdateSelection();
+			}
+			logicDocument.GetSpellCheckManager().TurnOn();
+
+			if (this.groupActionsPr.selectionState)
+				logicDocument.LoadDocumentState(this.groupActionsPr.selectionState);
+		}
+		this.groupActionsPr.selectionState = null;
+
+		if (this.groupActionsPr.lockScroll)
+			this.asc_LockScrollToTarget(false);
+	};
+	asc_docs_api.prototype.isGroupActions = function()
+	{
+		return this.groupActionsCounter > 0;
+	};
+	asc_docs_api.prototype.setUserScrollGroupActions = function(isUserScroll)
+	{
+		this.groupActionsPr.userScroll = isUserScroll;
+	};
+
 	asc_docs_api.prototype.getJsApi = function()
 	{
 		return AscBuilder.Word.Api;
