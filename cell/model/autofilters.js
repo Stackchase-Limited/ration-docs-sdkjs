@@ -4980,14 +4980,18 @@
 					newFilter.TableStyleInfo = new AscCommonExcel.TableStyleInfo();
 					newFilter.TableStyleInfo.Name = style;
 
-					if (tablePart && tablePart.TableStyleInfo && tablePart.TableStyleInfo.ShowColumnStripes !== null && tablePart.TableStyleInfo.ShowColumnStripes !== undefined) {
-						newFilter.TableStyleInfo.ShowColumnStripes = tablePart.TableStyleInfo.ShowColumnStripes;
-						newFilter.TableStyleInfo.ShowFirstColumn = tablePart.TableStyleInfo.ShowFirstColumn;
-						newFilter.TableStyleInfo.ShowLastColumn = tablePart.TableStyleInfo.ShowLastColumn;
-						newFilter.TableStyleInfo.ShowRowStripes = tablePart.TableStyleInfo.ShowRowStripes;
-
+					//the source's header/totals rows are part of its data: copy them whatever its style info holds.
+					//showColumnStripes is optional in xlsx and some generators omit it - gating on it lost the totals row
+					if (tablePart) {
 						newFilter.HeaderRowCount = tablePart.HeaderRowCount;
 						newFilter.TotalsRowCount = tablePart.TotalsRowCount;
+					}
+					if (tablePart && tablePart.TableStyleInfo) {
+						//an absent flag (null) is "off", as in the source
+						newFilter.TableStyleInfo.ShowColumnStripes = !!tablePart.TableStyleInfo.ShowColumnStripes;
+						newFilter.TableStyleInfo.ShowFirstColumn = !!tablePart.TableStyleInfo.ShowFirstColumn;
+						newFilter.TableStyleInfo.ShowLastColumn = !!tablePart.TableStyleInfo.ShowLastColumn;
+						newFilter.TableStyleInfo.ShowRowStripes = !!tablePart.TableStyleInfo.ShowRowStripes;
 					} else {
 						newFilter.TableStyleInfo.ShowColumnStripes = false;
 						newFilter.TableStyleInfo.ShowFirstColumn = false;
