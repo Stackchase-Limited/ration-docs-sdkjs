@@ -3292,6 +3292,25 @@ function CBinaryFileWriter()
         return oPdfFontInfo;
     };
 
+    // An empty paragraph has no a:r elements, so its endParaRPr is the only formatting that
+    // survives a save. Text typed into it goes into the empty run in front of the paragraph-end
+    // run (the run left behind when the user deletes all text), not into the end run itself,
+    // so write that run's properties; otherwise the deleted text's size/font is lost on reopen.
+    this.GetEndParaRunPr = function(paragraph)
+    {
+        var aContent = paragraph.Content;
+        if (aContent && aContent.length > 1 && paragraph.Is_Empty && paragraph.Is_Empty())
+        {
+            var nPos = aContent.length - 2;
+            while (nPos > 0 && aContent[nPos - 1].Type === para_Run)
+                nPos--;
+            var oRun = aContent[nPos];
+            if (oRun && oRun.Type === para_Run && !oRun.IsParaEndRun() && oRun.Pr)
+                return oRun.Pr;
+        }
+        return paragraph.TextPr.Value;
+    };
+
     this.WriteParagraph = function(paragraph, startPos, endPos)
     {
         var tPr = new AscFormat.CTextParagraphPr();
@@ -3303,7 +3322,7 @@ function CBinaryFileWriter()
             tPr.rPr = new CTextPr();
 
         oThis.WriteRecord1(0, tPr, oThis.WriteTextParagraphPr);
-        oThis.WriteRecord2(1, paragraph.TextPr.Value, oThis.WriteRunProperties);
+        oThis.WriteRecord2(1, oThis.GetEndParaRunPr(paragraph), oThis.WriteRunProperties);
 
         oThis.StartRecord(2);
         var _position = oThis.pos;

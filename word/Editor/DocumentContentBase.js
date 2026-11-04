@@ -810,7 +810,10 @@ CDocumentContentBase.prototype.private_Remove = function(Count, isRemoveWholeEle
 						// При таком удалении надо убедиться, что в документе останется хотя бы один элемент
 						if (0 === StartPos && (EndPos - StartPos + 1) >= this.Content.length)
 						{
-							this.Internal_Content_Add(0, this.private_CreateNewParagraph());
+							// In shape text keep the emptied first paragraph (as PowerPoint does), so its bullet,
+							// spacing and run properties survive deleting all the text
+							if (true !== this.bPresentation || type_Paragraph !== StartType)
+								this.Internal_Content_Add(0, this.private_CreateNewParagraph());
 							this.Internal_Content_Remove(1, this.Content.length - 1);
 							bRetValue = false;
 						}
@@ -896,6 +899,13 @@ CDocumentContentBase.prototype.private_Remove = function(Count, isRemoveWholeEle
 							if (this.ParentPDF)
 							{
 								bRetValue = false;
+							}
+							else if (Count > 0 && true === this.bPresentation)
+							{
+								// In shape text keep the emptied paragraph: a fresh one drops the deleted text's
+								// run and paragraph properties, so text typed next falls back to the list-style
+								// default size. Put the cursor into the emptied text run, not the paragraph-end run.
+								this.Content[0].MoveCursorToStartPos(false);
 							}
 							else if (Count > 0)
 							{
