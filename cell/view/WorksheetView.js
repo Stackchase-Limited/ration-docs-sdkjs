@@ -29437,6 +29437,71 @@ function isAllowPasteLink(pastedWb) {
 			}
 		};
 
+		//a formula pasted from another workbook that names a sheet missing here refers to that sheet of the source
+		//workbook, as in ms: get (or add) the external reference to the source holding these sheets
+		//returns its index, or null if the source can't be linked (same workbook, unsaved file...)
+		var pastedExternalLink;
+		var _getPastedExternalLinkIndex = function (sheetNames) {
+			var pastedWb = val.workbook;
+			var pastedWs = pastedWb && pastedWb.aWorksheets[0];
+			var isLocalDesktop = window["AscDesktopEditor"] && window["AscDesktopEditor"]["IsLocalFile"]();
+			if (undefined === pastedExternalLink) {
+				pastedExternalLink = null;
+				var pasteProcessor = AscCommonExcel.g_clipboardExcel && AscCommonExcel.g_clipboardExcel.pasteProcessor;
+				var isSameDoc = pasteProcessor && pasteProcessor._checkPastedInOriginalDoc(pastedWb, true);
+				var linkInfo = pastedWs && !isSameDoc && isAllowPasteLink(pastedWb) ? t.getPastedLinkInfo(pastedWb, pastedWs) : null;
+				if (linkInfo && linkInfo.type === -1) {
+					pastedExternalLink = {index: linkInfo.index};
+				} else if (linkInfo && linkInfo.type === -2 && (!isLocalDesktop || linkInfo.path)) {
+					pastedExternalLink = {index: null, path: linkInfo.path};
+				}
+			}
+			if (!pastedExternalLink) {
+				return null;
+			}
+
+			var eR, isNew = false, isChanged = false;
+			if (pastedExternalLink.index) {
+				eR = ws.model.workbook.externalReferences[pastedExternalLink.index - 1];
+			} else {
+				//as _getPasteLinkIndex
+				eR = new AscCommonExcel.ExternalReference();
+				if (isLocalDesktop) {
+					eR.Id = pastedExternalLink.path;
+				} else {
+					eR.Id = pastedWb.Core.title;
+					eR.referenceData = {};
+					eR.referenceData["fileKey"] = pastedWb.Core.contentStatus;
+					eR.referenceData["instanceId"] = pastedWb.Core.category;
+				}
+				isNew = true;
+			}
+			if (!eR) {
+				return null;
+			}
+			for (var i = 0; i < sheetNames.length; i++) {
+				if (null === eR.getSheetByName(sheetNames[i])) {
+					if (pastedWs.sName === sheetNames[i]) {
+						//the copied cells of this sheet are known: keep them as the cached values of the link
+						eR.updateSheetData(sheetNames[i], pastedWs, [activeCellsPasteFragment]);
+					} else {
+						eR.addSheetName(sheetNames[i], true);
+						eR.initWorksheetFromSheetDataSet(sheetNames[i]);
+					}
+					isChanged = true;
+				}
+			}
+			if (isNew) {
+				ws.model.workbook.addExternalReferences([eR]);
+				pastedExternalLink.index = eR.referenceData ? ws.model.workbook.getExternalReferenceByReferenceData(eR.referenceData, true) :
+					ws.model.workbook.getExternalLinkIndexByName(eR.Id);
+			} else if (isChanged) {
+				ws.model.workbook.changeExternalReference(pastedExternalLink.index, eR);
+			}
+			isLinkToOtherWorkbook = true;
+			return pastedExternalLink.index;
+		};
+
 		var isLinkToOtherWorkbook = false;
 		var pasteLinkIndex = -1;
 		var pasteSheetLinkName = null;
@@ -29577,7 +29642,8 @@ function isAllowPasteLink(pastedWb) {
 				cell: fromCell,
 				fromRange: activeCellsPasteFragment,
 				fromBinary: true,
-				formulaArrayFirstCell: findFormulaArrayFirstCell(pastedFormulaArray, fromCell)
+				formulaArrayFirstCell: findFormulaArrayFirstCell(pastedFormulaArray, fromCell),
+				getPastedExternalLinkIndex: _getPastedExternalLinkIndex
 			};
 			t._setPastedDataByCurrentRange(range, pastedRangeProps, formulaProps, specialPasteProps);
 		};
@@ -29859,6 +29925,59 @@ function isAllowPasteLink(pastedWb) {
 			return res;
 		};
 
+		//Sheet!A1 on a sheet missing here (paste from another workbook) -> [n]Sheet!A1, n - external reference to the source
+		//returns null if the formula names no such sheet or the source can't be linked
+		var linkUnparsedFormula = function (sFormula) {
+			if (!formulaProps || !formulaProps.getPastedExternalLinkIndex) {
+				return null;
+			}
+			var refs = [], sheetNames = [];
+			AscCommonExcel.executeInR1C1Mode(false, function () {
+				var parseResult = new AscCommonExcel.ParseResult([]);
+				var _p_ = new AscCommonExcel.parserFormula(sFormula, null, ws.model);
+				_p_.parse(null, null, parseResult, true);
+				var refPos = parseResult.refPos, last = 0;
+				for (var i = 0; i < refPos.length; i++) {
+					var elem = refPos[i].oper;
+					if (refPos[i].isName || !elem || refPos[i].start < last || elem.type !== AscCommonExcel.cElementType.name) {
+						continue;
+					}
+					var text = sFormula.substring(refPos[i].start, refPos[i].end);
+					var sheetEnd = text.lastIndexOf("!");
+					if (sheetEnd <= 0) {
+						continue;
+					}
+					var sheet = text.substring(0, sheetEnd), isQuoted = sheet[0] === "'" && sheet[sheet.length - 1] === "'";
+					var sheetName = isQuoted ? sheet.substring(1, sheet.length - 1).replace(/''/g, "'") : sheet;
+					var refParser = new AscCommonExcel.parserFormula(text.substring(sheetEnd + 1), null, ws.model);
+					if (!sheetName || sheetName[0] === "[" || (!isQuoted && -1 !== sheetName.indexOf(":")) ||
+						ws.model.workbook.getWorksheetByName(sheetName) || !refParser.parse() || refParser.outStack.length !== 1) {
+						continue;
+					}
+					var type = refParser.outStack[0].type;
+					if (type !== AscCommonExcel.cElementType.cell && type !== AscCommonExcel.cElementType.cellsRange) {
+						continue;
+					}
+					refs.push({start: refPos[i].start, sheet: sheet, isQuoted: isQuoted});
+					if (-1 === sheetNames.indexOf(sheetName)) {
+						sheetNames.push(sheetName);
+					}
+					last = refPos[i].end;
+				}
+			});
+
+			var linkIndex = refs.length ? formulaProps.getPastedExternalLinkIndex(sheetNames) : null;
+			if (!linkIndex) {
+				return null;
+			}
+			var res = sFormula;
+			for (var j = refs.length - 1; j >= 0; j--) {
+				var linked = refs[j].isQuoted ? "'[" + linkIndex + "]" + refs[j].sheet.substring(1) : "[" + linkIndex + "]" + refs[j].sheet;
+				res = res.substring(0, refs[j].start) + linked + res.substring(refs[j].start + refs[j].sheet.length);
+			}
+			return res;
+		};
+
 		//set formula - for paste from binary
 		var calculateValueAndBinaryFormula = function (newVal, firstRange, range) {
 			//operation special paste
@@ -29948,7 +30067,15 @@ function isAllowPasteLink(pastedWb) {
 						}
 					}
 					var assemb, _p_ = new AscCommonExcel.parserFormula(pastedFormula, null, ws.model);
-					if (_p_.parse(null, null, null, null, null, tablesMap)) {
+					var isParsed = _p_.parse(null, null, null, null, null, tablesMap);
+					if (!isParsed && specialPasteProps.formula) {
+						var linkedFormula = linkUnparsedFormula(pastedFormula);
+						if (linkedFormula) {
+							_p_ = new AscCommonExcel.parserFormula(linkedFormula, null, ws.model);
+							isParsed = _p_.parse(null, null, null, null, null, tablesMap);
+						}
+					}
+					if (isParsed) {
 
 						//array-formula
 						if (arrayFormulaRef) {
