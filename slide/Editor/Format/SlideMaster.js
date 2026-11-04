@@ -1530,6 +1530,44 @@ function CreatePlaceholder(nType, bVertical) {
     }
     return oSp;
 }
+
+// One past the largest placeholder idx on a slide, layout or master, as the
+// string ST_UInt that Ph.idx holds. idx values are strings, so they are compared
+// as numbers here: "11" + 1 would otherwise give "111".
+function GetNextPlaceholderIdx(oSlideLike, oSkip) {
+    let nMax = 0;
+    let aDrawings = oSlideLike && oSlideLike.cSld ? oSlideLike.cSld.spTree : [];
+    for(let nSp = 0; nSp < aDrawings.length; ++nSp) {
+        let oSp = aDrawings[nSp];
+        if(!oSp || oSp === oSkip) {
+            continue;
+        }
+        let nIdx = parseInt(oSp.getPlaceholderIndex(), 10);
+        if(nIdx > nMax) {
+            nMax = nIdx;
+        }
+    }
+    return String(nMax + 1);
+}
+
+// Whether another placeholder on oSlideLike already has oSp's type and idx. A
+// slide placeholder is bound to its layout one by (type, idx), so two equal
+// pairs on one layout make every slide built from it bind both to the first.
+function HasPlaceholderTwin(oSlideLike, oSp) {
+    let aDrawings = oSlideLike && oSlideLike.cSld ? oSlideLike.cSld.spTree : [];
+    let nType = oSp.getPlaceholderType();
+    let sIdx = oSp.getPlaceholderIndex();
+    for(let nSp = 0; nSp < aDrawings.length; ++nSp) {
+        let oOther = aDrawings[nSp];
+        if(!oOther || oOther === oSp || !oOther.isPlaceholder || !oOther.isPlaceholder()) {
+            continue;
+        }
+        if(oOther.getPlaceholderType() === nType && (oOther.getPlaceholderIndex() || null) === (sIdx || null)) {
+            return true;
+        }
+    }
+    return false;
+}
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommonSlide'] = window['AscCommonSlide'] || {};
 window['AscCommonSlide'].MasterSlide = MasterSlide;
@@ -1537,3 +1575,5 @@ window['AscCommonSlide'].fFillFromCSld = fFillFromCSld;
 window['AscCommonSlide'].CreateDefaultMaster = CreateDefaultMaster;
 window['AscCommonSlide'].CreateDefaultLayout = CreateDefaultLayout;
 window['AscCommonSlide'].CreatePlaceholder = CreatePlaceholder;
+window['AscCommonSlide'].GetNextPlaceholderIdx = GetNextPlaceholderIdx;
+window['AscCommonSlide'].HasPlaceholderTwin = HasPlaceholderTwin;

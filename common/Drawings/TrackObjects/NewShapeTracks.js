@@ -883,27 +883,12 @@ function NewShapeTrack(presetGeom, startX, startY, theme, master, layout, slide,
             shape.checkDrawingUniNvPr();
             let oNvPr = shape.getNvProps();
             if(oNvPr) {
-                let oPh = oNvPr.ph;
-                let nMaxIdx = undefined;
-                let aDrawings = this.parentObject.cSld.spTree;
-                for(let nIdx = 0; nIdx < aDrawings.length; ++nIdx) {
-                    let oSp = aDrawings[nIdx];
-                    let nPhIdx = oSp.getPlaceholderIndex();
-                    if(nMaxIdx === undefined || nMaxIdx === null) {
-                        nMaxIdx = nPhIdx;
-                    }
-                    else {
-                        if(nPhIdx !== null) {
-                            nMaxIdx = Math.max(nMaxIdx, nPhIdx);
-                        }
-                    }
-                }
-                if(nMaxIdx !== undefined && nMaxIdx !== null) {
-                    oPh.setIdx(nMaxIdx + 1);
-                }
-                else {
-                    oPh.setIdx(1);
-                }
+                oNvPr.ph.setIdx(AscCommonSlide.GetNextPlaceholderIdx(this.parentObject));
+            }
+            // The template shape comes from a fixed binary, so every inserted
+            // placeholder would otherwise share its cNvPr id.
+            if(shape.nvSpPr && shape.nvSpPr.cNvPr) {
+                shape.nvSpPr.cNvPr.setId(AscCommon.CreateDurableId());
             }
         }
         shape.x = this.x;

@@ -1144,6 +1144,14 @@ RotateState.prototype =
                         copy.drawingBase = drawingObject;
                     }
                     copy.addToDrawingObjects();
+                    // A placeholder copied on a layout or master keeps its (type, idx),
+                    // which leaves slides unable to tell the two apart.
+                    var oCopyParent = this.drawingObjects.drawingObjects;
+                    if(copy.isPlaceholder && copy.isPlaceholder() && oCopyParent && oCopyParent.getObjectType
+                        && (oCopyParent.getObjectType() === AscDFH.historyitem_type_SlideLayout || oCopyParent.getObjectType() === AscDFH.historyitem_type_SlideMaster)
+                        && AscCommonSlide.HasPlaceholderTwin(oCopyParent, copy)) {
+                        copy.getNvProps().ph.setIdx(AscCommonSlide.GetNextPlaceholderIdx(oCopyParent, copy));
+                    }
                     aCopies.push(copy);
 
                     tracks[i].originalObject = copy;

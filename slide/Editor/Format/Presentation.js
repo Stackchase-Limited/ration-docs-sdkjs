@@ -8617,6 +8617,9 @@ CPresentation.prototype.InsertContent = function (Content) {
 								}
 								oSp.addToDrawingObjects();
 								oSp.checkExtentsByDocContent && oSp.checkExtentsByDocContent();
+								if (oSp.isPlaceholder() && this.IsMasterMode() && AscCommonSlide.HasPlaceholderTwin(oCurSlide, oSp)) {
+									oSp.getNvProps().ph.setIdx(AscCommonSlide.GetNextPlaceholderIdx(oCurSlide, oSp));
+								}
 								if (oSp.isPlaceholder() && !this.IsMasterMode()) {
 									if (oSlidePh || !oLayoutPlaceholder) {
 										let oNvProps = oSp.getNvProps();

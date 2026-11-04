@@ -8339,6 +8339,13 @@
 			this.hasCustomPrompt = hasCustomPrompt;
 		};
 		Ph.prototype.setIdx = function (idx) {
+			// idx is ST_UInt stored as a string. CChangesDrawingsString drops any
+			// non-string value, so a numeric idx was kept in memory but recorded as
+			// undefined: the saved file (built by replaying changes) and co-authors
+			// got the placeholder without its idx.
+			if (typeof idx === "number") {
+				idx = String(idx);
+			}
 			AscCommon.History.Add(new CChangesDrawingsString(this, AscDFH.historyitem_Ph_SetIdx, this.idx, idx));
 			this.idx = idx;
 		};
