@@ -3972,12 +3972,20 @@ PasteProcessor.prototype =
 		let pos = presentation.GetTargetPosition();
 		props = !props ? [Asc.c_oSpecialPasteProps.sourceformatting, Asc.c_oSpecialPasteProps.keepTextOnly] : props;
 		let x, y, w, h;
+		let drawingIds = null;
 		if (null === pos) {
 			pos = presentation.GetSelectedBounds();
 			w = pos.w;
 			h = pos.h;
 			x = pos.x + w;
 			y = pos.y + h;
+			//remember the pasted drawings: the icon is shown only while they stay selected
+			let controller = presentation.GetCurrentController ? presentation.GetCurrentController() : null;
+			if (controller && controller.selectedObjects.length > 0) {
+				drawingIds = controller.selectedObjects.map(function (drawing) {
+					return drawing.Get_Id();
+				});
+			}
 		} else {
 			x = pos.X;
 			y = pos.Y;
@@ -4014,7 +4022,7 @@ PasteProcessor.prototype =
 
 		let curCoord = new AscCommon.asc_CRect( screenPos.X, screenPos.Y, 0, 0 );
 		specialPasteShowOptions.asc_setCellCoord(curCoord);
-		specialPasteShowOptions.setFixPosition({x: x, y: y, pageNum: curPage, w: w, h: h, slideId: sSlideId});
+		specialPasteShowOptions.setFixPosition({x: x, y: y, pageNum: curPage, w: w, h: h, slideId: sSlideId, drawingIds: sSlideId ? null : drawingIds});
 	},
 
     insertInPlace2: function(oDoc, aNewContent)

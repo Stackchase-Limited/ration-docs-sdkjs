@@ -1947,6 +1947,11 @@ background-repeat: no-repeat;\
 			{
 				curCoord = new AscCommon.asc_CRect( -1, -1, 0, 0 );
 			}
+			else if(fixPos && fixPos.drawingIds && !this.private_IsPastedDrawingsSelected(fixPos.drawingIds))
+			{
+				//pasted drawings were deselected (click elsewhere, another shape selected): hide the special paste icon
+				curCoord = new AscCommon.asc_CRect( -1, -1, 0, 0 );
+			}
 			else if(fixPos && fixPos.pageNum === presentation.CurPage)
 			{
 				_coord = drawingDocument.ConvertCoordsToCursorWR(fixPos.x, fixPos.y, fixPos.pageNum);
@@ -1964,6 +1969,25 @@ background-repeat: no-repeat;\
 		}
 
 		this.asc_ShowSpecialPasteButton(props);
+	};
+
+	asc_docs_api.prototype.private_IsPastedDrawingsSelected = function(drawingIds)
+	{
+		var presentation = this.WordControl.m_oLogicDocument;
+		var controller = presentation ? presentation.GetCurrentController() : null;
+		var selectedObjects = controller ? controller.selectedObjects : [];
+		if(selectedObjects.length !== drawingIds.length)
+		{
+			return false;
+		}
+		for(var i = 0; i < selectedObjects.length; ++i)
+		{
+			if(drawingIds.indexOf(selectedObjects[i].Get_Id()) === -1)
+			{
+				return false;
+			}
+		}
+		return true;
 	};
 
 	asc_docs_api.prototype.Share          = function()
