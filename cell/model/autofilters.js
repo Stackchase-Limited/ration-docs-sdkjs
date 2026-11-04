@@ -6512,7 +6512,10 @@
 				} else if (addFormatTableOptionsObj && typeof addFormatTableOptionsObj == 'object') {
 					tempRange = addFormatTableOptionsObj.asc_getRange();
 					addNameColumn = !addFormatTableOptionsObj.asc_getIsTitle();
-					tempRange = AscCommonExcel.g_oRangeCache.getAscRange(tempRange).clone();
+					tempRange = AscCommonExcel.g_oRangeCache.getAscRange(tempRange);
+					//options carry an absolute name ("$H$2:$J$5"). a clone kept the $ flags, so the table/autofilter Ref
+					//was saved as ref="$H$2:$J$6" (not a valid ST_Ref, Excel repairs the file). take the cells only
+					tempRange = new Asc.Range(tempRange.c1, tempRange.r1, tempRange.c2, tempRange.r2);
 					bIsManualOptions = true;
 				} else if (addFormatTableOptionsObj === true) {
 					addNameColumn = false;
