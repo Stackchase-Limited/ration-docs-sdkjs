@@ -2252,7 +2252,11 @@ function (window, undefined) {
 					var initSaveManager = new AscCommonExcel.InitSaveManager(wb && wb.model);
 					var oBinaryTableWriter = new AscCommonExcel.BinaryTableWriter(memory, initSaveManager, false, {});
 					var ws = wb ? wb.getWorksheetById(nSheetId) : null;
-					oBinaryTableWriter.WriteTable(tablePart, ws ? ws.model : null);
+					//labels are synced from the cells only for a table of this sheet. the record usually holds a snapshot
+					//(e.g. the clipboard table on paste): syncing it read this sheet's cells at the source Ref and wiped
+					//TotalsRowLabel in the snapshot, so redo/x2t replay rebuilt the table without the label
+					var syncWs = ws && ws.model.TableParts && -1 !== ws.model.TableParts.indexOf(tablePart) ? ws.model : null;
+					oBinaryTableWriter.WriteTable(tablePart, syncWs);
 					tablePart = memory.GetBase64Memory();
 				}
 
