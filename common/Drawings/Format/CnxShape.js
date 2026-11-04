@@ -184,6 +184,18 @@
                 if(sPreset.indexOf("curvedConnector") > -1){
                     sPrefix = "curvedConnector";
                 }
+                //Anchors aligned across the route (e.g. the top anchors of two shapes side by side) give a zero
+                //extent, and the adjustments below are fractions of it: they divided by zero, came out as 0 and the
+                //elbow collapsed into a straight line whose handle could not be dragged. Route over an extent of one
+                //line width instead and keep it only where an adjustment depends on it.
+                var fMinExt = (AscFormat.isRealNumber(penW) && penW > 0 ? penW : 12700)/36000;//no width given: 1pt
+                var bZeroExtX = (extX === 0), bZeroExtY = (extY === 0);
+                if(bZeroExtX){
+                    extX = fMinExt;
+                }
+                if(bZeroExtY){
+                    extY = fMinExt;
+                }
                 //returns "bentConnector" by default
                 switch(_end.dir){
                     case AscFormat.CARD_DIRECTION_N:{
@@ -455,6 +467,12 @@
                         }
                         break;
                     }
+                }
+                if(bZeroExtX && oMapAdj["adj1"] === undefined && oMapAdj["adj3"] === undefined){
+                    extX = 0.0;
+                }
+                if(bZeroExtY && oMapAdj["adj2"] === undefined){
+                    extY = 0.0;
                 }
                 sPreset = sPrefix + sPreset;
             }
