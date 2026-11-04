@@ -2474,8 +2474,9 @@ parserHelp.setDigitSeparator(AscCommon.g_oDefaultCultureInfo.NumberDecimalSepara
 				this.isDynamic = true;
 			}
 
-			let openBracketIndex = startCol.indexOf("[");
-			if (openBracketIndex !== -1) {
+			// only a bracket opening the column is syntax, "'[" inside the name is an escaped character (Table1[Way '[km']])
+			let openBracketIndex = startCol.search(/\S/);
+			if (openBracketIndex !== -1 && startCol[openBracketIndex] === "[") {
 				let closeBracketIndex = startCol.lastIndexOf("]");
 				if (closeBracketIndex !== -1) {
 					startCol = startCol.slice(openBracketIndex + 1, closeBracketIndex);

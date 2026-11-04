@@ -10097,7 +10097,8 @@ function RangeDataManagerElem(bbox, data)
 				var _name = "SUBTOTAL";
 				var _f = bLocale && AscCommonExcel.cFormulaFunctionToLocale ? AscCommonExcel.cFormulaFunctionToLocale[_name] : _name;
 				var _separator = AscCommon.FormulaSeparators.functionArgumentSeparator;
-				return _f + "(" + val + _separator + tablePart.DisplayName + "[" + t.Name + "])";
+				//special characters of the column name are escaped as in ms: Table1[Way '[km']]
+				return _f + "(" + val + _separator + tablePart.DisplayName + "[" + parserHelp.escapeTableCharacters(t.Name, true) + "])";
 			};
 
 			switch (this.TotalsRowFunction) {
