@@ -174,7 +174,6 @@ function (window, undefined) {
 			padding: padding,
 			selectColor: new AscCommon.CColor(190, 190, 255, 0.5),
 			canvasZIndex: 500,
-			blinkInterval: 500,
 			cursorShape: "text"
 		};
 
@@ -1811,9 +1810,14 @@ function (window, undefined) {
 		var t = this;
 		window.clearInterval(t.cursorTID);
 		t.cursorStyle.display = "block";
-		t.cursorTID = window.setInterval(function () {
-			t.cursorStyle.display = ("none" === t.cursorStyle.display) ? "block" : "none";
-		}, t.defaults.blinkInterval);
+		t.cursorTID = undefined;
+		// #2508: the blink period comes from the OS; with blinking turned off the caret just stays on
+		var blinkInterval = AscCommon.getCaretBlinkInterval();
+		if (blinkInterval > 0) {
+			t.cursorTID = window.setInterval(function () {
+				t.cursorStyle.display = ("none" === t.cursorStyle.display) ? "block" : "none";
+			}, blinkInterval);
+		}
 	};
 
 	CellEditor.prototype._hideCursor = function () {

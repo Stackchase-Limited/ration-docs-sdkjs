@@ -15648,9 +15648,36 @@
 		return -1;
 	}
 
+	/* Every caret the editors draw themselves - the document target in word, slide
+	   and pdf, a text box in a sheet, and the cell editor - is a DOM element toggled
+	   on a fixed 500 ms timer, so a user who has turned cursor blinking off in the OS
+	   (an accessibility setting) still got a blinking caret there, while the native
+	   input fields around it, which Chromium draws, stood still. The desktop shell now
+	   reads the OS setting and passes it in RendererProcessVariable.caretBlinkTime:
+	   the time in ms the caret stays on (or off), and 0 when blinking is turned off.
+	   Without it (the web editors, an older shell) the caret blinks as it always has.
+	   A period too long to be a blink - macOS takes a huge NSTextInsertionPointBlinkPeriod
+	   as the way to turn it off, and setInterval fires at once past 2^31 ms - counts as off.
+	   https://github.com/ONLYOFFICE/DesktopEditors/issues/2508 */
+	function getCaretBlinkInterval()
+	{
+		var vars = window["RendererProcessVariable"];
+		var time = vars ? vars["caretBlinkTime"] : undefined;
+		if (typeof time !== "number" || !isFinite(time) || time < 0)
+			return 500;
+		return (time > 60000) ? 0 : time;
+	}
+
+	function isCaretBlinkEnabled()
+	{
+		return getCaretBlinkInterval() > 0;
+	}
+
 	//------------------------------------------------------------export---------------------------------------------------
 	window['AscCommon'] = window['AscCommon'] || {};
 	window["AscCommon"].consoleLog = consoleLog;
+	window["AscCommon"].getCaretBlinkInterval = getCaretBlinkInterval;
+	window["AscCommon"].isCaretBlinkEnabled = isCaretBlinkEnabled;
 	window["AscCommon"].getSockJs = getSockJs;
 	window["AscCommon"].getSocketIO = getSocketIO;
 	window["AscCommon"].getBaseUrl = getBaseUrl;

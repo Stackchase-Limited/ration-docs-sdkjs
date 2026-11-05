@@ -874,7 +874,8 @@ function CDrawingDocument()
 	{
 		if (this.m_lTimerTargetId != -1)
 			clearInterval(this.m_lTimerTargetId);
-		this.m_lTimerTargetId = setInterval(oThis.DrawTarget, 500);
+		// #2508: the blink period comes from the OS (see AscCommon.getCaretBlinkInterval)
+		this.m_lTimerTargetId = setInterval(oThis.DrawTarget, AscCommon.getCaretBlinkInterval() || 500);
 	};
 	this.TargetEnd            = function()
 	{
@@ -1180,6 +1181,8 @@ function CDrawingDocument()
 			if (api.isBlurEditor)
 				isShow = true;
 			else if (api.isViewMode || api.isRestrictionView())
+				isShow = true;
+			else if (!AscCommon.isCaretBlinkEnabled()) // #2508: blinking turned off in the OS
 				isShow = true;
 			else if ("block" !== oThis.TargetHtmlElement.style.display)
 				isShow = true;

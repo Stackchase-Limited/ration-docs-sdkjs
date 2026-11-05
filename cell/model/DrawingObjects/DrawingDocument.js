@@ -399,7 +399,8 @@ function CDrawingDocument()
     {
         if ( this.m_lTimerTargetId != -1 )
             clearInterval( this.m_lTimerTargetId );
-        this.m_lTimerTargetId = setInterval( oThis.DrawTarget, 500 );
+        // #2508: the blink period comes from the OS (see AscCommon.getCaretBlinkInterval)
+        this.m_lTimerTargetId = setInterval( oThis.DrawTarget, AscCommon.getCaretBlinkInterval() || 500 );
     };
 
     this.TargetEnd = function()
@@ -582,7 +583,8 @@ function CDrawingDocument()
 
     this.DrawTarget = function()
     {
-        if ( "block" != oThis.TargetHtmlElement.style.display && oThis.NeedTarget )
+        // #2508: with blinking turned off in the OS the caret stays on
+        if ( oThis.NeedTarget && ("block" != oThis.TargetHtmlElement.style.display || !AscCommon.isCaretBlinkEnabled()) )
             oThis.TargetHtmlElement.style.display = "block";
         else
             oThis.TargetHtmlElement.style.display = "none";
