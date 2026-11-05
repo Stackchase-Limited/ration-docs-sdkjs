@@ -22016,6 +22016,13 @@ function isAllowPasteLink(pastedWb) {
 			return false;
 		}
 
+		//asking for the totals/header row the table already has (or has not) is a no-op: changeFormatTableInfo only
+		//toggles, so "on" with a totals row added a row and nulled TotalsRowCount, "off" without a header cleared row 1
+		if ((optionType === c_oAscChangeTableStyleInfo.rowTotal && typeof val === "boolean" && val === tablePart.isTotalsRow()) ||
+			(optionType === c_oAscChangeTableStyleInfo.rowHeader && typeof val === "boolean" && val === tablePart.isHeaderRow())) {
+			return false;
+		}
+
         var isChangeTableInfo = this.af_checkChangeTableInfo(tablePart, optionType);
         if (isChangeTableInfo !== false) {
             var lockRange = isChangeTableInfo.lockRange ? isChangeTableInfo.lockRange : null;
