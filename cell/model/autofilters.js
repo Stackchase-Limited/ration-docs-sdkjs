@@ -3431,6 +3431,16 @@
 					displayName: tableName
 				});
 
+				//the resize dropped the conditions on columns it took out of the table (or the whole SortState). this
+				//history item only puts the ref back on undo, so keep the SortState itself too
+				var oldSortState = oldFilter.SortState;
+				var worksheet = this.worksheet;
+				if (oldSortState && !worksheet.workbook.bUndoChanges && !worksheet.workbook.bRedoChanges &&
+					(!tablePart.SortState || tablePart.SortState.SortConditions.length !== (oldSortState.SortConditions ? oldSortState.SortConditions.length : 0))) {
+					History.Add(AscCommonExcel.g_oUndoRedoSortState, AscCH.historyitem_SortState_Add, worksheet.getId(), null,
+						new AscCommonExcel.UndoRedoData_SortState(oldSortState.clone(), tablePart.SortState ? tablePart.SortState.clone() : null, true, tableName));
+				}
+
 				this._cleanStyleTable(oldFilter.Ref);
 				this._setColorStyleTable(tablePart.Ref, tablePart, null, true);
 				this.updateSlicer(tableName);

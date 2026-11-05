@@ -8642,9 +8642,13 @@ function RangeDataManagerElem(bbox, data)
 			let filterRange = new Asc.Range(range.c1, range.r1, range.c2, this.isTotalsRow() ? range.r2 - 1 : range.r2);
 			this.AutoFilter.changeRefOnRange(filterRange);
 		}
-		//resizing the table resizes its sort range (the data rows) and conditions too, else they kept the old rows
+		//resizing the table resizes its sort range (the data rows) and conditions too, else they kept the old rows.
+		//a copy: undo/redo of the resize puts back SortState objects kept in the history (changeTableRange)
 		if (this.SortState && this.SortState.Ref) {
-			this.SortState.changeRefOnRange(this.getRangeWithoutHeaderFooter());
+			this.SortState = this.SortState.clone();
+			if (this.SortState.changeRefOnRange(this.getRangeWithoutHeaderFooter())) {
+				this.SortState = null;
+			}
 		}
 	};
 	TablePart.prototype.isApplyAutoFilter = function () {
@@ -9885,18 +9889,27 @@ function RangeDataManagerElem(bbox, data)
 		}
 	};
 
+	//returns true if no sort condition is left: the range no longer has any of the sorted columns (rows)
 	SortState.prototype.changeRefOnRange = function (range) {
 		this.Ref = new Asc.Range(range.c1, range.r1, range.c2, range.r2);
 		if (this.SortConditions) {
+			var sortConditions = [];
 			for (var i = 0; i < this.SortConditions.length; ++i) {
 				var sortCondition = this.SortConditions[i];
 				if (sortCondition && sortCondition.Ref) {
 					var condRef = sortCondition.Ref;
+					//a condition outside its sortState is invalid (excel repairs the file): drop the ones left outside
+					if (this.ColumnSort ? (condRef.r1 < range.r1 || condRef.r1 > range.r2) : (condRef.c1 < range.c1 || condRef.c1 > range.c2)) {
+						continue;
+					}
 					sortCondition.Ref = this.ColumnSort ? new Asc.Range(range.c1, condRef.r1, range.c2, condRef.r2) :
 						new Asc.Range(condRef.c1, range.r1, condRef.c2, range.r2);
 				}
+				sortConditions.push(sortCondition);
 			}
+			this.SortConditions = sortConditions;
 		}
+		return !this.SortConditions || !this.SortConditions.length;
 	};
 
 	SortState.prototype.changeColumns = function (activeRange, isDelete) {
