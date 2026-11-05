@@ -3337,7 +3337,7 @@
 							this._clearRange(clearRange, true);
 
 							tablePart.HeaderRowCount = tablePart.HeaderRowCount === null ? 0 : null;
-							tablePart.changeRef(null, 1, true);
+							tablePart.changeRef(null, 1, true, true);
 
 							if (tablePart.AutoFilter) {
 								this._openHiddenRows(tablePart);
@@ -3350,7 +3350,7 @@
 								isSetValue = true;
 
 								tablePart.HeaderRowCount = tablePart.HeaderRowCount === null ? 0 : null;
-								tablePart.changeRef(null, -1, true);
+								tablePart.changeRef(null, -1, true, true);
 							} else {
 								worksheet.getRange3(tablePart.Ref.r2 + 1, tablePart.Ref.c1, tablePart.Ref.r2 + 1, tablePart.Ref.c2).addCellsShiftBottom();
 								worksheet._moveRange(tablePart.Ref, new Asc.Range(tablePart.Ref.c1, tablePart.Ref.r1 + 1, tablePart.Ref.c2, tablePart.Ref.r2 + 1));
@@ -3358,7 +3358,7 @@
 								isSetValue = true;
 
 								tablePart.HeaderRowCount = tablePart.HeaderRowCount === null ? 0 : null;
-								tablePart.changeRef(null, -1, true);
+								tablePart.changeRef(null, -1, true, true);
 							}
 
 							if (null === tablePart.AutoFilter) {
