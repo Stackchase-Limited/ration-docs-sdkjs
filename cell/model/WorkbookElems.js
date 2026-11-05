@@ -8642,6 +8642,10 @@ function RangeDataManagerElem(bbox, data)
 			let filterRange = new Asc.Range(range.c1, range.r1, range.c2, this.isTotalsRow() ? range.r2 - 1 : range.r2);
 			this.AutoFilter.changeRefOnRange(filterRange);
 		}
+		//resizing the table resizes its sort range (the data rows) and conditions too, else they kept the old rows
+		if (this.SortState && this.SortState.Ref) {
+			this.SortState.changeRefOnRange(this.getRangeWithoutHeaderFooter());
+		}
 	};
 	TablePart.prototype.isApplyAutoFilter = function () {
 		let res = false;
@@ -9862,6 +9866,37 @@ function RangeDataManagerElem(bbox, data)
 		}
 
 		this.Ref = ref;
+
+		//the conditions run along the sort range (a column of its rows, or a row of its columns for a left-to-right
+		//sort): they grow/shrink with it, else rows inserted/deleted in a table left them over the old rows
+		var condOffset = this.ColumnSort ? new AscCommon.CellBase(0, col || 0) : new AscCommon.CellBase(row || 0, 0);
+		if (this.SortConditions && (condOffset.row || condOffset.col)) {
+			for (var i = 0; i < this.SortConditions.length; ++i) {
+				if (this.SortConditions[i] && this.SortConditions[i].Ref) {
+					var condRef = this.SortConditions[i].Ref.clone();
+					if (bIsFirst) {
+						condRef.setOffsetFirst(condOffset);
+					} else {
+						condRef.setOffsetLast(condOffset);
+					}
+					this.SortConditions[i].Ref = condRef;
+				}
+			}
+		}
+	};
+
+	SortState.prototype.changeRefOnRange = function (range) {
+		this.Ref = new Asc.Range(range.c1, range.r1, range.c2, range.r2);
+		if (this.SortConditions) {
+			for (var i = 0; i < this.SortConditions.length; ++i) {
+				var sortCondition = this.SortConditions[i];
+				if (sortCondition && sortCondition.Ref) {
+					var condRef = sortCondition.Ref;
+					sortCondition.Ref = this.ColumnSort ? new Asc.Range(range.c1, condRef.r1, range.c2, condRef.r2) :
+						new Asc.Range(condRef.c1, range.r1, condRef.c2, range.r2);
+				}
+			}
+		}
 	};
 
 	SortState.prototype.changeColumns = function (activeRange, isDelete) {

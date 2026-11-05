@@ -2488,6 +2488,24 @@
 
 				var bIsAutoFilter = curFilter.isAutoFilter();
 
+				//sorting from the filter button leaves one sort condition. as in ms, the sort range is all the data rows
+				//(header and totals row excluded) and the condition is the sorted column over the same rows. a second
+				//sort made it one column wide and both took in the header and totals row
+				var setSortState = function () {
+					var sortStateRange = new Asc.Range(curFilter.Ref.c1, curFilter.Ref.r1, curFilter.Ref.c2, maxFilterRow);
+					if (bIsAutoFilter || (!bIsAutoFilter && null === curFilter.HeaderRowCount)) {
+						sortStateRange.r1++;
+					}
+
+					if (!curFilter.SortState) {
+						curFilter.SortState = new AscCommonExcel.SortState();
+					}
+					curFilter.SortState.Ref = sortStateRange;
+					curFilter.SortState.SortConditions = [];
+					curFilter.SortState.SortConditions[0] = new AscCommonExcel.SortCondition();
+					curFilter.SortState.SortConditions[0].Ref = new Asc.Range(startCol, sortStateRange.r1, startCol, sortStateRange.r2);
+				};
+
 				var onSortAutoFilterCallback = function (type) {
 					History.Create_NewPoint();
 					History.StartTransaction();
@@ -2495,24 +2513,10 @@
 					var oldFilter = curFilter.clone(null);
 
 					//change filter content
-					if (!curFilter.SortState) {
-						var sortStateRange = new Asc.Range(curFilter.Ref.c1, curFilter.Ref.r1, curFilter.Ref.c2, maxFilterRow);
-						if (bIsAutoFilter || (!bIsAutoFilter && null === curFilter.HeaderRowCount)) {
-							sortStateRange.r1++;
-						}
-
-						curFilter.SortState = new AscCommonExcel.SortState();
-						curFilter.SortState.Ref = sortStateRange;
-						curFilter.SortState.SortConditions = [];
-						curFilter.SortState.SortConditions[0] = new AscCommonExcel.SortCondition();
-					} else {
-						curFilter.SortState.Ref = new Asc.Range(startCol, filterRef.r1, startCol, filterRef.r2);
-						curFilter.SortState.SortConditions[0] = new AscCommonExcel.SortCondition();
-					}
+					setSortState();
 
 					var cellIdRange = new Asc.Range(startCol, filterRef.r1, startCol, filterRef.r1);
 
-					curFilter.SortState.SortConditions[0].Ref = new Asc.Range(startCol, filterRef.r1, startCol, filterRef.r2);
 					curFilter.SortState.SortConditions[0].ConditionDescending = type !== Asc.c_oAscSortOptions.Ascending;
 
 					if (curFilter.TableStyleInfo) {
@@ -2536,24 +2540,10 @@
 					var oldFilter = curFilter.clone(null);
 
 					//change filter content
-					if (!curFilter.SortState) {
-						var sortStateRange = new Asc.Range(curFilter.Ref.c1, curFilter.Ref.r1, curFilter.Ref.c2, maxFilterRow);
-						if (bIsAutoFilter || (!bIsAutoFilter && null === curFilter.HeaderRowCount)) {
-							sortStateRange.r1++;
-						}
-
-						curFilter.SortState = new AscCommonExcel.SortState();
-						curFilter.SortState.Ref = sortStateRange;
-						curFilter.SortState.SortConditions = [];
-						curFilter.SortState.SortConditions[0] = new AscCommonExcel.SortCondition();
-					} else {
-						curFilter.SortState.Ref = new Asc.Range(startCol, curFilter.Ref.r1, startCol, maxFilterRow);
-						curFilter.SortState.SortConditions[0] = new AscCommonExcel.SortCondition();
-					}
+					setSortState();
 
 					var cellIdRange = new Asc.Range(startCol, filterRef.r1, startCol, filterRef.r1);
 
-					curFilter.SortState.SortConditions[0].Ref = new Asc.Range(startCol, filterRef.r1, startCol, filterRef.r2);
 					var newDxf = new AscCommonExcel.CellXfs();
 
 					if (type === Asc.c_oAscSortOptions.ByColorFill) {
