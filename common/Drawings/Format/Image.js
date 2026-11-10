@@ -1068,6 +1068,8 @@
 			oData["MediaFile"] = this.getName();
 			oData["From"] = 0;
 			oData["Theme"] = AscCommon.GlobalSkin.Type;
+			// the desktop player hands navigation keys back to the slide show only while one is running
+			oData["IsSlideShow"] = !!(Asc.editor && Asc.editor.isSlideShow && Asc.editor.isSlideShow());
 			return oData;
 		};
 
@@ -1085,6 +1087,7 @@
 			oData["DrawingTransform"] = null;
 			oData["MediaFile"] = null;
 			oData["From"] = null;
+			oData["IsSlideShow"] = null;
 			return oData;
 		}
 		//--------------------------------------------------------export----------------------------------------------------
