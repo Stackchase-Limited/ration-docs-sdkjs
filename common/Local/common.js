@@ -505,6 +505,19 @@ window["UpdateInstallPlugins"] = function()
 	window.g_asc_plugins.sendPluginsInit(_plugins);
 };
 
+// Ration Docs #2095: true for a drag that carries files from the file manager, in the desktop app,
+// whatever their type (AscCommon.CanDropFiles accepts only images).
+AscCommon.IsDesktopFilesDrag = function(e) {
+	if (!window["AscDesktopEditor"] || !e.dataTransfer || !e.dataTransfer.types)
+		return false;
+	for (var i = 0, length = e.dataTransfer.types.length; i < length; ++i)
+	{
+		if ("files" === e.dataTransfer.types[i].toLowerCase())
+			return true;
+	}
+	return false;
+};
+
 AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 	if ("undefined" != typeof(FileReader) && null != oHtmlElement) {
 		oHtmlElement["ondragover"] = function (e) {
@@ -515,6 +528,12 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
                 var editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
                 editor.beginInlineDropTarget(e);
             }
+			else if (AscCommon.IsDesktopFilesDrag(e))
+			{
+				// Ration Docs #2095: a non-image file is accepted too - ondrop hands it to
+				// the "open file" route. No inline drop target: nothing is inserted at the cursor.
+				e.dataTransfer.dropEffect = 'copy';
+			}
 			return false;
 		};
 		oHtmlElement["ondrop"] = function (e) {
@@ -525,12 +544,21 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 
 			var _files = window["AscDesktopEditor"]["GetDropFiles"]();
 			let countInserted = 0;
+			let canInsert = editor.isEnabledDropTarget();
+			let otherFiles = [];
 			if (0 !== _files.length)
 			{
 				let imageFiles = [];
+				let imageTried = false;
 				for (var i = 0; i < _files.length; i++)
 				{
-					if (window["AscDesktopEditor"]["IsImageFile"](_files[i]))
+					if (!window["AscDesktopEditor"]["IsImageFile"](_files[i]))
+					{
+						if (_files[i] !== "")
+							otherFiles.push(_files[i]);
+						continue;
+					}
+					if (canInsert && !imageTried)
 					{
 						if (_files[i] === "")
 							continue;
@@ -542,7 +570,7 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 							imageFiles.push(AscCommon.g_oDocumentUrls.getImageUrl(resImage));
 							++countInserted;
 						}
-						break;
+						imageTried = true; // only the first image is inserted, as before; the loop goes on for other files
 					}
 				}
 
@@ -551,7 +579,20 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 					editor._addImageUrl(imageFiles);
 			}
 
-			if (0 === countInserted)
+			// Ration Docs #2095: a dropped file that is not an image (docx, xlsx, pdf, csv, ...)
+			// used to be refused in ondragover and nothing happened. Open it in a new tab, the
+			// same way a drop on the start page does: DropOfficeFiles sends the drop list to the
+			// browser process, which keeps only what COfficeFileFormatChecker can open and raises
+			// ASC_MENU_EVENT_TYPE_CEF_LOCALFILES_OPEN. GetDropFiles above emptied that list, so it
+			// is set again with just these paths (they came from the native drop, not from JS).
+			if (0 !== otherFiles.length && window["AscDesktopEditor"]["SetDropFiles"] && window["AscDesktopEditor"]["DropOfficeFiles"])
+			{
+				window["AscDesktopEditor"]["SetDropFiles"](otherFiles);
+				window["AscDesktopEditor"]["DropOfficeFiles"]();
+				return;
+			}
+
+			if (0 === countInserted && canInsert)
 			{
                 // test html
                 var htmlValue = e.dataTransfer.getData("text/html");
