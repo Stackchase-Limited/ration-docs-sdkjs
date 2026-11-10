@@ -2988,11 +2988,21 @@ function CDrawingDocument()
 		renderer.VectorMemoryForPrint.ClearNoAttack();
 		renderer.DocInfo(this.m_oWordControl.m_oApi.asc_getCoreProps());
 
+		// #1672: the same slides as the desktop's PDF and print (hidden ones left out,
+		// see asc_docs_api.getSlidesToPrint), so this matches the print preview
+		var isSlideSelection = (true === isSelection && !this.m_oLogicDocument.IsMasterMode());
+		var slidesToPrint = oPresentation.IsVisioEditor() ? null : this.m_oWordControl.m_oApi.getSlidesToPrint(undefined, isSlideSelection);
+		var pagesWritten = 0;
+
 		for (var i = start; i <= end; i++)
 		{
-			if ((true === isSelection && !this.m_oLogicDocument.IsMasterMode()) && !this.m_oWordControl.Thumbnails.isSelectedPage(i))
+			if (slidesToPrint && -1 === slidesToPrint.indexOf(i))
 				continue;
 
+			if (isSlideSelection && !this.m_oWordControl.Thumbnails.isSelectedPage(i))
+				continue;
+
+			pagesWritten++;
 			if (oPresentation.IsVisioEditor())
 			{
 				//todo override
@@ -3004,9 +3014,6 @@ function CDrawingDocument()
 			{
 				let oSlide = this.m_oLogicDocument.Slides[i];
 
-				if (!oSlide.isVisible())
-					continue;
-
 				renderer.BeginPage(this.m_oLogicDocument.GetWidthMM(), this.m_oLogicDocument.GetHeightMM());
 				oSlide.draw(renderer);
 				renderer.EndPage();
@@ -3016,7 +3023,8 @@ function CDrawingDocument()
 				watermark.DrawOnRenderer(renderer, this.m_oLogicDocument.GetWidthMM(), this.m_oLogicDocument.GetHeightMM());
 		}
 
-		if (end == -1)
+		// every slide hidden (or no slides): one blank page rather than a PDF without pages
+		if (0 === pagesWritten)
 		{
 			renderer.BeginPage(this.m_oLogicDocument.GetWidthMM(), this.m_oLogicDocument.GetHeightMM());
 			renderer.EndPage()

@@ -9234,6 +9234,22 @@ background-repeat: no-repeat;\
 			return chosen;
 		return visible;
 	};
+	/* #1672: getSlidesToPrint for a page range as the print screen sends it in
+	   nativeOptions.pages ("all", "current", "1-3,5"), resolved against slide numbers
+	   as _printDesktop does. The print preview asks for this list (asc_getSlidesToPrint),
+	   so it shows the slides that will be printed and numbers its pages the same way. */
+	asc_docs_api.prototype.getSlidesToPrintInRange = function(range, isSelection)
+	{
+		let pages = undefined;
+		if (typeof range === "string" && "all" !== range)
+		{
+			if ("current" === range)
+				pages = AscCommon.getNativePrintRanges("current", this.getCurrentPage() + 1, this.WordControl.GetSlidesCount());
+			else
+				pages = AscCommon.getNativePrintRanges(range, undefined, this.WordControl.GetSlidesCount());
+		}
+		return this.getSlidesToPrint(pages, isSelection);
+	};
 
 	window["asc_docs_api"].prototype["asc_nativeGetPDF"] = function(options)
 	{
@@ -10278,6 +10294,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype["asc_initPrintPreview"] 	= asc_docs_api.prototype.asc_initPrintPreview;
 	asc_docs_api.prototype["asc_drawPrintPreview"] 	= asc_docs_api.prototype.asc_drawPrintPreview;
 	asc_docs_api.prototype["asc_closePrintPreview"] = asc_docs_api.prototype.asc_closePrintPreview;
+	asc_docs_api.prototype["asc_getSlidesToPrint"]  = asc_docs_api.prototype.getSlidesToPrintInRange;
 
 	asc_docs_api.prototype["asc_getExternalReferences"]    = asc_docs_api.prototype.asc_getExternalReferences;
 	asc_docs_api.prototype["asc_updateExternalReferences"] = asc_docs_api.prototype.asc_updateExternalReferences;
