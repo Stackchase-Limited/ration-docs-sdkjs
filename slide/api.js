@@ -1796,12 +1796,37 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype._printDesktop = function (options)
 	{
 		var opt = {};
+		var isSelection = false;
+		var pages = undefined;
         if (options && options.advancedOptions)
 		{
 			if (Asc.c_oAscPrintType.Selection === options.advancedOptions.asc_getPrintType())
+			{
 				opt["printOptions"] = {"selection": 1};
+				isSelection = true;
+			}
 			opt["nativeOptions"] = options.advancedOptions.asc_getNativeOptions();
 		}
+
+		/* #1672: hidden slides are left out (see getSlidesToPrint). The desktop applies
+		   nativeOptions.pages to the pages we hand it by position, so once a hidden slide
+		   is skipped, "slides 3-4" would land on the wrong slides. Resolve the range to
+		   slide indices here, against slide numbers, and tell the desktop to print every
+		   page it gets. */
+		var nativeOptions = opt["nativeOptions"];
+		if (nativeOptions && typeof nativeOptions["pages"] === "string" && "all" !== nativeOptions["pages"])
+		{
+			if ("current" === nativeOptions["pages"])
+				pages = AscCommon.getNativePrintRanges("current", this.getCurrentPage() + 1, this.WordControl.GetSlidesCount());
+			else
+				pages = AscCommon.getNativePrintRanges(nativeOptions["pages"], undefined, this.WordControl.GetSlidesCount());
+
+			opt["nativeOptions"] = Object.assign({}, nativeOptions, {"pages": "all"});
+		}
+
+		if (!opt["printOptions"])
+			opt["printOptions"] = {};
+		opt["printOptions"]["slides"] = this.getSlidesToPrint(pages, isSelection);
 
 		window["AscDesktopEditor"]["Print"](JSON.stringify(opt));
 		return true;
@@ -9121,11 +9146,14 @@ background-repeat: no-repeat;\
 			{
 				var isSelection = (_options && _options["printOptions"] && _options["printOptions"]["selection"]) ? true : false;
 				var _drawing_document = this.WordControl.m_oDrawingDocument;
-				var pagescount        = _drawing_document.GetSlidesCount();
-                if (isSelection)
-                    pagescount = this.WordControl.Thumbnails.GetSelectedArray().length;
 
-				window["AscDesktopEditor"]["Print_Start"](this.DocumentUrl, pagescount, this.ThemeLoader.ThemesUrl, this.getCurrentPage());
+				// #1672: the slides to print, hidden ones left out (resolved by _printDesktop)
+				var slides = (_options && _options["printOptions"] && Array.isArray(_options["printOptions"]["slides"])) ?
+					_options["printOptions"]["slides"] : this.getSlidesToPrint(undefined, isSelection);
+				var pagescount = slides.length;
+				var currentPage = Math.max(0, slides.indexOf(this.getCurrentPage()));
+
+				window["AscDesktopEditor"]["Print_Start"](this.DocumentUrl, pagescount, this.ThemeLoader.ThemesUrl, currentPage);
 
 				var oDocRenderer                         = new AscCommon.CDocumentRenderer();
                 oDocRenderer.InitPicker(AscCommon.g_oTextMeasurer.m_oManager);
@@ -9134,17 +9162,13 @@ background-repeat: no-repeat;\
 				this.ShowParaMarks                       = false;
 				oDocRenderer.IsNoDrawingEmptyPlaceholder = true;
 
-                pagescount = _drawing_document.GetSlidesCount();
 				for (var i = 0; i < pagescount; i++)
 				{
-					if (isSelection && !this.WordControl.Thumbnails.isSelectedPage(i))
-						continue;
-
 					oDocRenderer.Memory.Seek(0);
 					oDocRenderer.VectorMemoryForPrint.ClearNoAttack();
 
 					oDocRenderer.BeginPage(_drawing_document.m_oLogicDocument.GetWidthMM(), _drawing_document.m_oLogicDocument.GetHeightMM());
-					this.WordControl.m_oLogicDocument.DrawPage(i, oDocRenderer);
+					this.WordControl.m_oLogicDocument.DrawPage(slides[i], oDocRenderer);
 					oDocRenderer.EndPage();
 
 					window["AscDesktopEditor"]["Print_Page"](oDocRenderer.Memory.GetBase64Memory(), _drawing_document.m_oLogicDocument.GetWidthMM(), _drawing_document.m_oLogicDocument.GetHeightMM());
@@ -9181,6 +9205,36 @@ background-repeat: no-repeat;\
 		return this.WordControl.GetSlidesCount();
 	};
 
+	/* #1672: the slides that go into a PDF or onto paper. A hidden slide (<p:sld show="0">)
+	   is left out, as PowerPoint does unless "Print hidden slides" is ticked - we have no
+	   such option. Only the slideshow and the web download (ToRendererPart) honoured the
+	   flag; x2t, the desktop's Save as PDF and the desktop's print drew every slide, so
+	   content the author had hidden ended up in the PDF.
+	   pages: undefined, or the chosen slide indices as getNativePrintRanges returns them;
+	   isSelection: only the slides selected in the thumbnails. When everything the user
+	   picked by hand (a range, the current slide, a selection) is hidden, that explicit
+	   choice wins and those slides are printed, rather than printing nothing. */
+	asc_docs_api.prototype.getSlidesToPrint = function(pages, isSelection)
+	{
+		let logicDocument = this.WordControl.m_oLogicDocument;
+		let slidesCount   = this.WordControl.GetSlidesCount();
+		let chosen        = [];
+		let visible       = [];
+		for (let i = 0; i < slidesCount; i++)
+		{
+			if (pages !== undefined && !pages[i])
+				continue;
+			if (isSelection && !this.WordControl.Thumbnails.isSelectedPage(i))
+				continue;
+			chosen.push(i);
+			if (logicDocument.IsVisibleSlide(i))
+				visible.push(i);
+		}
+		if (0 === visible.length && (pages !== undefined || isSelection))
+			return chosen;
+		return visible;
+	};
+
 	window["asc_docs_api"].prototype["asc_nativeGetPDF"] = function(options)
 	{
 		if (options && options["watermark"])
@@ -9208,11 +9262,32 @@ background-repeat: no-repeat;\
 		let nativeOptions = options ? options["nativeOptions"] : undefined;
 		let pages = nativeOptions ? AscCommon.getNativePrintRanges(nativeOptions["pages"], nativeOptions["currentPage"], pagescount) : undefined;
 
-		for (var i = 0; i < pagescount; i++)
+		// #1672: a PDF leaves hidden slides out. Images (and the first-page thumbnail)
+		// still get every slide, as PowerPoint's export to pictures does.
+		let isPdf = !(options && (options["saveFormat"] === "image" || (options["printOptions"] && options["printOptions"]["onlyFirstPage"])));
+		let slides = [];
+		if (isPdf)
 		{
-			if (pages !== undefined && !pages[i])
-				continue;
-			this["asc_nativePrint"](_renderer, i, options);
+			slides = this.getSlidesToPrint(pages, false);
+		}
+		else
+		{
+			for (var i = 0; i < pagescount; i++)
+			{
+				if (pages !== undefined && !pages[i])
+					continue;
+				slides.push(i);
+			}
+		}
+
+		for (var j = 0; j < slides.length; j++)
+			this["asc_nativePrint"](_renderer, slides[j], options);
+
+		// every slide hidden: one blank page rather than a PDF without pages
+		if (0 === slides.length && 0 !== pagescount)
+		{
+			_renderer.BeginPage(this.WordControl.m_oLogicDocument.GetWidthMM(), this.WordControl.m_oLogicDocument.GetHeightMM());
+			_renderer.EndPage();
 		}
 
 		this.ShowParaMarks = _bOldShowMarks;
