@@ -190,6 +190,13 @@
 				let nCurFontId = AscCommon.g_oTextMeasurer.GetCurrentFont();
 				if (nCurFontId)
 					nFontId = nCurFontId;
+
+				// CheckUnicodeInCurrentFont found the code after the substitute font's glyph
+				// remap (Wingdings -> OpenSymbol), so shape the remapped code too: the raw one
+				// is not in the substitute and came out blank for every symbol but the first (#2318)
+				let oReplace = AscCommon.g_oTextMeasurer.LastFontOriginInfo.Replace;
+				if (null != oReplace)
+					nUnicode = AscFonts.g_fontApplication.GetReplaceGlyph(nUnicode, oReplace);
 			}
 		}
 
