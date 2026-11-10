@@ -13744,14 +13744,17 @@ background-repeat: no-repeat;\
 		let nativeOptions = options ? options["nativeOptions"] : undefined;
 		let pages = nativeOptions ? AscCommon.getNativePrintRanges(nativeOptions["pages"], nativeOptions["currentPage"], pagescount) : undefined;
 
+		// The PDF holds only the drawn pages, so outline entries must point to their index among them
+		let pageMap = [], drawnPages = 0;
 		for (var i = 0; i < pagescount; i++)
 		{
 			if (pages !== undefined && !pages[i])
 				continue;
+			pageMap[i] = drawnPages++;
 			this["asc_nativePrint"](_renderer, i, options);
 		}
 		
-		_renderer.AddHeadings(this.WordControl.m_oLogicDocument, true);
+		_renderer.AddHeadings(this.WordControl.m_oLogicDocument, true, pageMap);
 
 		this.ShowParaMarks = _bOldShowMarks;
 

@@ -3714,7 +3714,8 @@
 		for (let i = 0; i < count; ++i)
 		{
 			let posXY = docOutline.GetDestinationXY(i);
-			AddHeading(headings, posXY, docOutline.GetLevel(i), docOutline.GetText(i));
+			// GetText ends with the paragraph mark ("\r\n"), which must not get into the PDF bookmark title
+			AddHeading(headings, posXY, docOutline.GetLevel(i), docOutline.GetText(i).replace(/[\r\n]+$/, ""));
 		}
 		
 		if (!isUse)
@@ -3745,7 +3746,13 @@
 		
 		return headings;
 	}
-	CDocumentRenderer.prototype.AddHeadings = function(logicDocument, byHeadings)
+	/**
+	 * @param logicDocument
+	 * @param {boolean} byHeadings
+	 * @param {Array.<number>} [pageMap] - document page index -> index of that page in this renderer,
+	 * for when only some pages were drawn (page range). Headings on pages that were not drawn are dropped.
+	 */
+	CDocumentRenderer.prototype.AddHeadings = function(logicDocument, byHeadings, pageMap)
 	{
 		if (!logicDocument)
 			return;
@@ -3755,6 +3762,18 @@
 			headings = GetHeadingsByHeadings(logicDocument);
 		else
 			headings = GetHeadingsByBookmarks(logicDocument);
+		
+		if (pageMap)
+		{
+			headings = headings.filter(function(heading)
+			{
+				return undefined !== pageMap[heading.page];
+			});
+			headings.forEach(function(heading)
+			{
+				heading.page = pageMap[heading.page];
+			});
+		}
 		
 		WriteHeadings(this.Memory, headings);
 	};
