@@ -1675,7 +1675,8 @@ CHistory.prototype.GetSerializeArray = function()
 			&& AscDFH.historydescription_Document_CorrectEnterText !== description
 			&& AscDFH.historydescription_Document_CompositeInput !== description
 			&& AscDFH.historydescription_Document_CompositeInputReplace !== description
-			&& AscDFH.historydescription_Presentation_ParagraphAdd !== description)
+			&& AscDFH.historydescription_Presentation_ParagraphAdd !== description
+			&& AscDFH.historydescription_Spreadsheet_ParagraphAdd !== description)
 			return false;
 
 		let changes = point.Items;
