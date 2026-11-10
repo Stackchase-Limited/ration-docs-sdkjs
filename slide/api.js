@@ -7885,6 +7885,11 @@ background-repeat: no-repeat;\
 					}
 					break;
 				}
+				case "media":
+				{
+					_this.applyMediaPlayerEvent(_obj);
+					break;
+				}
 				default:
 					break;
 			}
@@ -8105,6 +8110,10 @@ background-repeat: no-repeat;\
 					oAnnotations.handleMessage(_obj["annotation"])
 				}
 			}
+			else if (undefined !== _obj["media"])
+			{
+				_this.applyMediaPlayerEvent(_obj);
+			}
 		}
 		catch (err)
 		{
@@ -8162,6 +8171,74 @@ background-repeat: no-repeat;\
 
 		if (this.reporterWindow)
 			this.sendToReporter("{ \"main_command\" : true, \"go_to_slide\" : " + slideNum + " }");
+	};
+
+	// The desktop media player calls this when the user plays, pauses or seeks the video in it (nPos: the
+	// position in ms). With the presenter's view open the presenter's window and the slide show each have
+	// their own player of the video (a click on it opens both): send the action to the other window, so the
+	// presenter drives the video the audience sees (and hears: the presenter's player is muted).
+	asc_docs_api.prototype.asc_onMediaPlayerEvent = function(sEvent, nPos)
+	{
+		if (!this.isSlideShow() || (!this.isReporterMode && !this.reporterWindow))
+			return;
+
+		let oMediaData = this.getMediaData();
+		if (!oMediaData)
+			return;
+
+		let oMsg = {
+			"media" : sEvent,
+			"pos"   : AscFormat.isRealNumber(nPos) ? (nPos >> 0) : 0,
+			"slide" : this.WordControl.DemonstrationManager.SlideNum,
+			"file"  : oMediaData.getName()
+		};
+		if (this.isReporterMode)
+		{
+			oMsg["reporter_command"] = "media";
+			this.sendFromReporter(JSON.stringify(oMsg));
+		}
+		else
+		{
+			oMsg["main_command"] = true;
+			this.sendToReporter(JSON.stringify(oMsg));
+		}
+	};
+
+	// what was done in the other window's player: open this window's player of the same video if it is not
+	// open, put it at the same position, then play/pause/stop it
+	asc_docs_api.prototype.applyMediaPlayerEvent = function(oMsg)
+	{
+		let oManager = this.WordControl && this.WordControl.DemonstrationManager;
+		if (!oManager || !oManager.Mode || oManager.SlideNum !== oMsg["slide"])
+			return;
+
+		// a player opened by hovering the video is only data here, the desktop opens one for a selected video
+		let oMediaData = this.getMediaData();
+		if (!oMediaData || oMediaData.getName() !== oMsg["file"] || !oMediaData.getDrawing().selected)
+		{
+			let oSlide = this.WordControl.m_oLogicDocument.GetSlide(oManager.SlideNum);
+			let aDrawings = oSlide ? oSlide.getDrawingObjects() : [];
+			for (let nDrawing = 0; nDrawing < aDrawings.length; ++nDrawing)
+			{
+				let oDrawingMediaData = aDrawings[nDrawing].getMediaData();
+				if (oDrawingMediaData && oDrawingMediaData.getName() === oMsg["file"])
+				{
+					// as a click on it would
+					oSlide.graphicObjects.resetSelection();
+					oSlide.graphicObjects.selectObject(aDrawings[nDrawing], oManager.SlideNum);
+					break;
+				}
+			}
+			oMediaData = this.getMediaData();
+			if (!oMediaData || oMediaData.getName() !== oMsg["file"])
+				return;
+		}
+
+		let sEvent = oMsg["media"];
+		if (sEvent !== "stop")
+			this.callMediaPlayerCommand("seek", oMediaData, oMsg["pos"]);
+		if (sEvent === "play" || sEvent === "pause" || sEvent === "stop")
+			this.callMediaPlayerCommand(sEvent, oMediaData, oMsg["pos"]);
 	};
 
 	asc_docs_api.prototype.SetDemonstrationModeOnly = function()
@@ -10277,6 +10354,7 @@ background-repeat: no-repeat;\
 
 	asc_docs_api.prototype["DemonstrationReporterMessages"] 		= asc_docs_api.prototype.DemonstrationReporterMessages;
 	asc_docs_api.prototype["DemonstrationToReporterMessages"] 		= asc_docs_api.prototype.DemonstrationToReporterMessages;
+	asc_docs_api.prototype["asc_onMediaPlayerEvent"] 				= asc_docs_api.prototype.asc_onMediaPlayerEvent;
 	asc_docs_api.prototype["preloadReporter"]						= asc_docs_api.prototype.preloadReporter;
 
 	asc_docs_api.prototype["asc_SpecialPaste"]						= asc_docs_api.prototype.asc_SpecialPaste;

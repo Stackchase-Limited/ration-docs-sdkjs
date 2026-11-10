@@ -3641,13 +3641,16 @@
 			this.callMediaPlayerCommand("update", this.mediaData);
 		}
 	};
-	baseEditorsApi.prototype.callMediaPlayerCommand = function(sCmd, oMediaData)
+	// nFrom: the position (ms) the command refers to (seek), if any
+	baseEditorsApi.prototype.callMediaPlayerCommand = function(sCmd, oMediaData, nFrom)
 	{
 		this.mediaData = oMediaData;
 		if(!sCmd) return;
 		if (window["AscDesktopEditor"] && window["AscDesktopEditor"]["CallMediaPlayerCommand"])
 		{
 			let oData = this.getPlayerData(sCmd);
+			if(oData && AscFormat.isRealNumber(nFrom))
+				oData["From"] = nFrom;
 			if(!AscFormat.IsEqualObjects(this.lastPlCompareOayerData, oData))
 			{
 				window["AscDesktopEditor"]["CallMediaPlayerCommand"](oData);
