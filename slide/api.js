@@ -6086,9 +6086,9 @@ background-repeat: no-repeat;\
 		oPresentation.ConvertMathView(isToLinear, isAll);
 	};
 
-	asc_docs_api.prototype.asc_AddVideoCallback = function(sImageUrlLocal, sVideoUrl, obj)
+	asc_docs_api.prototype.asc_AddVideoCallback = function(sImageUrlLocal, sVideoUrl, obj, nVideoW, nVideoH)
 	{
-		this.addMediaCallback(sImageUrlLocal, obj, sVideoUrl, "localVideo");
+		this.addMediaCallback(sImageUrlLocal, obj, sVideoUrl, "localVideo", nVideoW, nVideoH);
 	};
 	asc_docs_api.prototype.asc_AddAudioCallback = function(sImageUrlLocal, sAudioUrl, obj)
 	{
@@ -6106,7 +6106,7 @@ background-repeat: no-repeat;\
 		this.addMediaCallback(sImageUrlLocal, obj, sAudioUrl, "linkAudio");
 	};
 
-	asc_docs_api.prototype.addMediaCallback = function(sImageUrlLocal, oPlaceholder, sLink, sType)
+	asc_docs_api.prototype.addMediaCallback = function(sImageUrlLocal, oPlaceholder, sLink, sType, nMediaW, nMediaH)
 	{
 		let oApi = this;
 		let sImageUrl = AscCommon.g_oDocumentUrls.getImageUrl(sImageUrlLocal);
@@ -6125,6 +6125,15 @@ background-repeat: no-repeat;\
 			 * Fall back to the old constant if the decoded image reports nothing. */
 			oImageObject.Image.width = _image.Image.width > 0 ? _image.Image.width : 50;
 			oImageObject.Image.height = _image.Image.height > 0 ? _image.Image.height : 50;
+			/* A local video's poster is a stock placeholder - a 300x300 black square,
+			 * see _AddVideo in desktop-sdk - so its size says nothing about the clip:
+			 * every video became a square frame, the player letterboxed the picture
+			 * inside it and PowerPoint stretched it to fill the saved square. When
+			 * the host reports the video's own display size, use that instead. */
+			if (nMediaW > 0 && nMediaH > 0) {
+				oImageObject.Image.width = nMediaW;
+				oImageObject.Image.height = nMediaH;
+			}
 			if(sType === "localVideo") {
 				oImageObject.videoUrl = sLink;
 			}

@@ -288,8 +288,9 @@ Asc['asc_docs_api'].prototype["pluginMethod_AddVideo"] = Asc['asc_docs_api'].pro
 		_api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
 
 		setTimeout(function(){
-			window["AscDesktopEditor"]["AddVideo"](file, function(local_url, file_url) {
-				_api.asc_AddVideoCallback(local_url, file_url, obj);
+			// the host also passes the video's display size when it can read it
+			window["AscDesktopEditor"]["AddVideo"](file, function(local_url, file_url, video_w, video_h) {
+				_api.asc_AddVideoCallback(local_url, file_url, obj, video_w, video_h);
 			});
 			_api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
 		}, 100);
