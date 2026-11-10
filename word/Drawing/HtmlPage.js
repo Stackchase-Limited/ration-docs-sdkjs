@@ -180,6 +180,7 @@ function CEditorPage(api)
 
 	this.NoneRepaintPages = false;
 	this.m_bIsScroll = false;
+	this.m_bIsScrollPosChanged = false;
 	this.m_bIsRePaintOnScroll = true;
 	this.m_bIsFullRepaint = false;
 
@@ -224,6 +225,12 @@ function CEditorPage(api)
 
 	this.m_oApi = api;
 	var oThis   = this;
+
+	// a changed scroll position is repainted on the next frame, not after the 40ms interval (25fps)
+	this.paintMessageLoop.isNeedImmediate = function()
+	{
+		return oThis.m_bIsScroll && oThis.m_bIsScrollPosChanged;
+	};
 
 	// methods ---
 	this.checkBodyOffset = function()
@@ -1418,7 +1425,10 @@ function CEditorPage(api)
 		oWordControl.m_bIsUpdateTargetNoAttack = true;
 
 		if (oWordControl.m_bIsRePaintOnScroll === true)
+		{
+			oWordControl.m_bIsScrollPosChanged = true;
 			oWordControl.OnScroll();
+		}
 
 		if (oWordControl.MobileTouchManager && oWordControl.MobileTouchManager.iScroll)
 		{
@@ -1496,6 +1506,7 @@ function CEditorPage(api)
 
 		if (oWordControl.m_bIsRePaintOnScroll === true)
 		{
+			oWordControl.m_bIsScrollPosChanged = true;
 			oWordControl.OnScroll();
 		}
 
@@ -2839,6 +2850,7 @@ function CEditorPage(api)
 		{
 			isRepaint = true;
 			oWordControl.m_bIsScroll = false;
+			oWordControl.m_bIsScrollPosChanged = false;
 			oWordControl.OnPaint();
 
 			if (null != oWordControl.m_oLogicDocument && oWordControl.m_oApi.bInit_word_control)
@@ -2872,6 +2884,7 @@ function CEditorPage(api)
 		if (oWordControl.m_bIsScroll)
 		{
 			oWordControl.m_bIsScroll = false;
+			oWordControl.m_bIsScrollPosChanged = false;
 			oWordControl.OnPaint();
 
 			if (null != oWordControl.m_oLogicDocument && oWordControl.m_oApi.bInit_word_control)

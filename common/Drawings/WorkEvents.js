@@ -836,6 +836,10 @@
 
 		this.engine = null;
 		this.step = null;
+
+		// optional callback: returns true when the engine has to run on the next animation frame
+		// without waiting for the interval (scrolling). Otherwise a scroll is repainted at most every 40ms.
+		this.isNeedImmediate = null;
 	}
 
 	PaintMessageLoop.prototype.Start = function(engine)
@@ -875,7 +879,8 @@
 	PaintMessageLoop.prototype._animation = function()
 	{
 		var now = Date.now();
-		if (!this.isUseInterval || -1 === this.requestAnimationOldTime || (now >= (this.requestAnimationOldTime + this.interval)) || (now < this.requestAnimationOldTime))
+		if (!this.isUseInterval || -1 === this.requestAnimationOldTime || (now >= (this.requestAnimationOldTime + this.interval)) || (now < this.requestAnimationOldTime) ||
+			(this.isNeedImmediate && this.isNeedImmediate()))
 		{
 			this.requestAnimationOldTime = now;
 			this.engine();
