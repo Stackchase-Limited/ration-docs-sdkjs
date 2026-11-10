@@ -2346,6 +2346,15 @@
                 }
 				return false;
 			};
+			oHtmlElement["ondragleave"] = function (e)
+			{
+				// Ration Docs #2561: the drag left the editor without a drop - stop the inline drop
+				// target started in ondragover, or the next click ends it as a text drag-n-drop.
+				if (e.relatedTarget && oHtmlElement.contains(e.relatedTarget))
+					return;
+				var editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
+				editor.cancelInlineDropTarget(e);
+			};
 			oHtmlElement["ondrop"] = function (e)
 			{
 				e.preventDefault();

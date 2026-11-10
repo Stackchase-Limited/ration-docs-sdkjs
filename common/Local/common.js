@@ -536,6 +536,15 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 			}
 			return false;
 		};
+		oHtmlElement["ondragleave"] = function (e) {
+			// Ration Docs #2561: the drag left the editor without a drop (dropped in another window or
+			// cancelled). ondragover started the inline drop target; left on, the next click in the
+			// text ended it as a text drag-n-drop and split the paragraph there.
+			if (e.relatedTarget && oHtmlElement.contains(e.relatedTarget))
+				return;
+			var editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
+			editor.cancelInlineDropTarget(e);
+		};
 		oHtmlElement["ondrop"] = function (e) {
 			e.preventDefault();
 

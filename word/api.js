@@ -2663,6 +2663,15 @@ background-repeat: no-repeat;\
             this.WordControl.m_oDrawingDocument.EndTrackText(true);
         }
     };
+    asc_docs_api.prototype.cancelInlineDropTarget = function(e)
+    {
+        // Ration Docs #2561: an external drag left the document without a drop
+        if (this.WordControl.m_oLogicDocument && this.WordControl.m_oDrawingDocument && this.WordControl.m_oDrawingDocument.IsTrackText())
+        {
+            this.WordControl.m_oDrawingDocument.CancelTrackText();
+            this.WordControl.OnUpdateOverlay();
+        }
+    };
 	
 	asc_docs_api.prototype._onSaveCallbackInner = function()
 	{

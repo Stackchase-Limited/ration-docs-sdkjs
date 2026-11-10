@@ -3717,6 +3717,9 @@
     baseEditorsApi.prototype.endInlineDropTarget = function(e)
     {
     };
+    baseEditorsApi.prototype.cancelInlineDropTarget = function(e)
+    {
+    };
     baseEditorsApi.prototype.isSliderDragged = function()
     {
 		return this.noCreatePoint || this.exucuteHistory || this.exucuteHistoryEnd;
