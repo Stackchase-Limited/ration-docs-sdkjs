@@ -767,6 +767,15 @@
 			if (!oMediaData.isValid()) {
 				return null;
 			}
+			// mute/volume set for the media on the slide (p:cMediaNode), also when the player is opened by selecting it
+			let oSlide = this.getParentObjects().slide;
+			let oTiming = oSlide && oSlide.timing;
+			if (oTiming && oTiming.getMediaAdditionalData) {
+				let oAdditionalData = oTiming.getMediaAdditionalData(this.Id);
+				if (oAdditionalData) {
+					oMediaData.setAdditionalData(oAdditionalData);
+				}
+			}
 			return oMediaData;
 		};
 
@@ -1035,7 +1044,11 @@
 			if(!this.additionalData)
 				return null;
 
-			return this.additionalData.getVol();
+			// p:cMediaNode vol is in thousandths of a percent (100000 = 100%), the players take 0..100
+			let nVol = this.additionalData.getVol();
+			if(!AscFormat.isRealNumber(nVol))
+				return null;
+			return Math.max(0, Math.min(100, Math.round(nVol / 1000)));
 		};
 		CMediaData.prototype.getStartTime = function() {
 			if(!this.drawing)

@@ -8682,31 +8682,41 @@
         if(!oData) {
             return null;
         }
-        let sId = oSp.GetId();
-        let oRoot = this.getRoot();//find video node with video
-        if(oRoot) {
-            let oMediaNode = null;
-            oRoot.traverseTimeNodes(function (oNode) {
-                if(oNode.isVideo() || oNode.isAudio()) {
-                    let oMedia = oNode.cMediaNode;
-                    if(sId === oMedia.getTargetObjectId()) {
-                        oMediaNode = oNode;
-                        return true;
-                    }
-                }
-            });
-            if(oMediaNode) {
-                let oPr = oMediaNode.cMediaNode;
-                let oAdditionalData = new CAdditionalMediaData();
-                oAdditionalData.fullScreen = !!oPr.fullScrn;
-                oAdditionalData.mute = !!oPr.mute;
-                oAdditionalData.vol = oPr.vol !== null ? oPr.vol : null;
-                oAdditionalData.video = oMediaNode.isVideo();
-                oData.setAdditionalData(oAdditionalData);
-
-            }
+        let oAdditionalData = getMediaAdditionalData(this.getRoot(), oSp.GetId());
+        if(oAdditionalData) {
+            oData.setAdditionalData(oAdditionalData);
         }
         return oData;
+    };
+    // the media node (p:video/p:audio > p:cMediaNode) of a drawing carries its playback settings
+    // (mute, vol); the player must get them however it is started, not only from a timeline command
+    function getMediaAdditionalData(oRoot, sId) {
+        if(!oRoot) {
+            return null;
+        }
+        let oMediaNode = null;
+        oRoot.traverseTimeNodes(function (oNode) {
+            if(oNode.isVideo() || oNode.isAudio()) {
+                let oMedia = oNode.cMediaNode;
+                if(oMedia && sId === oMedia.getTargetObjectId()) {
+                    oMediaNode = oNode;
+                    return true;
+                }
+            }
+        });
+        if(!oMediaNode) {
+            return null;
+        }
+        let oPr = oMediaNode.cMediaNode;
+        let oAdditionalData = new CAdditionalMediaData();
+        oAdditionalData.fullScreen = !!oPr.fullScrn;
+        oAdditionalData.mute = !!oPr.mute;
+        oAdditionalData.vol = AscFormat.isRealNumber(oPr.vol) ? oPr.vol : null;
+        oAdditionalData.video = oMediaNode.isVideo();
+        return oAdditionalData;
+    }
+    CTiming.prototype.getMediaAdditionalData = function (sDrawingId) {
+        return getMediaAdditionalData(this.getTimingRootNode(), sDrawingId);
     };
     CCmd.prototype.setState = function (nState) {
         CTimeNodeBase.prototype.setState.call(this, nState);
