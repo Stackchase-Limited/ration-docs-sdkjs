@@ -15805,12 +15805,7 @@ Paragraph.prototype.GetStyleFromFormatting = function()
     }
     TextPr = this.Content[CurPos].Get_FirstTextPr();
 
-    // В стиль не добавляется HighLight
-    if (undefined !== TextPr.HighLight)
-    {
-        TextPr = TextPr.Copy();
-        TextPr.HighLight = undefined;
-    }
+    // HighLight тоже переносится в стиль, как в Word (fill_TextPr копирует TextPr целиком)
 
     // Мы создаем стиль параграфа и стиль рана, линкуем их и возвращаем стиль параграфа.
     var oParaStyle = new asc_CStyle();
