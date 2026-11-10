@@ -2069,6 +2069,13 @@ background-repeat: no-repeat;\
 			_data = sBase64;
 			_clipboard.pushData(AscCommon.c_oAscClipboardDataFormat.Internal, _data)
 		}
+		//IMAGE (#1760: selected objects on the slide also go out as image/png)
+		if ((AscCommon.c_oAscClipboardDataFormat.Image & _formats) && AscCommon.FOCUS_OBJECT_MAIN === this.WordControl.m_oLogicDocument.GetFocusObjType())
+		{
+			_data = this.getSelectedDrawingsPng();
+			if (_data)
+				_clipboard.pushData(AscCommon.c_oAscClipboardDataFormat.Image, _data);
+		}
 	};
 	asc_docs_api.prototype.getDemoManager = function() {
 		return this.WordControl && this.WordControl.DemonstrationManager || null;

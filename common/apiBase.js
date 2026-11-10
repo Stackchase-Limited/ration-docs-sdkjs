@@ -1210,6 +1210,22 @@
 			}
 		}
 	};
+	// #1760: the selected drawings as PNG bytes (BlobParts) for the image/png clipboard flavour.
+	// Copying a picture used to put it out only as <img src="data:..."> inside text/html; chat and
+	// upload targets (Messenger, Google Lens, image editors) read image/* only and pasted nothing.
+	// Rendered the same way as "Save as picture", so crop, rotation and grouping are kept.
+	baseEditorsApi.prototype.getSelectedDrawingsPng = function()
+	{
+		let oController = this.getGraphicController();
+		if (!oController || oController.getSelectedArray().length < 1 || oController.getTargetDocContent())
+			return null;
+		let oImageData = oController.getImageDataForSaving(true, "image/png");
+		let sSrc = oImageData && oImageData.src;
+		let sPrefix = "data:image/png;base64,";
+		if (typeof sSrc !== "string" || 0 !== sSrc.indexOf(sPrefix))
+			return null;
+		return [AscCommon.Base64.decode(sSrc.substring(sPrefix.length))];
+	};
 	baseEditorsApi.prototype.canEdit                         = function()
 	{
 		return !this.isViewMode && this.restrictions === Asc.c_oAscRestrictionType.None;

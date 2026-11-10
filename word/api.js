@@ -2374,6 +2374,13 @@ background-repeat: no-repeat;\
 			_data = sBase64;
 			_clipboard.pushData(AscCommon.c_oAscClipboardDataFormat.Internal, checkData(_data))
 		}
+		//IMAGE (#1760: a selected picture/shape also goes out as image/png)
+		if ((AscCommon.c_oAscClipboardDataFormat.Image & _formats) && this.WordControl.m_oLogicDocument.IsDrawingSelected())
+		{
+			_data = this.getSelectedDrawingsPng();
+			if (_data)
+				_clipboard.pushData(AscCommon.c_oAscClipboardDataFormat.Image, _data);
+		}
 	};
 
 	asc_docs_api.prototype.asc_SelectionCut = function()
