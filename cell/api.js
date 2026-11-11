@@ -9674,6 +9674,25 @@ var editor;
 		return wb.customFunctionEngine && wb.customFunctionEngine.remove(sName);
 	};
 
+	// Custom functions saved in the file are the document's code too: they run when the
+	// workbook is calculated, so they wait for the macros warning like autostart macros do.
+	spreadsheet_api.prototype.hasFileCustomFunctions = function() {
+		let fileFunctions = this.wbModel && this.wbModel.fileCustomFunctions;
+		if (!fileFunctions) {
+			return false;
+		}
+		fileFunctions = AscCommonExcel.safeJsonParse(fileFunctions) || (typeof fileFunctions === "object" ? fileFunctions : null);
+		return !!(fileFunctions && fileFunctions["macrosArray"] && fileFunctions["macrosArray"].length);
+	};
+	spreadsheet_api.prototype.hasDocumentAutorunCode = function() {
+		return AscCommon.baseEditorsApi.prototype.hasDocumentAutorunCode.call(this) || this.hasFileCustomFunctions();
+	};
+	spreadsheet_api.prototype.onDocumentMacrosAllowed = function() {
+		if (this.hasFileCustomFunctions()) {
+			this.registerCustomFunctionsLibrary();
+		}
+	};
+
 	spreadsheet_api.prototype.clearCustomFunctions = function() {
 		let wb = this.wb;
 		if (!wb) {

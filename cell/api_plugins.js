@@ -194,7 +194,8 @@
 		if (undefined === obj)
 			obj = AscCommon.getLocalStorageItem(customFunctionsStorageId);
 
-		obj = AscCommonExcel.mergeCustomFunctions(obj, true);
+		// the file's own functions only once the user allowed the document's macros
+		obj = AscCommonExcel.mergeCustomFunctions(obj, true, true !== this.documentMacrosAllowed);
 
 		if (!obj)
 			return;

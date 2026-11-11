@@ -207,6 +207,9 @@
 		this.currentPassword = "";
 
 		this.disableAutostartMacros = false;
+		// Has the user allowed this document's own code to run (the macros warning answered
+		// "Yes", or "Enable all")? undefined = not asked yet, then true / false for the session.
+		this.documentMacrosAllowed = undefined;
 		this.macros = null;
 		this.vbaMacros = null;
 		this.vbaProject = null;
@@ -1540,7 +1543,7 @@
 		if (this.DocInfo)
 			this["pluginMethod_SetProperties"](this.DocInfo.asc_getOptions());
 
-		if (this.macros && !this.disableAutostartMacros && this.macros.isExistAuto())
+		if (this.macros && !this.disableAutostartMacros && this.hasDocumentAutorunCode())
 			this.sendEvent("asc_onRunAutostartMacroses");
 
 		if (window["AscDesktopEditor"] && window["AscDesktopEditor"]["onDocumentContentReady"])
@@ -4724,11 +4727,23 @@
 		if (!this.canRunBuilderScript())
 			return;
 
+		// the editor calls this only after the user said "Yes" to the macros warning (or chose "Enable all")
+		this.documentMacrosAllowed = true;
 		this._beforeEvalCommand();
 		this.macros.runAuto();
 		this._afterEvalCommand(undefined);
 		this.onEndBuilderScript();
+		this.onDocumentMacrosAllowed();
     };
+	// Code in the document that runs without the user asking for it: autostart macros here,
+	// the editors add their own kinds (spreadsheet: custom functions saved in the file).
+	baseEditorsApi.prototype.hasDocumentAutorunCode = function()
+	{
+		return this.macros.isExistAuto();
+	};
+	baseEditorsApi.prototype.onDocumentMacrosAllowed = function()
+	{
+	};
 	baseEditorsApi.prototype.asc_runMacros = function(sGuid)
     {
     	if (!this.macros)
@@ -4742,6 +4757,27 @@
 
 		if (!this.canRunBuilderScript())
 			return;
+
+		// Only a click on a shape or a button the document assigned a macro to gets here. That
+		// shape can look like anything - a hyperlink, say - so the click is not consent: the
+		// document's code runs only once the user allowed macros for it, as for autostart ones.
+		if (true !== this.documentMacrosAllowed)
+		{
+			if (false === this.documentMacrosAllowed)
+				return;
+			var bNeedCallback = this.editorId === AscCommon.c_oEditorId.Spreadsheet ? this.handlers.hasTrigger('asc_onMacrosRunRequest') : this.asc_checkNeedCallback('asc_onMacrosRunRequest');
+			if (!bNeedCallback)
+				return;
+			var _this = this;
+			this.sendEvent('asc_onMacrosRunRequest', function(bAllow) {
+				_this.documentMacrosAllowed = !!bAllow;
+				if (!bAllow)
+					return;
+				_this.onDocumentMacrosAllowed();
+				_this.asc_runMacros(sGuid);
+			});
+			return;
+		}
 
 		this._beforeEvalCommand();
 		this.macros.run(sGuid);

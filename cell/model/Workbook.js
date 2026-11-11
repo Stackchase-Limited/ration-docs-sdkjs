@@ -25465,12 +25465,12 @@
 		}
 	}
 	
-	function mergeCustomFunctions(lsFunctions, opt_get_obj) {
+	function mergeCustomFunctions(lsFunctions, opt_get_obj, opt_skip_file) {
 		const api = window["Asc"]["editor"];
 		const oLsFunctions = safeJsonParse(lsFunctions) || (typeof lsFunctions === "object" ? lsFunctions : null);
 
 		let oFileFunctions = null;
-		if (api && api.wb && api.wb.model && api.wb.model.fileCustomFunctions) {
+		if (!opt_skip_file && api && api.wb && api.wb.model && api.wb.model.fileCustomFunctions) {
 			const fileFunctions = api.wb.model.fileCustomFunctions;
 			oFileFunctions = safeJsonParse(fileFunctions) || (typeof fileFunctions === "object" ? fileFunctions : null);
 		}
