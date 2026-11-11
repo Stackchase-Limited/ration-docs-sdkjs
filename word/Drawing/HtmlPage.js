@@ -181,6 +181,7 @@ function CEditorPage(api)
 	this.NoneRepaintPages = false;
 	this.m_bIsScroll = false;
 	this.m_bIsScrollPosChanged = false;
+	this.wheelRemainder = { x : 0, y : 0 }; // sub-pixel wheel/touchpad scroll not applied yet (#1194)
 	this.m_bIsRePaintOnScroll = true;
 	this.m_bIsFullRepaint = false;
 
@@ -2453,7 +2454,8 @@ function CEditorPage(api)
 		let values = AscCommon.checkMouseWhell(e, {
 			isSupportBidirectional : false,
 			isAllowHorizontal : oThis.m_bIsHorScrollVisible,
-			isUseMaximumDelta : true
+			isUseMaximumDelta : true,
+			remainder : oThis.wheelRemainder
 		});
 
 		if (0 !== values.x)

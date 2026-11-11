@@ -979,12 +979,16 @@
 		let isSupportBidirectional = false;
 		let isAllowHorizontal = false;
 		let isUseMaximumDelta = false;
+		let remainder = null;
 
 		if (options)
 		{
 			isSupportBidirectional = (true === options.isSupportBidirectional);
 			isAllowHorizontal = (true === options.isAllowHorizontal);
 			isUseMaximumDelta = (true === options.isUseMaximumDelta);
+			// {x, y} kept by the caller: the fraction of a pixel cut off below is carried into the next event
+			if (options.remainder)
+				remainder = options.remainder;
 		}
 
 		let delta  = 0;
@@ -1026,22 +1030,48 @@
 			}
 		}
 
+		if (remainder)
+		{
+			// a touchpad sends many small deltas (wheelDelta of a few units = a pixel or less here): cut to
+			// whole pixels one by one they lost up to a pixel each, slow gestures did not move at all and
+			// the rest moved in uneven steps (#1194). A change of direction starts afresh
+			if (deltaX * remainder.x < 0) remainder.x = 0;
+			if (deltaY * remainder.y < 0) remainder.y = 0;
+			deltaX += remainder.x;
+			deltaY += remainder.y;
+			remainder.x = deltaX - (deltaX >> 0);
+			remainder.y = deltaY - (deltaY >> 0);
+		}
+
 		deltaX >>= 0;
 		deltaY >>= 0;
 
 		if (!isSupportBidirectional)
 		{
+			// the axis not scrolled keeps nothing back
 			if (isUseMaximumDelta)
 			{
 				if (Math.abs(deltaY) >= Math.abs(deltaX))
+				{
 					deltaX = 0;
+					if (remainder)
+						remainder.x = 0;
+				}
 				else
+				{
 					deltaY = 0;
+					if (remainder)
+						remainder.y = 0;
+				}
 			}
 			else
 			{
 				if (0 !== deltaX)
+				{
 					deltaY = 0;
+					if (remainder)
+						remainder.y = 0;
+				}
 			}
 		}
 
