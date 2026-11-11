@@ -320,15 +320,81 @@ if (isOverrideDocumentUrls)
 	};
 }
 
+// #1233: LocalFileGetImageUrl downloads an http(s) image synchronously, on the editor's main thread,
+// so pasting web content froze the editor for the sum of all its downloads (up to a minute an image).
+// Such images go through the asynchronous DownloadFiles instead, all at once, as on the web: the
+// interaction is blocked with the "loading image" action but the editor stays alive. Local files,
+// data: urls and everything else still go straight to LocalFileGetImageUrl.
+AscCommon.sendImgUrlsDownloadTimeout = 30000;
 AscCommon.sendImgUrls = function(api, images, callback)
 {
 	var _data = [];
+	var _download = [];
 	for (var i = 0; i < images.length; i++)
 	{
-		var _url = window["AscDesktopEditor"]["LocalFileGetImageUrl"](images[i]);
+		var _src = images[i];
+		if (window["AscDesktopEditor"]["DownloadFiles"] && typeof _src === "string" && /^https?:\/\//i.test(_src))
+		{
+			_download.push(i);
+			continue;
+		}
+		var _url = window["AscDesktopEditor"]["LocalFileGetImageUrl"](_src);
 		_data[i] = { url: AscCommon.g_oDocumentUrls.getUrl(_url), path : _url };
 	}
-	callback(_data);
+	if (0 === _download.length)
+	{
+		callback(_data);
+		return;
+	}
+
+	var _urls = [];
+	for (var j = 0; j < _download.length; j++)
+		_urls.push(images[_download[j]]);
+
+	var _isDone = false;
+	var _timer = null;
+	var _onDownloaded = function(files)
+	{
+		if (_isDone)
+		{
+			// too late: the paste went on without these
+			for (var _key in files)
+			{
+				if (files.hasOwnProperty(_key) && -1 !== _urls.indexOf(_key) && files[_key])
+					window["AscDesktopEditor"]["RemoveFile"](files[_key]);
+			}
+			return;
+		}
+		_isDone = true;
+		if (_timer)
+			clearTimeout(_timer);
+		files = files || {};
+
+		var _removed = {};
+		for (var k = 0; k < _download.length; k++)
+		{
+			var _file = files.hasOwnProperty(_urls[k]) ? files[_urls[k]] : "";
+			var _local = _file ? window["AscDesktopEditor"]["LocalFileGetImageUrl"](_file) : "error";
+			_data[_download[k]] = { url: AscCommon.g_oDocumentUrls.getUrl(_local), path : _local };
+			if (_file && !_removed[_file])
+			{
+				_removed[_file] = true;
+				window["AscDesktopEditor"]["RemoveFile"](_file);
+			}
+		}
+
+		if (!api.isOpenedFrameEditor)
+			api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.LoadImage);
+		callback(_data);
+	};
+
+	if (!api.isOpenedFrameEditor)
+		api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.LoadImage);
+	_timer = setTimeout(function() {
+		_timer = null;
+		_onDownloaded({});
+	}, AscCommon.sendImgUrlsDownloadTimeout);
+	window["AscDesktopEditor"]["DownloadFiles"](_urls, [], _onDownloaded);
 };
 
 window['Asc']["CAscWatermarkProperties"].prototype["showFileDialog"] = window['Asc']["CAscWatermarkProperties"].prototype["asc_showFileDialog"] = function ()
