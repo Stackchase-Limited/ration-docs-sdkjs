@@ -2342,7 +2342,12 @@ background-repeat: no-repeat;\
 		//TEXT
 		if (AscCommon.c_oAscClipboardDataFormat.Text & _formats)
 		{
-			_data = this.WordControl.m_oLogicDocument.GetSelectedText(false);
+			// #927: the text getters end paragraphs and table rows with "\r\n" and
+			// soft breaks with a lone "\r" (Windows conventions). Off Windows the
+			// clipboard is passed on as is, and editors there take the "\r" as a
+			// second line break, so text/plain uses "\n" outside Windows.
+			var _textPr = AscCommon.AscBrowser.isWindows ? undefined : {ParaSeparator : "\n", TableRowSeparator : "\n", NewLineSeparator : "\n"};
+			_data = this.WordControl.m_oLogicDocument.GetSelectedText(false, _textPr);
 			_clipboard.pushData(AscCommon.c_oAscClipboardDataFormat.Text, checkData(_data))
 		}
 		//HTML
