@@ -1428,6 +1428,7 @@ function CEditorPage(api)
 		{
 			oWordControl.m_bIsScrollPosChanged = true;
 			oWordControl.OnScroll();
+			oWordControl.paintMessageLoop.wake();
 		}
 
 		if (oWordControl.MobileTouchManager && oWordControl.MobileTouchManager.iScroll)
@@ -1508,6 +1509,7 @@ function CEditorPage(api)
 		{
 			oWordControl.m_bIsScrollPosChanged = true;
 			oWordControl.OnScroll();
+			oWordControl.paintMessageLoop.wake();
 		}
 
 		if (oWordControl.MobileTouchManager && oWordControl.MobileTouchManager.iScroll)

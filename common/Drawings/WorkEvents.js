@@ -840,17 +840,24 @@
 		// optional callback: returns true when the engine has to run on the next animation frame
 		// without waiting for the interval (scrolling). Otherwise a scroll is repainted at most every 40ms.
 		this.isNeedImmediate = null;
+
+		// between two runs of the engine the loop sleeps on a timer instead of asking for every frame,
+		// and the timer runs the engine itself: an idle document woke the renderer (and the compositor)
+		// 60-120 times a second for nothing (#1000). wake() goes back to the next frame (scrolling)
+		this.sleepId = null;
+		this.sleepStep = null;
 	}
 
 	PaintMessageLoop.prototype.Start = function(engine)
 	{
 		this.engine = engine;
-		if (null !== this.id)
+		if (null !== this.id || null !== this.sleepId)
 			return;
 
 		if (this.isUseRequestAnimationFrame)
 		{
 			this.step = this._animation.bind(this);
+			this.sleepStep = this._sleepEnd.bind(this);
 		}
 		else
 		{
@@ -861,6 +868,12 @@
 	};
 	PaintMessageLoop.prototype.Stop = function()
 	{
+		if (null !== this.sleepId)
+		{
+			window.clearTimeout(this.sleepId);
+			this.sleepId = null;
+		}
+
 		if (null === this.id)
 			return;
 
@@ -885,6 +898,29 @@
 			this.requestAnimationOldTime = now;
 			this.engine();
 		}
+
+		// a hidden view (background tab) stays on requestAnimationFrame, which does not fire until it is shown
+		this.id = null;
+		var wait = this.requestAnimationOldTime + this.interval - Date.now();
+		var isHidden = window.document && window.document.hidden;
+		if (this.isUseInterval && wait > 0 && !isHidden && !(this.isNeedImmediate && this.isNeedImmediate()))
+			this.sleepId = window.setTimeout(this.sleepStep, wait);
+		else
+			this.id = this.requestAnimationFrame.call(window, this.step);
+	};
+	PaintMessageLoop.prototype._sleepEnd = function()
+	{
+		this.sleepId = null;
+		this._animation();
+	};
+	// ends the sleep: the engine runs on the next animation frame (if isNeedImmediate allows it before the interval)
+	PaintMessageLoop.prototype.wake = function()
+	{
+		if (null === this.sleepId)
+			return;
+
+		window.clearTimeout(this.sleepId);
+		this.sleepId = null;
 		this.id = this.requestAnimationFrame.call(window, this.step);
 	};
 
