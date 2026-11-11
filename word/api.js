@@ -3609,6 +3609,24 @@ background-repeat: no-repeat;\
 		logicDocument.SetParagraphBidi(isRtl);
 		logicDocument.FinalizeAction();
 	};
+	/**
+	 * Sets the text direction of the document's default paragraph properties (docDefaults pPrDefault w:bidi).
+	 * Used for new blank documents (#2090).
+	 * @param {boolean} isRtl
+	 */
+	asc_docs_api.prototype.asc_setDefaultRtlTextDirection = function(isRtl)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument || logicDocument.GetDefaultParagraphBidi() === !!isRtl)
+			return;
+
+		if (logicDocument.IsSelectionLocked(AscCommon.changestype_Document_Styles))
+			return;
+
+		logicDocument.StartAction(AscDFH.historydescription_Document_SetParagraphBidi);
+		logicDocument.SetDefaultParagraphBidi(isRtl);
+		logicDocument.FinalizeAction();
+	};
 	asc_docs_api.prototype.asc_isRtlTextDirection = function()
 	{
 		let logicDocument = this.private_GetLogicDocument();
@@ -15319,6 +15337,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['put_TextPrLang']                            = asc_docs_api.prototype.put_TextPrLang;
 	asc_docs_api.prototype['asc_setRtlTextDirection']                   = asc_docs_api.prototype.asc_setRtlTextDirection;
 	asc_docs_api.prototype['asc_isRtlTextDirection']                    = asc_docs_api.prototype.asc_isRtlTextDirection;
+	asc_docs_api.prototype['asc_setDefaultRtlTextDirection']            = asc_docs_api.prototype.asc_setDefaultRtlTextDirection;
 	asc_docs_api.prototype['asc_addSpaceBeforeParagraph']               = asc_docs_api.prototype.asc_addSpaceBeforeParagraph;
 	asc_docs_api.prototype['asc_addSpaceAfterParagraph']                = asc_docs_api.prototype.asc_addSpaceAfterParagraph;
 	asc_docs_api.prototype['asc_removeSpaceBeforeParagraph']            = asc_docs_api.prototype.asc_removeSpaceBeforeParagraph;

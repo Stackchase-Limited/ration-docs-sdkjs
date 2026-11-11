@@ -27859,6 +27859,31 @@ CDocument.prototype.GetDefaultLanguage = function()
 {
 	return this.GetStyles().Default.TextPr.Lang.Val;
 };
+/**
+ * Text direction of the default paragraph properties (docDefaults pPrDefault), inherited by every
+ * paragraph that has no direction of its own
+ * @param {boolean} isRtl
+ */
+CDocument.prototype.SetDefaultParagraphBidi = function(isRtl)
+{
+	let styles    = this.GetStyles();
+	let oldParaPr = styles.Get_DefaultParaPr();
+	if (!!oldParaPr.Bidi === !!isRtl)
+		return;
+
+	let newParaPr  = oldParaPr.Copy();
+	newParaPr.Bidi = !!isRtl;
+
+	this.History.Add(new CChangesStylesChangeDefaultParaPr(styles, oldParaPr, newParaPr));
+	styles.Default.ParaPr = newParaPr;
+
+	this.Recalculate();
+	this.UpdateInterface();
+};
+CDocument.prototype.GetDefaultParagraphBidi = function()
+{
+	return !!this.GetStyles().Get_DefaultParaPr().Bidi;
+};
 CDocument.prototype.RestartSpellCheck = function()
 {
 	this.Spelling.Reset();

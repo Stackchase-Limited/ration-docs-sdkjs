@@ -8581,6 +8581,11 @@ CStyles.prototype =
                 bNeedRecalc = true;
                 break;
             }
+			case AscDFH.historyitem_Styles_ChangeDefaultParaPr:
+			{
+				// The default paragraph properties (docDefaults pPrDefault) are inherited by every paragraph
+				return this.Refresh_RecalcData2(this.Default.Paragraph);
+			}
 			case AscDFH.historyitem_Styles_ChangeDefaultTextPr:
 			{
 				// TODO: Нужно сделать отдельный метод для проверки по стилю рана (в том числе и дефолтовому, как здесь)
