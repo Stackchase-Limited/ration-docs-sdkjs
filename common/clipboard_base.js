@@ -1675,6 +1675,7 @@
 
 				if (!paste_data) {
 					_callback();
+					return;
 				}
 
 				if (undefined !== paste_data[AscCommon.c_oAscClipboardDataFormat.Image]) {
