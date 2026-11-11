@@ -735,16 +735,14 @@ CMathText.prototype.Measure = function(oMeasure, TextPr, InfoMathText)
 		var bAccentIJ = !InfoMathText.bNormalText && this.Parent.IsAccent() && (this.value == 0x69 || this.value == 0x6A);
 
 		this.RecalcInfo.StyleCode   = letter;
-		this.RecalcInfo.bAccentIJ   = bAccentIJ;
 
 		var bApostrophe = 1 == q_Math_Apostrophe[letter] && this.bJDraw == false;
 
-		if(bAccentIJ)
-			oMeasure.SetStringGid(true);
-
-		else if( InfoMathText.NeedUpdateFont(letter, this.FontSlot, this.IsPlaceholder(), bApostrophe) )
+		// the font is set up for an accented i/j as for any other letter (Draw does the same), so that
+		// the check below sees the font the letter is drawn with
+		if( InfoMathText.NeedUpdateFont(letter, this.FontSlot, this.IsPlaceholder(), bApostrophe) )
 		{
-			if (this.Parent.Pr.SmallCaps || this.Parent.Pr.Caps)
+			if (!bAccentIJ && (this.Parent.Pr.SmallCaps || this.Parent.Pr.Caps))
 			{
 				let symbol;
 
@@ -769,14 +767,33 @@ CMathText.prototype.Measure = function(oMeasure, TextPr, InfoMathText)
 		}
 		else if(InfoMathText.CurrType == MathTextInfo_NormalText)
 		{
-			letter                    = this.value;
-			this.RecalcInfo.StyleCode = letter;
+			if (!bAccentIJ)
+			{
+				letter                    = this.value;
+				this.RecalcInfo.StyleCode = letter;
+			}
 			InfoMathText.bApostrophe  = false;
 
 			var FontKoef = InfoMathText.GetFontKoef(this.FontSlot);
 
 			g_oTextMeasurer.SetFontSlot(this.FontSlot, FontKoef);
 		}
+
+		// private_getCode returns glyph indices of Cambria Math for a dotless i/j. In any other font
+		// (a substitute where Cambria Math is not installed, a text font of the run) that index is an
+		// unrelated glyph or none, and the letter came out blank or as garbage (#565): use the
+		// dotless i/j code points there.
+		if (bAccentIJ && !this.private_IsCambriaMathFont(oMeasure))
+		{
+			bAccentIJ                 = false;
+			letter                    = this.private_getDotlessIJCode(oMeasure, InfoMathText);
+			this.RecalcInfo.StyleCode = letter;
+		}
+
+		this.RecalcInfo.bAccentIJ   = bAccentIJ;
+
+		if(bAccentIJ)
+			oMeasure.SetStringGid(true);
 
 		this.RecalcInfo.bApostrophe   = InfoMathText.bApostrophe;
 		this.RecalcInfo.bSpaceSpecial = letter == 0x2061;
@@ -829,6 +846,36 @@ CMathText.prototype.Measure = function(oMeasure, TextPr, InfoMathText)
 
 	this.Width = (this.size.width * AscWord.TEXTWIDTH_DIVIDER) | 0;
 
+};
+CMathText.prototype.private_IsCambriaMathFont = function(oMeasure)
+{
+	var oFont = oMeasure && oMeasure.GetCurrentFont ? oMeasure.GetCurrentFont() : null;
+	if (!oFont || !oFont.GetFamilyName)
+		return true;
+
+	return "Cambria Math" === oFont.GetFamilyName();
+};
+CMathText.prototype.private_getDotlessIJCode = function(oMeasure, InfoMathText)
+{
+	var bI       = this.value == 0x69;
+	var arrCodes = [];
+
+	// math italic dotless i/j for the default italic math letters, otherwise the plain dotless ones
+	// (a text font draws them in its own style)
+	var MPrp = this.Parent.GetCompiled_ScrStyles();
+	if (InfoMathText.CurrType !== MathTextInfo_NormalText && MPrp.scr == TXT_ROMAN && MPrp.sty == STY_ITALIC)
+		arrCodes.push(bI ? 0x1D6A4 : 0x1D6A5);
+
+	arrCodes.push(bI ? 0x131 : 0x237);
+
+	for (var nIndex = 0, nCount = arrCodes.length; nIndex < nCount; ++nIndex)
+	{
+		if (!oMeasure.CheckUnicodeInCurrentFont || oMeasure.CheckUnicodeInCurrentFont(arrCodes[nIndex]))
+			return arrCodes[nIndex];
+	}
+
+	// the font has no dotless letter: the letter with its dot is better than an empty box
+	return this.value;
 };
 CMathText.prototype.PreRecalc = function(Parent, ParaMath)
 {
