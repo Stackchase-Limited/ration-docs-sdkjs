@@ -16022,6 +16022,22 @@ window["asc_IsNeedBuildCryptedFile"] = function()
     return _returnValue;
 };
 
+// Ration Docs #1664: "asc.{ABC-12}" -> "rdplugin://abc-12/", the origin of a user-installed plugin
+// (desktop-sdk plugin_scheme.h HostFromGuid); "" for a GUID that cannot be a host name (such a
+// plugin keeps its file:// address, which the app no longer loads)
+AscCommon["getDesktopUserPluginBaseUrl"] = function(guid)
+{
+	var _host = ("" + guid);
+	if (0 === _host.indexOf("asc."))
+		_host = _host.substring(4);
+	if (_host.length >= 2 && "{" === _host.charAt(0) && "}" === _host.charAt(_host.length - 1))
+		_host = _host.substring(1, _host.length - 1);
+	_host = _host.toLowerCase();
+	if (!/^[a-z0-9-]{1,64}$/.test(_host))
+		return "";
+	return "rdplugin://" + _host + "/";
+};
+
 window["UpdateSystemPlugins"] = function()
 {
     var _plugins = JSON.parse(window["AscDesktopEditor"]["GetInstallPlugins"]());
@@ -16037,7 +16053,13 @@ window["UpdateSystemPlugins"] = function()
 		{
 			_pluginsCur["pluginsData"][i]["baseUrl"] = _pluginsCur["url"] + _pluginsCur["pluginsData"][i]["guid"].substring(4) + "/";
 
-			if (!window["AscDesktopEditor"]["IsLocalFile"]())
+			// Ration Docs #1664: a user-installed one in its own origin (see UpdateInstallPlugins)
+			var _userBaseUrl = (1 === k) ? AscCommon["getDesktopUserPluginBaseUrl"](_pluginsCur["pluginsData"][i]["guid"]) : "";
+			if (_userBaseUrl)
+			{
+				_pluginsCur["pluginsData"][i]["baseUrl"] = _userBaseUrl;
+			}
+			else if (!window["AscDesktopEditor"]["IsLocalFile"]())
 			{
                 _pluginsCur["pluginsData"][i]["baseUrl"] = "ascdesktop://plugin_content/" + _pluginsCur["pluginsData"][i]["baseUrl"];
             }

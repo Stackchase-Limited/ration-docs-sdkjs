@@ -447,7 +447,16 @@ window["UpdateInstallPlugins"] = function()
 			_pluginsCur["pluginsData"][i]["baseUrl"] = _pluginsCur["url"] + _pluginsCur["pluginsData"][i]["guid"].substring(4) + "/";
 			_plugins["pluginsData"].push(_pluginsCur["pluginsData"][i]);
 
-			if (_pluginsCur["pluginsData"][i]["onlyofficeScheme"])
+			// Ration Docs #1664: a user-installed plugin (k == 1) runs in an origin of its own,
+			// rdplugin://<guid>/ (desktop-sdk plugin_scheme.h), not as file:// (or onlyoffice://plugin/)
+			// beside the editor, whose document and bridge it could reach. The plugin API is
+			// postMessage only (checkOrigin accepts an origin that baseUrl starts with).
+			var _userBaseUrl = (1 === k) ? AscCommon["getDesktopUserPluginBaseUrl"](_pluginsCur["pluginsData"][i]["guid"]) : "";
+			if (_userBaseUrl)
+			{
+				_pluginsCur["pluginsData"][i]["baseUrl"] = _userBaseUrl;
+			}
+			else if (_pluginsCur["pluginsData"][i]["onlyofficeScheme"])
 			{
 				_pluginsCur["pluginsData"][i]["baseUrl"] = "onlyoffice://plugin/" + _pluginsCur["pluginsData"][i]["baseUrl"];
 			}
