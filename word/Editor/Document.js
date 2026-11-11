@@ -9206,7 +9206,17 @@ CDocument.prototype.OnKeyDown = function(e)
 					this.DrawingDocument.TargetStart();
 
 				this.DrawingDocument.UpdateTargetFromPaint = true;
-				this.MoveCursorUp(true === e.ShiftKey, true === e.CtrlKey);
+				if (bIsMacOs && true === e.CtrlKey && !(!AscFormat.getTargetTextObject(this.DrawingObjects) && this.DrawingObjects.selectedObjects.length))
+				{
+					// Cmd + Up on macOS is Ctrl + Home: the start of the document
+					this.MoveCursorToStartPos(true === e.ShiftKey);
+					this.Document_UpdateInterfaceState();
+					this.Document_UpdateRulersState();
+				}
+				else
+				{
+					this.MoveCursorUp(true === e.ShiftKey, true === e.CtrlKey);
+				}
 				this.private_CheckCursorPosInFillingFormMode();
 				this.CheckComplexFieldsInSelection(AscWord.Direction.BACKWARD);
 			}
@@ -9264,7 +9274,17 @@ CDocument.prototype.OnKeyDown = function(e)
 					this.DrawingDocument.TargetStart();
 
 				this.DrawingDocument.UpdateTargetFromPaint = true;
-				this.MoveCursorDown(true === e.ShiftKey, true === e.CtrlKey);
+				if (bIsMacOs && true === e.CtrlKey && !(!AscFormat.getTargetTextObject(this.DrawingObjects) && this.DrawingObjects.selectedObjects.length))
+				{
+					// Cmd + Down on macOS is Ctrl + End: the end of the document
+					this.MoveCursorToEndPos(true === e.ShiftKey);
+					this.Document_UpdateInterfaceState();
+					this.Document_UpdateRulersState();
+				}
+				else
+				{
+					this.MoveCursorDown(true === e.ShiftKey, true === e.CtrlKey);
+				}
 				this.private_CheckCursorPosInFillingFormMode();
 				this.CheckComplexFieldsInSelection(AscWord.Direction.FORWARD);
 			}

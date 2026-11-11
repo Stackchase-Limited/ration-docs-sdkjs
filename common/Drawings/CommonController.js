@@ -6383,7 +6383,13 @@
 						nRetValue = keydownresult_PreventDefault;
 					} else if (oEvent.KeyCode === 38) // Top Arrow
 					{
-						this.cursorMoveUp(oEvent.ShiftKey, bIsCtrl);
+						const oContentU = this.getTargetDocContent();
+						if (bIsMacOs && bIsCtrl && oContentU) {
+							// Cmd + Up on macOS is Ctrl + Home: the start of the text
+							oContentU.MoveCursorToStartPos(oEvent.ShiftKey);
+						} else {
+							this.cursorMoveUp(oEvent.ShiftKey, bIsCtrl);
+						}
 
 						this.updateSelectionState();
 						this.updateOverlay();
@@ -6419,7 +6425,13 @@
 						nRetValue = keydownresult_PreventDefault;
 					} else if (oEvent.KeyCode === 40) // Bottom Arrow
 					{
-						this.cursorMoveDown(oEvent.ShiftKey, bIsCtrl);
+						const oContentD = this.getTargetDocContent();
+						if (bIsMacOs && bIsCtrl && oContentD) {
+							// Cmd + Down on macOS is Ctrl + End: the end of the text
+							oContentD.MoveCursorToEndPos(oEvent.ShiftKey);
+						} else {
+							this.cursorMoveDown(oEvent.ShiftKey, bIsCtrl);
+						}
 
 						this.updateSelectionState();
 						this.updateOverlay();

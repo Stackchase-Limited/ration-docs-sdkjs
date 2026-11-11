@@ -5808,7 +5808,10 @@ CPresentation.prototype.OnKeyDown = function (e) {
 				if (this.GetCurrentSlideController().selectedObjects.length === 0)
 					this.DrawingDocument.m_oWordControl.GoToPage(this.DrawingDocument.SlideCurrent - 1);
 			}
-			this.MoveCursorUp(e.ShiftKey, e.CtrlKey);
+			if (bIsMacOs && e.CtrlKey && oController && oController.getTargetDocContent())
+				this.MoveCursorToStartPos(e.ShiftKey); // Cmd + Up on macOS is Ctrl + Home: the start of the text
+			else
+				this.MoveCursorUp(e.ShiftKey, e.CtrlKey);
 			bRetValue = keydownresult_PreventAll;
 		} else if (e.KeyCode === 39) // Right Arrow
 		{
@@ -5850,7 +5853,10 @@ CPresentation.prototype.OnKeyDown = function (e) {
 				if (this.GetCurrentSlideController().selectedObjects.length === 0)
 					this.DrawingDocument.m_oWordControl.GoToPage(this.DrawingDocument.SlideCurrent + 1);
 			}
-			this.MoveCursorDown(e.ShiftKey, e.CtrlKey);
+			if (bIsMacOs && e.CtrlKey && oController && oController.getTargetDocContent())
+				this.MoveCursorToEndPos(e.ShiftKey); // Cmd + Down on macOS is Ctrl + End: the end of the text
+			else
+				this.MoveCursorDown(e.ShiftKey, e.CtrlKey);
 			bRetValue = keydownresult_PreventAll;
 		} else if (e.KeyCode === 46) // Delete
 		{

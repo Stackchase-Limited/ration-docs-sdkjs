@@ -3011,7 +3011,9 @@ function (window, undefined) {
 					if (bHieroglyph) {
 						oThis._syncEditors();
 					}
-					oEvent.IsShift() ? oThis._selectChars(kPrevLine) : oThis._moveCursor(kPrevLine);
+					// Cmd + Up on macOS is Ctrl + Home: the start of the text
+					const nKind = bIsMacOs && oEvent.CtrlKey ? kBeginOfText : kPrevLine;
+					oEvent.IsShift() ? oThis._selectChars(nKind) : oThis._moveCursor(nKind);
 					break;
 				}
 
@@ -3053,7 +3055,9 @@ function (window, undefined) {
 					if (bHieroglyph) {
 						oThis._syncEditors();
 					}
-					oEvent.IsShift() ? oThis._selectChars(kNextLine) : oThis._moveCursor(kNextLine);
+					// Cmd + Down on macOS is Ctrl + End: the end of the text
+					const nKind = bIsMacOs && oEvent.CtrlKey ? kEndOfText : kNextLine;
+					oEvent.IsShift() ? oThis._selectChars(nKind) : oThis._moveCursor(nKind);
 					break;
 				}
 				case 46: {// "del"
