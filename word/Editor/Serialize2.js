@@ -1089,7 +1089,8 @@ var c_oSerDocPr = {
 var c_oSerBackgroundType = {
 	Color: 0,
 	ColorTheme: 1,
-	pptxDrawing: 2
+	pptxDrawing: 2,
+	DisplayShape: 100 // Ration Docs: settings.xml w:displayBackgroundShape, a byte: 0 - absent, 1 - on, 2 - off
 };
 var c_oSerSdt = {
 	Pr: 0,
@@ -5332,6 +5333,11 @@ function BinaryDocumentTableWriter(memory, doc, oMapCommentId, oNumIdMap, copyPa
 			this.memory.WriteByte(c_oSerBackgroundType.ColorTheme);
 			this.memory.WriteByte(c_oSerPropLenType.Variable);
 			this.bs.WriteItemWithLength(function () { oThis.bs.WriteColorTheme(oBackground.Unifill, oBackground.Color); });
+		}
+		if (undefined !== oBackground.displayShape) {
+			this.memory.WriteByte(c_oSerBackgroundType.DisplayShape);
+			this.memory.WriteByte(c_oSerPropLenType.Byte);
+			this.memory.WriteByte(oBackground.displayShape);
 		}
 		if (oBackground.shape) {
 			this.memory.WriteByte(c_oSerBackgroundType.pptxDrawing);
@@ -11609,6 +11615,8 @@ function Binary_DocumentTableReader(doc, oReadResult, openParams, stream, curNot
 			res = this.ReadDrawing (type, length, null, oDrawing);
 			if(null != oDrawing.content.GraphicObj)
 				oBackground.shape = oDrawing.content.GraphicObj;
+		} else if (c_oSerBackgroundType.DisplayShape === type) {
+			oBackground.displayShape = this.stream.GetUChar();
 		} else
 			res = c_oSerConstants.ReadUnknown;
 		return res;

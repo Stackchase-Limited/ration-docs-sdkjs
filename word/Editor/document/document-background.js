@@ -46,13 +46,26 @@
 		this.Color   = color ? color : null;
 		this.Unifill = unifill ? unifill : null;
 		this.shape   = shape ? shape : null;
+		
+		// What settings.xml of the opened file said about w:displayBackgroundShape (0 - absent, 1 - on, 2 - off).
+		// Word draws the background only when it is on; undefined (set in the editor) means on.
+		this.displayShape = undefined;
 	}
 	DocumentBackground.prototype.copy = function()
 	{
-		return new DocumentBackground(this.Color, this.Unifill, this.shape);
+		let background = new DocumentBackground(this.Color, this.Unifill, this.shape);
+		background.displayShape = this.displayShape;
+		return background;
+	};
+	DocumentBackground.prototype.isDisplayed = function()
+	{
+		return (undefined === this.displayShape || 1 === this.displayShape);
 	};
 	DocumentBackground.prototype.draw = function(graphics, sectPr, theme, colorMap)
 	{
+		if (!this.isDisplayed())
+			return;
+		
 		let brush = this._getBrush();
 		if (!brush || !brush.isVisible())
 			return;
@@ -140,6 +153,10 @@
 	};
 	DocumentBackground.prototype.getAscColor = function()
 	{
+		// the page colour shown in the interface is the one that is drawn
+		if (!this.isDisplayed())
+			return null;
+		
 		let Unifill = this.Unifill;
 		if (Unifill && Unifill.fill && Unifill.fill.color)
 			return AscCommon.CreateAscColor(Unifill.fill.color);
@@ -150,7 +167,8 @@
 	};
 	DocumentBackground.prototype.isDefault = function()
 	{
-		if (this.Unifill || this.shape)
+		// a background read from a file is written back, with its display flag, even when it is white
+		if (this.Unifill || this.shape || undefined !== this.displayShape)
 			return false;
 		
 		return (!this.Color || this.Color.IsEqualRGB({r : 255, g : 255, b : 255}));
