@@ -512,6 +512,16 @@ function (window, undefined)
 			"XMLHttpRequest":   customXMLHttpRequest,
 			"self":             {},
 			"globalThis":       {},
+			// the other names a page has for its own window: in the desktop the
+			// editor is the top frame, so top/parent/frames.window ARE window
+			// (document, document.cookie, AscDesktopEditor)
+			"top":              {},
+			"parent":           {},
+			"frames":           {},
+			"opener":           {},
+			"frameElement":     {},
+			"WebSocket":        function(){},
+			"importScripts":    function(){},
 			"setTimeout":       timeout,
 			"setInterval":      interval,
 
