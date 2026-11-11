@@ -348,6 +348,30 @@ var c_oAscError = Asc.c_oAscError;
 				printOptions = "";
 			}
 		}
+		else
+		{
+			// A plain Save needs the view state too: Ctrl+S on a .csv (or picking CSV in
+			// the dialog for a new file) goes through here, and without "activeSheet" x2t
+			// exports the sheet that was active at open time, not the one on screen.
+			// The rest of the Save As parameters stay out; "spreadsheetLayout" is the
+			// default the host writes when it gets no parameters (fileconverter.h).
+			// ONLYOFFICE/DesktopEditors#902.
+			try
+			{
+				var saveParamsObj = asc["editor"]["getAdditionalSaveParams"]();
+				var viewParamsObj = { "spreadsheetLayout" : { "fitToWidth" : 1, "fitToHeight" : 1 } };
+				if (undefined !== saveParamsObj["activeSheet"])
+					viewParamsObj["activeSheet"] = saveParamsObj["activeSheet"];
+				if (undefined !== saveParamsObj["topLeftCells"])
+					viewParamsObj["topLeftCells"] = saveParamsObj["topLeftCells"];
+
+				printOptions = JSON.stringify(viewParamsObj);
+			}
+			catch (e)
+			{
+				printOptions = "";
+			}
+		}
 
 		window["AscDesktopEditor"]["LocalFileSave"](_param, (password === undefined) ? asc["editor"].currentPassword : password, docinfo, (options && options.fileType) ? options.fileType : 0, printOptions);
 	};
