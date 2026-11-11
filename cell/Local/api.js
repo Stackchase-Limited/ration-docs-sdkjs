@@ -353,13 +353,19 @@ var c_oAscError = Asc.c_oAscError;
 			// A plain Save needs the view state too: Ctrl+S on a .csv (or picking CSV in
 			// the dialog for a new file) goes through here, and without "activeSheet" x2t
 			// exports the sheet that was active at open time, not the one on screen.
-			// The rest of the Save As parameters stay out; "spreadsheetLayout" is the
-			// default the host writes when it gets no parameters (fileconverter.h).
 			// ONLYOFFICE/DesktopEditors#902.
+			// A plain Save can also produce a PDF: the first Save of a new workbook (or of
+			// one in a format we cannot write) asks where to save, and PDF is offered there.
+			// So send the sheets' own page setup and the regional setting, as Save As does.
+			// What went here before was the host's no-parameters default (fileconverter.h),
+			// fitToWidth/fitToHeight 1, which squeezed every sheet onto one page with tiny
+			// text. ONLYOFFICE/DesktopEditors#547.
 			try
 			{
 				var saveParamsObj = asc["editor"]["getAdditionalSaveParams"]();
-				var viewParamsObj = { "spreadsheetLayout" : { "fitToWidth" : 1, "fitToHeight" : 1 } };
+				var viewParamsObj = { "spreadsheetLayout" : saveParamsObj["spreadsheetLayout"] };
+				if (undefined !== saveParamsObj["locale"])
+					viewParamsObj["locale"] = saveParamsObj["locale"];
 				if (undefined !== saveParamsObj["activeSheet"])
 					viewParamsObj["activeSheet"] = saveParamsObj["activeSheet"];
 				if (undefined !== saveParamsObj["topLeftCells"])
