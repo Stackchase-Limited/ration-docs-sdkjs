@@ -925,6 +925,8 @@ function (window, undefined) {
 			res = bbox ? new cNumber(bbox.c1 + 1) : null;
 		} else {
 			var arg0 = arg[0];
+			// Only the position of the reference is read, not its values: it cannot close a cycle
+			AscCommonExcel.g_cCalcRecursion.discardFunctionResult(arg0);
 			if (cElementType.cell === arg0.type || cElementType.cell3D === arg0.type) {
 				bbox = arg0.getRange();
 				bbox = bbox && bbox.bbox;
@@ -965,6 +967,8 @@ function (window, undefined) {
 	cCOLUMNS.prototype.Calculate = function (arg) {
 		var arg0 = arg[0];
 		var range;
+		// Only the position of the reference is read, not its values: it cannot close a cycle
+		AscCommonExcel.g_cCalcRecursion.discardFunctionResult(arg0);
 		if (cElementType.array === arg0.type) {
 			return new cNumber(arg0.getCountElementInRow());
 		} else if (cElementType.cellsRange === arg0.type || cElementType.cell === arg0.type ||
@@ -1992,6 +1996,8 @@ function (window, undefined) {
 			res = bbox ? new cNumber(bbox.r1 + 1) : null;
 		} else {
 			var arg0 = arg[0];
+			// Only the position of the reference is read, not its values: it cannot close a cycle
+			AscCommonExcel.g_cCalcRecursion.discardFunctionResult(arg0);
 			if (cElementType.cell === arg0.type || cElementType.cell3D === arg0.type) {
 				bbox = arg0.getRange();
 				bbox = bbox && bbox.bbox;
@@ -2034,6 +2040,8 @@ function (window, undefined) {
 	cROWS.prototype.Calculate = function (arg) {
 		var arg0 = arg[0];
 		var range;
+		// Only the position of the reference is read, not its values: it cannot close a cycle
+		AscCommonExcel.g_cCalcRecursion.discardFunctionResult(arg0);
 		if (cElementType.array === arg0.type) {
 			return new cNumber(arg0.getRowCount());
 		} else if (cElementType.cellsRange === arg0.type || cElementType.cell === arg0.type ||

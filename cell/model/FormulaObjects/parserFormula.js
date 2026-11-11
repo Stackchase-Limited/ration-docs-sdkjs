@@ -11403,9 +11403,12 @@ function parserFormula( formula, parent, _ws ) {
 		this.nCellPasteValue = null; // for paste recursive cell
 		this.bIsCellEdited = false;
 		this.bIsSheetCreating = false;
-		this.oIndirectFuncResult = null;
-		this.oOffsetFuncResult = null;
-		this.oCellContentFuncRes = null;
+		// Results of INDIRECT/OFFSET/CELL("contents") in the formula being calculated, all of them:
+		// a formula may call the same function more than once.
+		this.aIndirectFuncResult = [];
+		this.aOffsetFuncResult = [];
+		this.aCellContentFuncRes = [];
+		this.nMaxFuncResults = 256;
 		this.aCycleCell = [];
 
 		this.bIsEnabledRecursion = null;
@@ -12130,16 +12133,40 @@ function parserFormula( formula, parent, _ws ) {
 		if (oResult.type === cElementType.error) {
 			return;
 		}
+		let aStore = null;
 		switch (sFuncName) {
 			case 'INDIRECT':
-				this.oIndirectFuncResult = oResult;
+				aStore = this.aIndirectFuncResult;
 				break;
 			case 'OFFSET':
-				this.oOffsetFuncResult = oResult;
+				aStore = this.aOffsetFuncResult;
 				break;
 			case 'CELL':
-				this.oCellContentFuncRes = oResult;
+				aStore = this.aCellContentFuncRes;
 				break;
+		}
+		if (aStore) {
+			// Only _checkDirty clears the store; formulas calculated elsewhere (conditional formatting, ...) must not grow it without end.
+			if (aStore.length >= this.nMaxFuncResults) {
+				aStore.shift();
+			}
+			aStore.push(oResult);
+		}
+	};
+	/**
+	 * Method forgets a saved function result that was consumed only for its position (ROW, ROWS, COLUMN, COLUMNS),
+	 * so the formula is not called circular for lying inside a range whose values it never reads.
+	 * Matched by identity: a result that is not found stays saved and is still checked.
+	 * @memberof CalcRecursion
+	 * @param {cRef|cRef3D|cArea|cArea3D} oResult
+	 */
+	CalcRecursion.prototype.discardFunctionResult = function (oResult) {
+		const aStores = [this.aIndirectFuncResult, this.aOffsetFuncResult, this.aCellContentFuncRes];
+		for (let i = 0; i < aStores.length; i++) {
+			const nIndex = aStores[i].indexOf(oResult);
+			if (nIndex !== -1) {
+				aStores[i].splice(nIndex, 1);
+			}
 		}
 	};
 	/**
@@ -12148,28 +12175,16 @@ function parserFormula( formula, parent, _ws ) {
 	 * @returns {[]}
 	 */
 	CalcRecursion.prototype.getFunctionsResult = function () {
-		const aFunctionResults = [];
-
-		if (this.oIndirectFuncResult) {
-			aFunctionResults.push(this.oIndirectFuncResult);
-		}
-		if (this.oOffsetFuncResult) {
-			aFunctionResults.push(this.oOffsetFuncResult);
-		}
-		if (this.oCellContentFuncRes) {
-			aFunctionResults.push(this.oCellContentFuncRes);
-		}
-
-		return aFunctionResults;
+		return this.aIndirectFuncResult.concat(this.aOffsetFuncResult, this.aCellContentFuncRes);
 	};
 	/**
 	 * Method clears result of formulas, which need to be checked for cycle after being calculated.
 	 *  @memberof CalcRecursion
 	 */
 	CalcRecursion.prototype.clearFunctionsResult = function () {
-		this.oIndirectFuncResult = null;
-		this.oOffsetFuncResult = null;
-		this.oCellContentFuncRes = null;
+		this.aIndirectFuncResult = [];
+		this.aOffsetFuncResult = [];
+		this.aCellContentFuncRes = [];
 	};
 	/**
 	 * Method returns an array of cycle cells.
