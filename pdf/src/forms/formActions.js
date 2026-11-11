@@ -753,56 +753,187 @@
         memory.WriteString(this.script);
     };
 	
-    function EvalScript(str, oParentDoc, oEvent) {
-        let aArgsNamesToDelete = [
-            "window",
-            "setTimeout",
-            "setInterval",
-            "XMLHttpRequest",
-            "Promise",
-            "console"
-        ];
-    
-        let oApiConsole = {
-            "println": function(value) {
-                console.log(value);
-            },
-            "clear": function() {
-                console.clear();
-            },
-            "hide": function() {
-                return false;
-            },
-            "show": function() {
-                return false;
-            }
-        };
-        Object.freeze(oApiConsole);
-    
-        let oApiObjects = AscPDF.Api.Types;
-        let aArgsNamesPdfApi = [
-            "event",
-            "color",
+    // PDF scripts come from the document and are untrusted. They run in a separate QuickJS realm
+    // (pdf/src/scripting/sandbox.js, built into engine/pdfscripting.js), never in the editor's realm:
+    // a script can not reach window, AscDesktopEditor or any editor object or constructor. It sees only
+    // the objects below, through handles, and every read, write and call goes through these checks.
+    const SCRIPT_EVENT_PROPS = {
+        // name: writable
+        "name":         false,
+        "type":         false,
+        "source":       false,
+        "target":       false,
+        "targetName":   false,
+        "value":        true,
+        "rc":           true,
+        "change":       true,
+        "changeEx":     false,
+        "selStart":     true,
+        "selEnd":       true,
+        "willCommit":   false,
+        "commitKey":    false,
+        "fieldFull":    false,
+        "keyDown":      false,
+        "modifier":     false,
+        "shift":        false
+    };
+    const SCRIPT_AF_NAMES = [
+        "AFNumber_Format",
+        "AFNumber_Keystroke",
+        "AFPercent_Format",
+        "AFPercent_Keystroke",
+        "AFDate_Format",
+        "AFDate_Keystroke",
+        "AFDate_FormatEx",
+        "AFDate_KeystrokeEx",
+        "AFTime_Format",
+        "AFTime_Keystroke",
+        "AFTime_FormatEx",
+        "AFTime_KeystrokeEx",
+        "AFSpecial_Format",
+        "AFSpecial_Keystroke",
+        "AFSpecial_KeystrokeEx",
+        "AFSimple_Calculate",
+        "AFRange_Validate"
+    ];
+    const SCRIPT_CONSTANTS = ["border", "position", "scaleHow", "scaleWhen", "display", "style", "highlight"];
 
-            "AFNumber_Format",
-            "AFNumber_Keystroke",
-            "AFPercent_Format",
-            "AFPercent_Keystroke",
-            "AFDate_Format",
-            "AFDate_Keystroke",
-            "AFDate_FormatEx",
-            "AFDate_KeystrokeEx",
-            "AFTime_Format",
-            "AFTime_Keystroke",
-            "AFTime_FormatEx",
-            "AFTime_KeystrokeEx",
-            "AFSpecial_Format",
-            "AFSpecial_Keystroke",
-            "AFSpecial_KeystrokeEx",
-            "AFSimple_Calculate",
-            "AFRange_Validate",
-        ];
-    
+    const oScriptConsole = Object.freeze({
+        "println": function(value) {
+            console.log(value);
+        },
+        "clear": function() {
+            console.clear();
+        },
+        "hide": function() {
+            return false;
+        },
+        "show": function() {
+            return false;
+        }
+    });
+    const oScriptEvents = new WeakSet();
+    let oScriptFunctions = null;
+
+    function GetScriptFunctions() {
+        if (oScriptFunctions)
+            return oScriptFunctions;
+
+        oScriptFunctions = new Set();
+        SCRIPT_AF_NAMES.forEach(function(name) {
+            if (typeof AscPDF.Api.Functions[name] == "function")
+                oScriptFunctions.add(AscPDF.Api.Functions[name]);
+        });
+        Object.keys(oScriptConsole).forEach(function(name) {
+            oScriptFunctions.add(oScriptConsole[name]);
+        });
+        // public methods of the API classes (getField, setAction, isBoxChecked, ...)
+        [AscPDF.ApiDocument, AscPDF.ApiBaseField, AscPDF.ApiTextField, AscPDF.ApiPushButtonField, AscPDF.ApiCheckBoxField,
+            AscPDF.ApiRadioButtonField, AscPDF.ApiComboBoxField, AscPDF.ApiListBoxField].forEach(function(ApiClass) {
+            for (let proto = ApiClass.prototype; proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
+                Object.getOwnPropertyNames(proto).forEach(function(key) {
+                    let desc = Object.getOwnPropertyDescriptor(proto, key);
+                    if (key != "constructor" && typeof desc.value == "function")
+                        oScriptFunctions.add(desc.value);
+                });
+            }
+        });
+        return oScriptFunctions;
+    }
+    function IsScriptApiObject(obj) {
+        return obj instanceof AscPDF.ApiDocument || obj instanceof AscPDF.ApiBaseField;
+    }
+    // own instance data (e.g. the internal field/doc) is never visible, only accessors and prototype methods
+    function FindScriptApiProp(obj, key) {
+        for (let cur = obj; cur && cur !== Object.prototype; cur = Object.getPrototypeOf(cur)) {
+            let desc = Object.getOwnPropertyDescriptor(cur, key);
+            if (!desc)
+                continue;
+            if (desc.get || desc.set)
+                return desc;
+            if (cur !== obj && key != "constructor" && typeof desc.value == "function" && GetScriptFunctions().has(desc.value))
+                return desc;
+            return null;
+        }
+        return null;
+    }
+
+    const oScriptHooks = {
+        "exportValue": function(value) {
+            if (typeof value == "function")
+                return GetScriptFunctions().has(value);
+
+            return oScriptEvents.has(value) || IsScriptApiObject(value) || value === oScriptConsole;
+        },
+        "get": function(obj, key) {
+            if (oScriptEvents.has(obj))
+                return SCRIPT_EVENT_PROPS.hasOwnProperty(key) ? obj[key] : undefined;
+            if (obj === oScriptConsole)
+                return oScriptConsole.hasOwnProperty(key) ? oScriptConsole[key] : undefined;
+            if (IsScriptApiObject(obj)) {
+                let desc = FindScriptApiProp(obj, key);
+                if (!desc)
+                    return undefined;
+                if (desc.get || desc.set)
+                    return desc.get ? desc.get.call(obj) : undefined;
+                return desc.value;
+            }
+            return undefined;
+        },
+        // returns false for properties the API does not have: the script keeps those on its side
+        "set": function(obj, key, value) {
+            if (oScriptEvents.has(obj)) {
+                if (SCRIPT_EVENT_PROPS[key] !== true)
+                    return SCRIPT_EVENT_PROPS.hasOwnProperty(key);
+                obj[key] = value;
+                return true;
+            }
+            if (IsScriptApiObject(obj)) {
+                let desc = FindScriptApiProp(obj, key);
+                if (!desc)
+                    return false;
+                if (desc.set)
+                    desc.set.call(obj, value);
+                return true;
+            }
+            return false;
+        },
+        "call": function(fn, self, args) {
+            if (!GetScriptFunctions().has(fn))
+                throw new TypeError("not a function");
+
+            return fn.apply(self, args);
+        }
+    };
+
+    function GetScriptRealm(oDoc) {
+        if (oDoc.scriptRealm)
+            return oDoc.scriptRealm;
+
+        let oSandbox = window["AscPDFScriptSandbox"];
+        if (!oSandbox || !oSandbox["isReady"]())
+            return null;
+
+        let oGlobals = {"console": oScriptConsole};
+        SCRIPT_AF_NAMES.forEach(function(name) {
+            oGlobals[name] = AscPDF.Api.Functions[name];
+        });
+        let oConstants = {};
+        SCRIPT_CONSTANTS.forEach(function(name) {
+            if (AscPDF.Api.Types[name])
+                oConstants[name] = AscPDF.Api.Types[name];
+        });
+        let oColors = {};
+        // color.red etc. are non-enumerable getters
+        Object.getOwnPropertyNames(AscPDF.Api.Types["color"]).forEach(function(name) {
+            oColors[name] = AscPDF.Api.Types["color"][name];
+        });
+
+        oDoc.scriptRealm = oSandbox["createRealm"](oScriptHooks, oGlobals, oConstants, {"color": oColors});
+        return oDoc.scriptRealm;
+    }
+
+    function EvalScript(str, oParentDoc, oEvent) {
         if (!oParentDoc.globalEventStack) {
             oParentDoc.globalEventStack = [];    
         }
@@ -810,35 +941,15 @@
         oParentDoc.globalEventStack.push(oParentDoc.event);
         oParentDoc.event = oEvent;
 
-        let oApiFunc = AscPDF.Api.Functions;
-        let aArgsPdfApi = [
-            oEvent,
-            oApiObjects["color"],
+        let oRealm = GetScriptRealm(oParentDoc);
+        if (!oRealm) {
+            // never fall back to running the script in the editor's realm
+            console.log("PDF script was not run: the scripting sandbox is not loaded");
+            return;
+        }
 
-            oApiFunc["AFNumber_Format"],
-            oApiFunc["AFNumber_Keystroke"],
-            oApiFunc["AFPercent_Format"],
-            oApiFunc["AFPercent_Keystroke"],
-            oApiFunc["AFDate_Format"],
-            oApiFunc["AFDate_Keystroke"],
-            oApiFunc["AFDate_FormatEx"],
-            oApiFunc["AFDate_KeystrokeEx"],
-            oApiFunc["AFTime_Format"],
-            oApiFunc["AFTime_Keystroke"],
-            oApiFunc["AFTime_FormatEx"],
-            oApiFunc["AFTime_KeystrokeEx"],
-            oApiFunc["AFSpecial_Format"],
-            oApiFunc["AFSpecial_Keystroke"],
-            oApiFunc["AFSpecial_KeystrokeEx"],
-            oApiFunc["AFSimple_Calculate"],
-            oApiFunc["AFRange_Validate"]
-        ];
-    
-        let funcArgs = aArgsNamesToDelete.concat(aArgsNamesPdfApi);
-        funcArgs.push(str);
-    
-        let func = Function.apply(null, funcArgs);
-        func.bind(oParentDoc.GetDocumentApi()).apply(null, new Array(aArgsNamesToDelete.length - 1).concat(oApiConsole, aArgsPdfApi));
+        oScriptEvents.add(oEvent);
+        oRealm["run"](str, oParentDoc.GetDocumentApi(), oEvent);
     }
     
 

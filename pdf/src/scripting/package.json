@@ -1,0 +1,13 @@
+{
+  "name": "pdf-scripting-sandbox",
+  "private": true,
+  "description": "Builds ../engine/pdfscripting.js (QuickJS realm for PDF form scripts). Run ./build.sh",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "quickjs-emscripten-core": "0.32.0",
+    "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  }
+}

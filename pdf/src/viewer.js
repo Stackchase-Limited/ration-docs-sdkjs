@@ -874,6 +874,32 @@
 			}
 		};
 
+		this.loadScriptingSandbox = function(basePath)
+		{
+			return new Promise(function(resolve) {
+				if (typeof window["WebAssembly"] !== "object")
+					return resolve();
+
+				var scriptElem = document.createElement('script');
+				scriptElem.onload = function() {
+					var oSandbox = window["AscPDFScriptSandbox"];
+					if (!oSandbox)
+						return resolve();
+
+					oSandbox["load"]().then(resolve, function(err) {
+						console.log(err);
+						resolve();
+					});
+				};
+				scriptElem.onerror = function() {
+					resolve();
+				};
+				scriptElem.setAttribute('src', basePath + "pdfscripting.js");
+				scriptElem.setAttribute('type','text/javascript');
+				document.getElementsByTagName('head')[0].appendChild(scriptElem);
+			});
+		};
+
 		this.checkModule = function()
 		{
 			if (this.moduleState == ModuleState.Loaded)
@@ -897,11 +923,16 @@
 			};
 
 			var _t = this;
-			window["AscViewer"]["onLoadModule"] = function() {
-				_t.onLoadModule();
-			};
-			
 			var basePath = window["AscViewer"]["baseEngineUrl"];
+
+			// PDF form scripts run only in the QuickJS sandbox (formActions.js EvalScript), so open the
+			// document once the sandbox is ready or has failed to load (then scripts are not run)
+			var scriptingReady = this.loadScriptingSandbox(basePath);
+			window["AscViewer"]["onLoadModule"] = function() {
+				scriptingReady.then(function() {
+					_t.onLoadModule();
+				});
+			};
 			
 			var useWasm = false;
 			var webAsmObj = window["WebAssembly"];

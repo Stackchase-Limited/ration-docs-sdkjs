@@ -1999,6 +1999,7 @@
     
     
 	window["AscPDF"].ApiDocument          = ApiDocument;
+	window["AscPDF"].ApiBaseField         = ApiBaseField;
 	window["AscPDF"].ApiTextField         = ApiTextField;
 	window["AscPDF"].ApiPushButtonField   = ApiPushButtonField;
 	window["AscPDF"].ApiCheckBoxField     = ApiCheckBoxField;
