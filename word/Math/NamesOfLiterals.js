@@ -1289,6 +1289,12 @@
 			//"\!"		:	"",
 
 		};
+		// LaTeX spacing commands that are not letters (read only when converting from LaTeX)
+		this.LaTeXSpecial = {
+			"\\,"		:	"\u2009",	// 3/18 em thin space
+			"\\:"		:	"\u205F",	// 4/18 em medium space
+			"\\;"		:	"\u2005",	// 5/18 em thick space
+		};
 		this.Init();
 	}
 	TokenSpace.prototype = Object.create(LexerLiterals.prototype);

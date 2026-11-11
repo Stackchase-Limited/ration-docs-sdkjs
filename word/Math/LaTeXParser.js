@@ -233,6 +233,27 @@
 			}
 		}
 
+		// any other space token (\thinsp, \medsp, \nbsp, \,, U+2006 ...) must be eaten too:
+		// left in the lookahead, the caller asks for it again forever and the editor hangs
+		if (this.oLookahead.class === Literals.space.id && this.oLookahead.data)
+		{
+			let strData		= this.oLookahead.data;
+			let strSpace	= Literals.space.LaTeX[strData];
+
+			if (typeof strSpace !== "string")
+				strSpace = Literals.space.LaTeXSpecial[strData];
+			if (typeof strSpace !== "string")
+				strSpace = strData;
+
+			this.EatToken(this.oLookahead.class);
+
+			return {
+				type: Struc.char,
+				value: strSpace,
+				style: oStyle
+			}
+		}
+
 		//this.ReadTokensWhileEnd(Literals.space, Struc.space);
 	};
 	CLaTeXParser.prototype.GetNumberLiteral = function ()
