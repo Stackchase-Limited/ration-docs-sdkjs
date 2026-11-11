@@ -608,6 +608,10 @@ ParaMath.prototype.Copy = function(Selected, oPr)
 
     NewMath.Root.Correct_Content(true);
 
+    // #334: keep the display formula's own justification (oMathParaPr jc)
+    if (undefined !== this.Jc)
+        NewMath.Set_Align(this.Jc);
+
     return NewMath;
 };
 ParaMath.prototype.CopyContent = function(Selected)
@@ -2365,6 +2369,12 @@ ParaMath.prototype.MathToImageConverter = function(bCopy, _canvasInput, _widthPx
 
     var par = _dc.Content[0];
 
+    // #334: without bCopy this formula itself is laid out in the preview paragraph,
+    // and par.Set_Align(align_Left) below also left-aligns a display formula. Keep
+    // its own justification to put it back once the picture is drawn (the copy
+    // processor serialises the same object right after drawing its picture).
+    var oldJc = this.Jc;
+
     if (bCopy)
         par.Internal_Content_Add(0, this.Copy(false), false);
     else
@@ -2495,6 +2505,9 @@ ParaMath.prototype.MathToImageConverter = function(bCopy, _canvasInput, _widthPx
     }
 
     AscCommon.IsShapeToImageConverter = false;
+
+    if (!bCopy)
+        this.raw_SetAlign(oldJc);
 
     if (undefined === _canvasInput)
     {
