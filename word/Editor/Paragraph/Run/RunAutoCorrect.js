@@ -349,7 +349,15 @@
 		if (!oDocument.IsAutoCorrectFrenchPunctuation())
 			return false;
 
-		if (!(para_Text === oRunItem.Type && (1036 === nLang && (0x003A === oRunItem.Value || 0x003B === oRunItem.Value || 0x003F === oRunItem.Value || 0x0021 === oRunItem.Value))))
+		// #925: guillemets typed as such (bépo, AFNOR AZERTY) get the same non-breaking spaces the smart-quote
+		// replacement of " inserts: « text » -> «nbsp text nbsp»
+		if (1036 === nLang && para_Text === oRunItem.Type && 0x00AB === oRunItem.Value)
+			return this.private_ProcessFrenchOpenQuote();
+		else if (1036 === nLang && para_Space === oRunItem.Type && 0x0020 === oRunItem.Value)
+			return this.private_ProcessSpaceAfterFrenchOpenQuote();
+
+		let isCloseQuote = (para_Text === oRunItem.Type && 0x00BB === oRunItem.Value);
+		if (!(para_Text === oRunItem.Type && (1036 === nLang && (0x003A === oRunItem.Value || 0x003B === oRunItem.Value || 0x003F === oRunItem.Value || 0x0021 === oRunItem.Value || isCloseQuote))))
 			return false;
 
 		var oRunElementsBefore = new CParagraphRunElements(oContentPos, 3, null, false);
@@ -358,7 +366,8 @@
 		oParagraph.GetPrevRunElements(oRunElementsBefore);
 		var arrElements = oRunElementsBefore.GetElements();
 
-		if ((arrElements.length > 0 &&
+		// » after ! ? : ; still takes its space (« Quoi ? »)
+		if ((arrElements.length > 0 && !isCloseQuote &&
 			para_Text === arrElements[0].Type
 			&& (33 === arrElements[0].Value
 				|| 58 === arrElements[0].Value
@@ -386,6 +395,69 @@
 				oParagraph.RemoveRunElement(oRunElementsBefore.GetContentPositions()[1]);
 			}
 		}
+
+		oDocument.FinalizeAction();
+
+		return true;
+	};
+	/**
+	 * #925: after a typed « (French) add a non-breaking space
+	 * @returns {boolean}
+	 */
+	CRunAutoCorrect.prototype.private_ProcessFrenchOpenQuote = function()
+	{
+		let oDocument = this.Document;
+		let oRun      = this.Run;
+
+		let oPosAfter = this.ContentPos.Copy();
+		oPosAfter.Update(this.Pos + 1, oPosAfter.GetDepth());
+
+		let oRunElementsAfter = new CParagraphRunElements(oPosAfter, 1, null, false);
+		oRunElementsAfter.SetBreakOnMath(true);
+		this.Paragraph.GetNextRunElements(oRunElementsAfter);
+		let arrAfter = oRunElementsAfter.GetElements();
+		if (arrAfter.length > 0 && para_Text === arrAfter[0].Type && arrAfter[0].IsNBSP())
+			return false;
+
+		if (this.private_IsDocumentLocked())
+			return false;
+
+		oDocument.StartAction(AscDFH.historydescription_Document_AutoCorrectCommon);
+
+		oRun.AddToContent(this.Pos + 1, new AscWord.CRunText(0x00A0));
+		this.Pos++;
+		this.RunItem = oRun.GetElement(this.Pos);
+		oRun.State.ContentPos = this.Pos + 1;
+
+		oDocument.FinalizeAction();
+
+		return true;
+	};
+	/**
+	 * #925: a space typed right after «nbsp is dropped (the non-breaking space already stands for it)
+	 * @returns {boolean}
+	 */
+	CRunAutoCorrect.prototype.private_ProcessSpaceAfterFrenchOpenQuote = function()
+	{
+		let oDocument = this.Document;
+		let oRun      = this.Run;
+
+		let oRunElementsBefore = new CParagraphRunElements(this.ContentPos, 2, null, false);
+		oRunElementsBefore.SetBreakOnMath(true);
+		this.Paragraph.GetPrevRunElements(oRunElementsBefore);
+		let arrElements = oRunElementsBefore.GetElements();
+		if (arrElements.length < 2
+			|| para_Text !== arrElements[0].Type || !arrElements[0].IsNBSP()
+			|| para_Text !== arrElements[1].Type || 0x00AB !== arrElements[1].Value)
+			return false;
+
+		if (this.private_IsDocumentLocked())
+			return false;
+
+		oDocument.StartAction(AscDFH.historydescription_Document_AutoCorrectCommon);
+
+		oRun.RemoveFromContent(this.Pos, 1);
+		oRun.State.ContentPos = this.Pos;
 
 		oDocument.FinalizeAction();
 
