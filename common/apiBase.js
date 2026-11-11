@@ -3624,10 +3624,10 @@
 		if(oPlayerData)
 		{
 			let sCmd_ = sCmd;
-			if(sCmd.startsWith("playFrom") === 0)
+			// a timeline command "playFrom(<sec>)": the players only know "play"
+			if(sCmd.indexOf("playFrom") === 0)
 			{
 				sCmd_ = "play";
-				oPlayerData["Cmd"] = "play";
 			}
 			oPlayerData["Cmd"] = sCmd_;
 		}

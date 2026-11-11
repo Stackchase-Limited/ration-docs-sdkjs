@@ -8241,6 +8241,40 @@ background-repeat: no-repeat;\
 			this.callMediaPlayerCommand(sEvent, oMediaData, oMsg["pos"]);
 	};
 
+	// A media command of the slide's timeline (p:cmd type="call", what PowerPoint writes for a video that starts
+	// "Automatically" or "On Click": "playFrom(<sec>)", "pause", "stop"...). The desktop has a player only for a
+	// selected video, so in a slide show a play first opens the player as a click on the video would, then
+	// puts it at the command's position and plays it
+	asc_docs_api.prototype.callTimelineMediaCommand = function(sCmd, oMediaData)
+	{
+		let oManager = this.WordControl && this.WordControl.DemonstrationManager;
+		if (!this.isSlideShow() || !oManager || sCmd.indexOf("play") !== 0)
+		{
+			this.callMediaPlayerCommand(sCmd, oMediaData);
+			return;
+		}
+
+		let oDrawing = oMediaData.getDrawing();
+		let oCurMediaData = this.getMediaData();
+		if (!oCurMediaData || oCurMediaData.getDrawing() !== oDrawing || !oDrawing.selected)
+		{
+			let oSlide = this.WordControl.m_oLogicDocument.GetSlide(oManager.SlideNum);
+			if (oSlide && oSlide.graphicObjects)
+			{
+				oSlide.graphicObjects.resetSelection();
+				oSlide.graphicObjects.selectObject(oDrawing, oManager.SlideNum);
+			}
+			oCurMediaData = this.getMediaData();
+			if (!oCurMediaData || oCurMediaData.getDrawing() !== oDrawing)
+				oCurMediaData = oMediaData;
+		}
+
+		let aFrom = /^playFrom\(\s*([0-9.]+)\s*\)/.exec(sCmd);
+		if (aFrom)
+			this.callMediaPlayerCommand("seek", oCurMediaData, (parseFloat(aFrom[1]) * 1000 + 0.5) >> 0);
+		this.callMediaPlayerCommand(sCmd, oCurMediaData);
+	};
+
 	asc_docs_api.prototype.SetDemonstrationModeOnly = function()
 	{
 		this.isOnlyDemonstration = true;

@@ -8731,7 +8731,7 @@
                         sCmd === "togglePause") {
                         let oMediaData = this.getMediaData();
                         if(oMediaData) {
-                            Asc.editor.callMediaPlayerCommand(sCmd, oMediaData);
+                            Asc.editor.callTimelineMediaCommand(sCmd, oMediaData);
                         }
                     }
                 }
