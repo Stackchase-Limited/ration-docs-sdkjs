@@ -773,7 +773,7 @@
 					if (!d) return;
 					t.scroll(d);
 					asc_applyFunction(callback);
-				}, colRowMoveProps);
+				}, colRowMoveProps, !!event.shiftKey);
 		};
 
 		/**

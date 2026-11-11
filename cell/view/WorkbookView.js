@@ -1937,9 +1937,9 @@
 
 
   // Range move handling
-  WorkbookView.prototype._onMoveRangeHandle = function(x, y, callback, colRowMoveProps) {
+  WorkbookView.prototype._onMoveRangeHandle = function(x, y, callback, colRowMoveProps, shiftKey) {
     var ws = this.getWorksheet();
-    var d = ws.changeSelectionMoveRangeHandle(x, y, colRowMoveProps);
+    var d = ws.changeSelectionMoveRangeHandle(x, y, colRowMoveProps, shiftKey);
     asc_applyFunction(callback, d);
   };
 

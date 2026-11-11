@@ -15352,7 +15352,7 @@ function isAllowPasteLink(pastedWb) {
     /* Function for range (selection) movement handling. (x, y) - mouse point coordinates on the area
      *  ToDo need to refactor so that moveRange appears only after shift from current cell
      */
-    WorksheetView.prototype.changeSelectionMoveRangeHandle = function (x, y, colRowMoveProps) {
+    WorksheetView.prototype.changeSelectionMoveRangeHandle = function (x, y, colRowMoveProps, shiftKey) {
         // Return result
         var ret = null;
 
@@ -15411,6 +15411,24 @@ function isAllowPasteLink(pastedWb) {
         // Set the flag
         this.startCellMoveRange.isChanged = true;
 
+        // Shift pressed or released during the drag of whole rows/columns switches between
+        // replacing and inserting between rows/columns (as in Excel), not only Shift held at mousedown
+        if (undefined !== shiftKey && (type === c_oAscSelectionType.RangeRow || type === c_oAscSelectionType.RangeCol)) {
+            if (this.startCellMoveRange.colRowMoveProps) {
+                this.startCellMoveRange.colRowMoveProps.shiftKey = shiftKey;
+            } else if (shiftKey) {
+                this.startCellMoveRange.colRowMoveProps = {ctrlKey: false, shiftKey: true};
+            }
+        }
+        // The insert position must be known before the selection is drawn
+        if (this.startCellMoveRange.colRowMoveProps && this.startCellMoveRange.colRowMoveProps.shiftKey) {
+            if (type === c_oAscSelectionType.RangeCol) {
+                this.startCellMoveRange.colRowMoveProps.colByX = colByX;
+            } else if (type === c_oAscSelectionType.RangeRow) {
+                this.startCellMoveRange.colRowMoveProps.rowByY = rowByY;
+            }
+        }
+
         // Clear selection, will redraw from scratch
         this.cleanSelection();
 
@@ -15467,14 +15485,6 @@ function isAllowPasteLink(pastedWb) {
         } else if (type === c_oAscSelectionType.RangeMax) {
             d.col = 0;
             d.row = 0;
-        }
-
-        if (this.startCellMoveRange.colRowMoveProps && this.startCellMoveRange.colRowMoveProps.shiftKey && this.activeMoveRange) {
-            if (this.activeMoveRange.getType() === Asc.c_oAscSelectionType.RangeCol) {
-                this.startCellMoveRange.colRowMoveProps.colByX = colByX;
-            } else if (this.activeMoveRange.getType() === Asc.c_oAscSelectionType.RangeRow) {
-                this.startCellMoveRange.colRowMoveProps.rowByY = rowByY;
-            }
         }
 
         return d;
