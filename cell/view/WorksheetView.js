@@ -9561,7 +9561,11 @@ function isAllowPasteLink(pastedWb) {
         let numFormatStr = c.getNumFormatStr();
         let pad = this.settings.cells.padding * 2 + 1;
         let sstr, sfl, stm;
-        let isCustomWidth = this.model.getColCustomWidth(col) || verticalText;
+        // #182: during autofit (canChangeColWidth === all, set by _autoFitColumnWidth) a custom
+        // width must not count: otherwise a number is formatted to fit the CURRENT width (fewer
+        // decimals), autofit measures that shortened text and sets the column too narrow. Autofit
+        // clears customWidth, so a second autofit measured the full text and gave another width.
+        let isCustomWidth = (this.model.getColCustomWidth(col) && c_oAscCanChangeColWidth.all !== this.canChangeColWidth) || verticalText;
         let angleSin = Math.sin(angle * Math.PI / 180.0);
         let angleCos = Math.cos(angle * Math.PI / 180.0);
 
