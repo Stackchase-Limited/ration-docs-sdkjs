@@ -4578,6 +4578,21 @@ function isAllowPasteLink(pastedWb) {
 	};
 
 	WorksheetView.prototype.calcPrintScale = function(width, height, _selection, ignorePrintArea) {
+		// The converter never draws, so a change that resets the row/column caches
+		// (_updateRange with RangeMax - e.g. the rows a filter hides) leaves them empty
+		// until _calcPagesPrint rebuilds them. That is after this scale is taken, and with
+		// empty caches _getHeightForPrint counts every row at the default height, hidden
+		// ones included: "fit to page" on a sheet filtered in this session came out shrunk
+		// as if the filtered-out rows were still there. ONLYOFFICE/DesktopEditors#531.
+		if (window["NATIVE_EDITOR_ENJINE"]) {
+			if (!this.rows.length) {
+				this._calcHeightRows(AscCommonExcel.recalcType.newLines);
+			}
+			if (!this.cols.length) {
+				this._calcWidthColumns(AscCommonExcel.recalcType.newLines);
+			}
+		}
+
 		//TODO for printing, group size should not be taken into account
 		if(this.groupWidth || this.groupHeight) {
 			this.ignoreGroupSize = true;
