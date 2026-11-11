@@ -6553,7 +6553,14 @@ function isAllowPasteLink(pastedWb) {
 		var x1ct = isMerged ? x1 : this._getColLeft(col, false, ctx) - offsetX;
 		var x2ct = isMerged ? x2 : x1ct + this._getColumnWidth(col) - gridlineSize;
 		var textX = this._calcTextHorizPos(x1ct, x2ct, ct.metrics, ct.cellHA);
-		var textY = this._calcTextVertPos(y1, h, bl, ct.metrics, ct.cellVA);
+		// Wrapped text taller than its cell is shown from its first line, as Excel does: centering it
+		// would clip the top and bottom lines alike and leave only the middle visible (#307)
+		var cellVA = ct.cellVA;
+		if (isWrapped && !ct.angle && Asc.c_oAscVAlign.Top !== cellVA && Asc.c_oAscVAlign.Bottom !== cellVA &&
+			ct.metrics.height * this.getZoom() > h) {
+			cellVA = Asc.c_oAscVAlign.Top;
+		}
+		var textY = this._calcTextVertPos(y1, h, bl, ct.metrics, cellVA);
 		var textW = this._calcTextWidth(x1ct, x2ct, ct.metrics, ct.cellHA);
 
 		var xb1, yb1, wb, hb, colLeft, colRight;
