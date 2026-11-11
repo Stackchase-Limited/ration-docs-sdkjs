@@ -441,19 +441,29 @@ function (window, undefined)
 	window['AscCommon'].VbaProject = VbaProject;
 
 	function _safePluginEval(value) {
-		let protoFunc = Object.getPrototypeOf(function(){});
+		// Every kind of function reaches its own constructor through its prototype:
+		// (async function(){}).constructor is AsyncFunction, not Function, and each of
+		// Function, GeneratorFunction, AsyncFunction and AsyncGeneratorFunction compiles
+		// a body in the global scope. All four are stubbed while the code runs.
+		// NOTE: this only blocks the obvious routes. Code in the same window is not
+		// contained: anything it defers (a promise, a timer) runs after the restore,
+		// and Api's own objects lead back to window. Running a macro means trusting it.
+		const protoFunc = Object.getPrototypeOf(function(){});
+		const protoFuncs = [protoFunc];
 		// for minimization we use eval!!!
 		let protoFuncGen = null;
 		try {
 			protoFuncGen = eval("Object.getPrototypeOf(function*(){})");
+			protoFuncs.push(protoFuncGen);
 		} catch (err) {
 			protoFuncGen = null;
 		}
-		const normalConstructor = protoFunc.constructor;
+		try {
+			protoFuncs.push(eval("Object.getPrototypeOf(async function(){})"));
+			protoFuncs.push(eval("Object.getPrototypeOf(async function*(){})"));
+		} catch (err) {
+		}
 		const generatorNext = protoFuncGen ? protoFuncGen.prototype.next : null;
-		protoFunc.constructor = function(){};
-		if (protoFuncGen)
-			protoFuncGen.prototype.next = function(){};
 
 		const timeout = function(cb, delay) {
 			var args = Array.prototype.slice.call(arguments, 2);
@@ -482,7 +492,8 @@ function (window, undefined)
 		}
 
 		function _sanitizeCode(value) {
-			if (/\bimport\s*\(/.test(value)) {
+			// a comment may stand between import and its "(": import/**/("...")
+			if (/\bimport\s*(\(|\/\*|\/\/)/.test(value)) {
 				throw new Error("Security: dynamic import() is not allowed in macros");
 			}
 			if (/\bimport\s+/.test(value)) {
@@ -555,6 +566,19 @@ function (window, undefined)
 			set: function(){} // for IE
 		});
 
+		// The stubs go in only now, right before the try whose finally removes them: a throw
+		// above (rejected import, failing Api.GetDocument) used to leave them in place for
+		// the rest of the session. The "constructor" of the non-plain kinds is read-only,
+		// so it is redefined rather than assigned.
+		const constructorDescs = protoFuncs.map(function(proto) {
+			return Object.getOwnPropertyDescriptor(proto, "constructor");
+		});
+		protoFuncs.forEach(function(proto) {
+			Object.defineProperty(proto, "constructor", { value: function(){}, writable: true, configurable: true });
+		});
+		if (protoFuncGen)
+			protoFuncGen.prototype.next = function(){};
+
 		let result;
 		try {
 			const _safe_eval_closure = Function.apply(
@@ -569,7 +593,10 @@ function (window, undefined)
 				delete window.eval;
 				window.eval = realEval;
 			}
-			protoFunc.constructor = normalConstructor;
+			protoFuncs.forEach(function(proto, index) {
+				if (constructorDescs[index])
+					Object.defineProperty(proto, "constructor", constructorDescs[index]);
+			});
 			if (protoFuncGen)
 				protoFuncGen.prototype.next = generatorNext;
 		}
