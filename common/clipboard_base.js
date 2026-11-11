@@ -69,6 +69,173 @@
 	AscCommon.c_oAscClipboardDataFormat = c_oAscClipboardDataFormat;
 	AscCommon.c_oClipboardPastedFrom = c_oClipboardPastedFrom;
 
+	// Ration Docs #1664: Chromium 109's WebP decoder has the libwebp heap overflow that was exploited
+	// in the wild (CVE-2023-4863), and its AVIF decoder is not much better. The desktop browser process
+	// fails every response that is WebP or AVIF (desktop-sdk image_guard.h), but data: URLs never leave
+	// the renderer, and pasted HTML is written into the paste iframe below, where its pictures are
+	// loaded and drawn. So a data: URL whose bytes are WebP or AVIF (pasted HTML, or an image file
+	// from the clipboard, which is read as a data: URL) is emptied before that. The picture was not
+	// going to be inserted anyway: LocalFileGetImageUrl keeps only PNG, JPEG, GIF and SVG.
+	// The check is on the bytes, not the declared type, as Blink picks the decoder by the bytes.
+	var c_nUnsafeImageSniffBytes = 256;
+	function isUnsafeImageHead(bytes)
+	{
+		var n = bytes.length;
+		var isText = function(pos, text)
+		{
+			for (var i = 0; i < text.length; ++i)
+			{
+				if (bytes[pos + i] !== text.charCodeAt(i))
+					return false;
+			}
+			return true;
+		};
+		var isAvifBrand = function(pos)
+		{
+			return isText(pos, "avif") || isText(pos, "avis");
+		};
+		// WebP: "RIFF" <size> "WEBP"
+		if (n >= 12 && isText(0, "RIFF") && isText(8, "WEBP"))
+			return true;
+		// AVIF: <size> "ftyp" <major brand> <minor version> <compatible brands>
+		if (n >= 12 && isText(4, "ftyp"))
+		{
+			var box = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+			if (box < 16 || box > c_nUnsafeImageSniffBytes)
+				box = c_nUnsafeImageSniffBytes;
+			var end = Math.min(n, box);
+			if (isAvifBrand(8))
+				return true;
+			for (var i = 16; i + 4 <= end; i += 4)
+			{
+				if (isAvifBrand(i))
+					return true;
+			}
+		}
+		return false;
+	}
+	// The first bytes of a data: URL as Blink would decode them, or null if it is not one.
+	// Decoding is lenient (characters that are not base64 are skipped), so it errs towards finding
+	// the signature: a URL Blink cannot decode loads nothing anyway.
+	function getDataUrlHead(url)
+	{
+		var s = url.replace(/^[\u0000-\u0020]+/, "").replace(/[\t\n\r]/g, "");
+		if (!/^data:/i.test(s))
+			return null;
+		var comma = s.indexOf(",");
+		if (-1 === comma)
+			return null;
+		var isBase64 = /;\s*base64\s*$/i.test(s.substring(5, comma));
+		var body = s.substring(comma + 1, comma + 1 + 4 * c_nUnsafeImageSniffBytes);
+
+		var bytes = [];
+		for (var i = 0; i < body.length; ++i)
+		{
+			var code = body.charCodeAt(i);
+			if (37 === code && /^[0-9a-f]{2}$/i.test(body.substr(i + 1, 2)))
+			{
+				code = parseInt(body.substr(i + 1, 2), 16);
+				i += 2;
+			}
+			bytes.push(code & 0xFF);
+		}
+		if (!isBase64)
+			return bytes.slice(0, c_nUnsafeImageSniffBytes);
+
+		var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+		var result = [], acc = 0, bits = 0;
+		for (var j = 0; j < bytes.length && result.length < c_nUnsafeImageSniffBytes; ++j)
+		{
+			var value = alphabet.indexOf(String.fromCharCode(bytes[j]));
+			if (-1 === value)
+				continue;
+			acc = ((acc << 6) | value) & 0xFFFFFF;
+			bits += 6;
+			if (bits >= 8)
+			{
+				bits -= 8;
+				result.push((acc >> bits) & 0xFF);
+			}
+		}
+		return result;
+	}
+	function hasUnsafeDataImage(text)
+	{
+		var lower = text.toLowerCase();
+		for (var pos = lower.indexOf("data:"); -1 !== pos; pos = lower.indexOf("data:", pos + 5))
+		{
+			var head = getDataUrlHead(text.substring(pos));
+			if (head && isUnsafeImageHead(head))
+				return true;
+		}
+		return false;
+	}
+	function decodeCssEscapes(css)
+	{
+		return css.replace(/\\([0-9a-fA-F]{1,6})[ \t\n\r\f]?|\\([^\n\r\f])/g, function(match, hex, ch)
+		{
+			if (hex)
+			{
+				var code = parseInt(hex, 16);
+				return (code > 0 && code <= 0x10FFFF) ? String.fromCodePoint(code) : "\uFFFD";
+			}
+			return ch;
+		});
+	}
+	// html with WebP/AVIF data: URLs emptied. Unchanged (the same string) when there are none.
+	function removeUnsafePastedImages(html)
+	{
+		if (typeof html !== "string" || !window.DOMParser)
+			return html;
+		var doc;
+		try
+		{
+			// an inert document: nothing in it is loaded or drawn
+			doc = new DOMParser().parseFromString(html, "text/html");
+		}
+		catch (err)
+		{
+			return html;
+		}
+		if (!doc || !doc.documentElement)
+			return html;
+
+		var isFound = false;
+		var elements = doc.getElementsByTagName("*");
+		for (var i = 0; i < elements.length; ++i)
+		{
+			var element = elements[i];
+			if ("style" === element.localName && hasUnsafeDataImage(decodeCssEscapes(element.textContent)))
+			{
+				element.textContent = "";
+				isFound = true;
+			}
+			for (var j = element.attributes.length - 1; j >= 0; --j)
+			{
+				var attr = element.attributes[j];
+				var value = attr.value;
+				if ("srcdoc" === attr.localName)
+				{
+					var srcdoc = removeUnsafePastedImages(value);
+					if (srcdoc !== value)
+					{
+						element.setAttributeNS(attr.namespaceURI, attr.name, srcdoc);
+						isFound = true;
+					}
+				}
+				else if (hasUnsafeDataImage("style" === attr.localName ? decodeCssEscapes(value) : value))
+				{
+					element.setAttributeNS(attr.namespaceURI, attr.name, "");
+					isFound = true;
+				}
+			}
+		}
+		if (!isFound)
+			return html;
+		return "<!DOCTYPE html>" + doc.documentElement.outerHTML;
+	}
+	AscCommon.removeUnsafePastedImages = removeUnsafePastedImages;
+
 	function CClipboardBase()
 	{
 		this.PasteFlag = false;
@@ -1074,6 +1241,9 @@
 			var frameWindow = window.frames[this.CommonIframeId];
 			if (frameWindow)
 			{
+				if (window["AscDesktopEditor"])
+					_html_data = removeUnsafePastedImages(_html_data);
+
 				frameWindow.document.open();
 				frameWindow.document.write(_html_data);
 				frameWindow.document.close();
