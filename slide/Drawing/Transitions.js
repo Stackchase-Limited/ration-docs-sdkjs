@@ -4126,9 +4126,11 @@ function CDemonstrationManager(htmlpage)
         this.StartSlide(true, true);
     };
 
-    this.StartSlide = function(is_transition_use, is_first_play)
+    this.StartSlide = function(is_transition_use, is_first_play, is_keep_media_player)
     {
-        oThis.HtmlPage.m_oApi.hideMediaControl();
+        // a resize keeps the player of a video on the slide (it may be playing); it is only moved
+        if (true !== is_keep_media_player)
+            oThis.HtmlPage.m_oApi.hideMediaControl();
         if (oThis.Canvas)
         {
             let sLockedCursor = oThis.HtmlPage.m_oDrawingDocument.m_sLockedCursorType;
@@ -5540,7 +5542,12 @@ function CDemonstrationManager(htmlpage)
         }
 
         if (this.SlideNum < this.GetSlidesCount())
-            this.StartSlide(this.Transition.IsPlaying(), false);
+        {
+            var _is_transition = this.Transition.IsPlaying();
+            this.StartSlide(_is_transition, false, !_is_transition);
+            if (!_is_transition)
+                oThis.HtmlPage.m_oApi.onUpdateMediaPlayer();
+        }
 
 		oThis.HtmlPage.m_oApi.disableReporterEvents = false;
     };
