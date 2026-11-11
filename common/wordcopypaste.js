@@ -7249,6 +7249,12 @@ PasteProcessor.prototype =
 	_pasteText: function (text) {
 		var oThis = this;
 
+		// Ration Docs: below only LF starts a new paragraph and CR is skipped, so text whose lines
+		// end with a lone CR (classic Mac line ends; the browser hands text/plain over unchanged off
+		// Windows) was pasted as one paragraph with the lines run together ("onetwo")
+		if (typeof text === "string")
+			text = text.replace(/\r\n?/g, "\n");
+
 		var fPasteTextWordCallback = function () {
 			var executePasteWord = function () {
 				if (false === oThis.bNested) {
