@@ -8778,10 +8778,12 @@
     };
     // the playback settings of a video/audio drawing that the editor can change (keys as in the interface):
     // "Mute" - p:cMediaNode mute (the players honour it, see getMediaAdditionalData)
+    // "HideWhileNotPlaying" - p:cMediaNode showWhenStopped="0" (see CAnimationDrawer.isMediaHiddenWhileStopped)
     function getMediaSettings(oMediaNode) {
         let oPr = oMediaNode && oMediaNode.cMediaNode;
         return {
-            "Mute": !!(oPr && oPr.mute)
+            "Mute": !!(oPr && oPr.mute),
+            "HideWhileNotPlaying": !!(oPr && oPr.showWhenStopped === false)
         };
     }
     CTiming.prototype.getMediaSettings = function (sDrawingId) {
@@ -8791,6 +8793,9 @@
         let oCurSettings = this.getMediaSettings(oDrawing.Get_Id());
         if (typeof oSettings["Mute"] === "boolean" && oSettings["Mute"] !== oCurSettings["Mute"]) {
             this.checkMediaNode(oDrawing).cMediaNode.setMute(oSettings["Mute"]);
+        }
+        if (typeof oSettings["HideWhileNotPlaying"] === "boolean" && oSettings["HideWhileNotPlaying"] !== oCurSettings["HideWhileNotPlaying"]) {
+            this.checkMediaNode(oDrawing).cMediaNode.setShowWhenStopped(!oSettings["HideWhileNotPlaying"]);
         }
     };
     CCmd.prototype.setState = function (nState) {
@@ -12134,7 +12139,35 @@
 		}
 		return this.allAnimationDrawingObjects[sId];
 	};
+	// A video/audio set to "hide while not playing" (p:cMediaNode showWhenStopped="0") is not drawn in a
+	// slide show unless its player is open: the desktop opens one for the selected video (a click on it, or a
+	// play effect, see callTimelineMediaCommand) and draws the video over the slide.
+	CAnimationDrawer.prototype.isMediaHiddenWhileStopped = function (oDrawing) {
+		if (!oDrawing.getMediaFileName || !oDrawing.getMediaFileName()) {
+			return false;
+		}
+		const oApi = Asc.editor;
+		if (!oApi || !oApi.isSlideShow || !oApi.isSlideShow()) {
+			return false;
+		}
+		const oMediaData = oApi.getMediaData && oApi.getMediaData();
+		if (oMediaData && oMediaData.getDrawing() === oDrawing && oDrawing.selected) {
+			return false;
+		}
+		const sId = oDrawing.Get_Id();
+		const aTimings = this.player.timings;
+		for (let nTiming = 0; nTiming < aTimings.length; ++nTiming) {
+			const oMediaNode = aTimings[nTiming].getMediaNode(sId);
+			if (oMediaNode) {
+				return oMediaNode.cMediaNode.showWhenStopped === false;
+			}
+		}
+		return false;
+	};
 	CAnimationDrawer.prototype.drawObject = function (oDrawing, oGraphics) {
+		if (this.isMediaHiddenWhileStopped(oDrawing)) {
+			return;
+		}
 		const sDrawingId = oDrawing.Get_Id();
 		const oSandwich = this.getSandwich(sDrawingId);
 		const dScale = oGraphics.m_oCoordTransform.sx;
