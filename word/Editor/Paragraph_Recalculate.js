@@ -1169,6 +1169,9 @@ Paragraph.prototype.private_RecalculateLineFillRanges  = function(CurLine, CurPa
 		
 		let x0 = RangesCount > 0 ? Ranges[Ranges.length - 1].X1 : xStart;
 		let x1 = (UseFirstLine ? PRS.XLimit - paraPr.Ind.Left - paraPr.Ind.FirstLine : PRS.XLimit - paraPr.Ind.Left);
+		// same as the left-to-right case below (#348)
+		if (UseFirstLine && !this.bFromDocument && !PRS.isDocumentEditor())
+			x1 = Math.min(x1, Math.max(PRS.XLimit, PRS.XLimit - paraPr.Ind.Left));
 		this.Lines[CurLine].addRange(x0, x1);
 		for (let rangeIndex = Ranges.length - 1; rangeIndex >= 0; --rangeIndex)
 		{
@@ -1183,6 +1186,10 @@ Paragraph.prototype.private_RecalculateLineFillRanges  = function(CurLine, CurPa
 		let xLimit = PRS.XLimit - paraPr.Ind.Right;
 		
 		let x0 = (UseFirstLine ? PRS.XStart + paraPr.Ind.Left + paraPr.Ind.FirstLine : PRS.XStart + paraPr.Ind.Left);
+		// DrawingML text (slides, sheet shapes): PowerPoint never starts the first line left of the text box
+		// inset, so marL=0 with a negative indent must not push it outside the shape (#348)
+		if (UseFirstLine && !this.bFromDocument && !PRS.isDocumentEditor())
+			x0 = Math.max(x0, Math.min(PRS.XStart, PRS.XStart + paraPr.Ind.Left));
 		let x1 = RangesCount > 0 ? Ranges[0].X0 : xLimit;
 		this.Lines[CurLine].addRange(x0, x1);
 		for (let rangeIndex = 1, rangeCount = Ranges.length; rangeIndex <= rangeCount; ++rangeIndex)
