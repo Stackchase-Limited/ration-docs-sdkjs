@@ -4710,6 +4710,17 @@ function CBinaryFileWriter()
         oThis.WriteUChar(g_nodeAttributeEnd);
 
         oThis.WriteRecord2(0, nvPr.ph, oThis.Write_ph);
+        if (nvPr.unimedia && nvPr.unimedia.hasTrim && nvPr.unimedia.hasTrim())
+            oThis.WriteRecordArray(2, 0, [nvPr.unimedia], oThis.WriteMediaTrimExt);
+    };
+
+    this.WriteMediaTrimExt = function(unimedia)
+    {
+        // p14:trim, read back by core (Ext::fromPPTY) onto the media's p14:media
+        oThis.WriteUChar(g_nodeAttributeStart);
+        oThis._WriteDoubleReal2(3, unimedia.trimSt);
+        oThis._WriteDoubleReal2(4, unimedia.trimEnd);
+        oThis.WriteUChar(g_nodeAttributeEnd);
     };
 
     this.Write_ph = function(ph)

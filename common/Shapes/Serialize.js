@@ -7315,6 +7315,10 @@ function BinaryPPTYLoader()
                 var oUniMedia = new AscFormat.UniMedia();
                 oUniMedia.type = type;
                 oUniMedia.media = sMaskFileName;
+                if (pic.nvPicPr.nvPr.unimedia) {
+                    oUniMedia.trimSt = pic.nvPicPr.nvPr.unimedia.trimSt;
+                    oUniMedia.trimEnd = pic.nvPicPr.nvPr.unimedia.trimEnd;
+                }
                 pic.nvPicPr.nvPr.setUniMedia(oUniMedia);
             }
         }
@@ -8925,6 +8929,19 @@ function BinaryPPTYLoader()
                     s.Skip2(_len);
                     break;
                 }
+                case 2:
+                {
+                    // extLst: keep the media trim (p14:trim), the rest is not used
+                    var _end_ext = s.cur + s.GetULong() + 4;
+                    var _count = s.GetULong();
+                    for (var i = 0; i < _count && s.cur < _end_ext; ++i)
+                    {
+                        s.Skip2(1); // type
+                        this.ReadMediaTrimExt(nvPr);
+                    }
+                    s.Seek2(_end_ext);
+                    break;
+                }
                 default:
                 {
                     var _len = s.GetULong();
@@ -8935,6 +8952,40 @@ function BinaryPPTYLoader()
         }
 
         s.Seek2(_end_rec);
+    };
+
+    this.ReadMediaTrimExt = function(nvPr)
+    {
+        var s = this.stream;
+        var _end_rec = s.cur + s.GetULong() + 4;
+        var trimSt = null, trimEnd = null;
+
+        s.Skip2(1); // start attributes
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0: s.Skip2(s.GetULong()); break; // media link (core WriteStringW: length in bytes)
+                case 1: trimSt = s.GetLong() / 100000; break;
+                case 2: trimEnd = s.GetLong() / 100000; break;
+                case 3: trimSt = s.GetDouble(); break;
+                case 4: trimEnd = s.GetDouble(); break;
+                default: break;
+            }
+        }
+        s.Seek2(_end_rec);
+
+        if (null !== trimSt || null !== trimEnd)
+        {
+            var oUniMedia = nvPr.unimedia ? nvPr.unimedia.createDuplicate() : new AscFormat.UniMedia();
+            oUniMedia.trimSt = trimSt;
+            oUniMedia.trimEnd = trimEnd;
+            nvPr.setUniMedia(oUniMedia);
+        }
     };
 
     this.ReadPH = function()
@@ -11624,6 +11675,10 @@ function BinaryPPTYLoader()
                     var oUniMedia = new AscFormat.UniMedia();
                     oUniMedia.type = type;
                     oUniMedia.media = sMaskFileName;
+                    if (pic.nvPicPr.nvPr.unimedia) {
+                        oUniMedia.trimSt = pic.nvPicPr.nvPr.unimedia.trimSt;
+                        oUniMedia.trimEnd = pic.nvPicPr.nvPr.unimedia.trimEnd;
+                    }
                     pic.nvPicPr.nvPr.setUniMedia(oUniMedia);
                 }
             }

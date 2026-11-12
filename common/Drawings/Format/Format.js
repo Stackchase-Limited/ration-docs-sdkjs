@@ -8232,18 +8232,27 @@
 			CBaseNoIdObject.call(this);
 			this.type = null;
 			this.media = null;
+			// p14:trim: milliseconds cut from the start / from the end of the media
+			this.trimSt = null;
+			this.trimEnd = null;
 		}
 
 		InitClass(UniMedia, CBaseNoIdObject, 0);
 		UniMedia.prototype.Write_ToBinary = function (w) {
 			var bType = this.type !== null && this.type !== undefined;
 			var bMedia = typeof this.media === 'string';
+			var bTrimSt = isRealNumber(this.trimSt);
+			var bTrimEnd = isRealNumber(this.trimEnd);
 			var nFlags = 0;
 			bType && (nFlags |= 1);
 			bMedia && (nFlags |= 2);
+			bTrimSt && (nFlags |= 4);
+			bTrimEnd && (nFlags |= 8);
 			w.WriteLong(nFlags);
 			bType && w.WriteLong(this.type);
 			bMedia && w.WriteString2(this.media);
+			bTrimSt && w.WriteDouble2(this.trimSt); // 8-byte: WriteDouble is fixed point and overflows above ~21 s
+			bTrimEnd && w.WriteDouble2(this.trimEnd);
 		};
 		UniMedia.prototype.Read_FromBinary = function (r) {
 			var nFlags = r.GetLong();
@@ -8253,12 +8262,23 @@
 			if (nFlags & 2) {
 				this.media = r.GetString2();
 			}
+			if (nFlags & 4) {
+				this.trimSt = r.GetDoubleLE();
+			}
+			if (nFlags & 8) {
+				this.trimEnd = r.GetDoubleLE();
+			}
 		};
 		UniMedia.prototype.createDuplicate = function () {
 			var _ret = new UniMedia();
 			_ret.type = this.type;
 			_ret.media = this.media;
+			_ret.trimSt = this.trimSt;
+			_ret.trimEnd = this.trimEnd;
 			return _ret;
+		};
+		UniMedia.prototype.hasTrim = function () {
+			return isRealNumber(this.trimSt) || isRealNumber(this.trimEnd);
 		};
 
 		drawingConstructorsMap[AscDFH.historyitem_NvPr_SetUniMedia] = UniMedia;
