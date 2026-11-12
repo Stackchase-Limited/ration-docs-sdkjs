@@ -5325,6 +5325,15 @@
 	{
 		this.isShiftWheelHorizontal = !!isOn;
 	};
+	/**
+	 * #1925: the document editor animates each mouse-wheel notch over a few frames instead of jumping by the
+	 * whole distance (touchpads are unaffected). Off unless the user turns it on in Advanced settings.
+	 * @param {boolean} isOn
+	 */
+	baseEditorsApi.prototype["asc_setSmoothWheelScroll"] = function(isOn)
+	{
+		this.isSmoothWheelScroll = !!isOn;
+	};
 	baseEditorsApi.prototype["asc_setDefaultBlitMode"] = function(value)
 	{
 		AscFonts.setDefaultBlitting(value);

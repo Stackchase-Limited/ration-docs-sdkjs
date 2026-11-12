@@ -182,6 +182,7 @@ function CEditorPage(api)
 	this.m_bIsScroll = false;
 	this.m_bIsScrollPosChanged = false;
 	this.wheelRemainder = { x : 0, y : 0 }; // sub-pixel wheel/touchpad scroll not applied yet (#1194)
+	this.smoothWheel = { y : 0, frame : null }; // mouse-wheel scroll still to be animated (#1925, opt-in)
 	this.m_bIsRePaintOnScroll = true;
 	this.m_bIsFullRepaint = false;
 
@@ -2462,7 +2463,12 @@ function CEditorPage(api)
 		if (0 !== values.x)
 			oThis.m_oScrollHorApi.scrollBy(values.x, 0, false, e);
 		if (0 !== values.y)
-			oThis.m_oScrollVerApi.scrollBy(0, values.y, false, e);
+		{
+			if (true === oThis.m_oApi.isSmoothWheelScroll && oThis.isMouseWheelNotch(e))
+				oThis.smoothWheelScroll(values.y, e);
+			else
+				oThis.m_oScrollVerApi.scrollBy(0, values.y, false, e);
+		}
 
 		// здесь - имитируем моус мув ---------------------------
 		var _e   = {};
@@ -2488,6 +2494,52 @@ function CEditorPage(api)
 			e.returnValue = false;
 
 		return false;
+	};
+
+	// #1925: a mouse wheel reports whole notches (wheelDelta a multiple of 120, or whole lines); a touchpad
+	// sends small deltas many times a second and is already smooth
+	this.isMouseWheelNotch = function(e)
+	{
+		let wheelDelta = (undefined !== e.wheelDeltaY) ? e.wheelDeltaY : e.wheelDelta;
+		if (wheelDelta)
+			return (0 === wheelDelta % 120);
+		return (undefined !== e.detail && 0 !== e.detail);
+	};
+
+	// #1925 (asc_setSmoothWheelScroll, off by default): a wheel notch used to move the page by its whole
+	// distance at once, which looks like a jump. With smooth wheel scrolling the distance is spread over the
+	// next animation frames, a large part first (ease-out, about 8 frames for one notch); notches that arrive
+	// meanwhile add to it, a notch the other way starts afresh. The total distance is unchanged
+	this.smoothWheelScroll = function(delta, e)
+	{
+		let state = oThis.smoothWheel;
+		if (delta * state.y < 0)
+			state.y = 0;
+		state.y += delta;
+
+		if (null !== state.frame)
+			return;
+
+		let nextFrame = window.requestAnimationFrame ? function(f) { return window.requestAnimationFrame(f); } : function(f) { return setTimeout(f, 16); };
+		let step = function()
+		{
+			state.frame = null;
+			if (0 === state.y)
+				return;
+
+			let move = Math.ceil(Math.abs(state.y) * 0.35);
+			if (move > Math.abs(state.y))
+				move = Math.abs(state.y);
+			if (state.y < 0)
+				move = -move;
+
+			state.y -= move;
+			oThis.m_oScrollVerApi.scrollBy(0, move, false, e);
+
+			if (0 !== state.y)
+				state.frame = nextFrame(step);
+		};
+		state.frame = nextFrame(step);
 	};
 
 	this.SelectWheel = function()
