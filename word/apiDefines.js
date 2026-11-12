@@ -366,7 +366,9 @@ var c_oAscDocumentShortcutType = {
 	EditChart                     : 144,
 	InsertLineBreakMultilineForm  : 145,
 	MoveToNextPage                : 146,
-	MoveToPreviousPage            : 147
+	MoveToPreviousPage            : 147,
+	MoveParagraphUp               : 148, // Ration Docs #1203
+	MoveParagraphDown             : 149
 };
 
 var c_oAscDocumentRefenceToType = {
@@ -546,6 +548,8 @@ prot['MoveToStartPreviousPage']       = prot.MoveToStartPreviousPage;
 prot['MoveToStartNextPage']           = prot.MoveToStartNextPage;
 prot['MoveToNextPage']                = prot.MoveToNextPage;
 prot['MoveToPreviousPage']            = prot.MoveToPreviousPage;
+prot['MoveParagraphUp']               = prot.MoveParagraphUp;
+prot['MoveParagraphDown']             = prot.MoveParagraphDown;
 prot['ScrollDown']                    = prot.ScrollDown;
 prot['ScrollUp']                      = prot.ScrollUp;
 prot['ZoomIn']                        = prot.ZoomIn;

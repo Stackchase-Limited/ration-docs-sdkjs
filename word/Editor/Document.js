@@ -8716,6 +8716,80 @@ CDocument.prototype.IsUseInDocument = function(Id)
 
 	return false;
 };
+/**
+ * Ration Docs #1203: moves the paragraphs holding the cursor or the selection above the paragraph before them
+ * (isUp) or below the paragraph after them - Alt+Shift+Up/Down, "move paragraph" in Word - to reorder list
+ * items, bullets or plain paragraphs. It is the neighbour that moves, with PreventPreDelete as when content
+ * is wrapped into a content control, so its comments, bookmarks and notes stay; numbering is recounted and
+ * the cursor and selection stay on the moved paragraphs. Works wherever the paragraphs are (body, table cell,
+ * header, note, text box, content control), but only for whole paragraphs of one content, never across a
+ * table, content control or section break, and not with track changes on (it is not a tracked move).
+ * @param {boolean} isUp
+ * @returns {boolean} whether the paragraphs moved
+ */
+CDocument.prototype.MoveSelectedParagraphs = function(isUp)
+{
+	if (this.IsTrackRevisions() || this.IsFillingFormMode())
+		return false;
+	
+	if (docpostype_DrawingObjects === this.GetDocPosType() && !AscFormat.getTargetTextObject(this.DrawingObjects))
+		return false;
+	
+	let paragraphs = this.GetSelectedParagraphs();
+	if (!paragraphs || !paragraphs.length)
+		return false;
+	
+	let parent = paragraphs[0].GetParent();
+	if (!parent || !parent.Content || !(parent instanceof CDocument || parent instanceof CDocumentContent))
+		return false;
+	
+	let start = -1, end = -1;
+	for (let index = 0, count = paragraphs.length; index < count; ++index)
+	{
+		let paragraph = paragraphs[index];
+		let pos       = paragraph.GetIndex();
+		if (!paragraph.IsParagraph() || paragraph.GetParent() !== parent || parent.Content[pos] !== paragraph || paragraph.Get_SectionPr())
+			return false;
+		
+		start = -1 === start ? pos : Math.min(start, pos);
+		end   = Math.max(end, pos);
+	}
+	
+	if (end - start + 1 !== paragraphs.length)
+		return false;
+	
+	let neighbourPos = isUp ? start - 1 : end + 1;
+	let neighbour    = parent.Content[neighbourPos];
+	if (!neighbour || !neighbour.IsParagraph() || neighbour.Get_SectionPr())
+		return false;
+	
+	if (this.IsSelectionLocked(AscCommon.changestype_None, {
+			Type      : AscCommon.changestype_2_ElementsArray_and_Type,
+			Elements  : paragraphs.concat([neighbour]),
+			CheckType : AscCommon.changestype_Paragraph_Content
+		}, false, false))
+		return false;
+	
+	this.StartAction(AscDFH.historydescription_Document_MoveParagraphs);
+	
+	let preventPreDelete = this.PreventPreDelete;
+	this.RemoveCommentsOnPreDelete = false;
+	this.PreventPreDelete          = true;
+	
+	// the selection positions of the content follow the removal and the insertion
+	parent.Remove_FromContent(neighbourPos, 1, false);
+	parent.Add_ToContent(isUp ? end : start, neighbour, false);
+	
+	this.PreventPreDelete          = preventPreDelete;
+	this.RemoveCommentsOnPreDelete = true;
+	
+	this.Recalculate();
+	this.UpdateSelection();
+	this.UpdateInterface();
+	this.UpdateRulers();
+	this.FinalizeAction();
+	return true;
+};
 CDocument.prototype.OnKeyDown = function(e)
 {
 	this.sendEvent("asc_onBeforeKeyDown", e);
@@ -9778,6 +9852,14 @@ CDocument.prototype.executeShortcut = function(type)
 				}
 				result = true;
 			}
+			break;
+		}
+		case Asc.c_oAscDocumentShortcutType.MoveParagraphUp:
+		case Asc.c_oAscDocumentShortcutType.MoveParagraphDown:
+		{
+			// the key is taken even where nothing can move (first paragraph, a table...), as in Word
+			this.MoveSelectedParagraphs(Asc.c_oAscDocumentShortcutType.MoveParagraphUp === type);
+			result = true;
 			break;
 		}
 		case Asc.c_oAscDocumentShortcutType.ShowAll:

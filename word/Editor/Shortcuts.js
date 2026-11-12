@@ -83,6 +83,8 @@
 	c_oAscUnlockedShortcutActionTypes[Asc.c_oAscDocumentShortcutType.HorizontalEllipsis] = true;
 	c_oAscUnlockedShortcutActionTypes[Asc.c_oAscDocumentShortcutType.EnDash] = true;
 	c_oAscUnlockedShortcutActionTypes[Asc.c_oAscDocumentShortcutType.EmDash] = true;
+	c_oAscUnlockedShortcutActionTypes[Asc.c_oAscDocumentShortcutType.MoveParagraphUp] = true;
+	c_oAscUnlockedShortcutActionTypes[Asc.c_oAscDocumentShortcutType.MoveParagraphDown] = true;
 
 	const c_oAscDefaultShortcuts = {};
 	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.OpenFindDialog] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.OpenFindDialog, keyCodes.KeyF, true, false, false, false)];
@@ -172,6 +174,9 @@
 	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.MixedUnIndent] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.MixedUnIndent, keyCodes.Tab, false, true, false, false)];
 	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.EditShape] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.EditShape, keyCodes.Enter, false, false, false, false)];
 	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.EditChart] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.EditChart, keyCodes.Enter, false, false, false, false)];
+	// Ration Docs #1203: Alt+Shift+Up/Down (Option+Shift on macOS) as in Word
+	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.MoveParagraphUp] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.MoveParagraphUp, keyCodes.ArrowUp, false, true, true, false)];
+	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.MoveParagraphDown] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.MoveParagraphDown, keyCodes.ArrowDown, false, true, true, false)];
 	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.BigMoveObjectLeft] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.BigMoveObjectLeft, keyCodes.ArrowLeft, false, false, false, false)];
 	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.BigMoveObjectRight] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.BigMoveObjectRight, keyCodes.ArrowRight, false, false, false, false)];
 	c_oAscDefaultShortcuts[Asc.c_oAscDocumentShortcutType.BigMoveObjectUp] = [new AscShortcut(Asc.c_oAscDocumentShortcutType.BigMoveObjectUp, keyCodes.ArrowUp, false, false, false, false)];
@@ -620,6 +625,10 @@
 				return "MoveToNextPage";
 			case Asc.c_oAscDocumentShortcutType.MoveToPreviousPage:
 				return "MoveToPreviousPage";
+			case Asc.c_oAscDocumentShortcutType.MoveParagraphUp:
+				return "MoveParagraphUp";
+			case Asc.c_oAscDocumentShortcutType.MoveParagraphDown:
+				return "MoveParagraphDown";
 			default:
 				return null;
 		}
@@ -919,6 +928,10 @@
 				return Asc.c_oAscDocumentShortcutType.MoveToNextPage;
 			case "MoveToPreviousPage":
 				return Asc.c_oAscDocumentShortcutType.MoveToPreviousPage;
+			case "MoveParagraphUp":
+				return Asc.c_oAscDocumentShortcutType.MoveParagraphUp;
+			case "MoveParagraphDown":
+				return Asc.c_oAscDocumentShortcutType.MoveParagraphDown;
 			default:
 				return null;
 		}

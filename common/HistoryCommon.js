@@ -454,6 +454,9 @@
 			case AscDFH.historydescription_Document_MoveParagraphByTab                 :
 				sString = "Document_MoveParagraphByTab";
 				break;
+			case AscDFH.historydescription_Document_MoveParagraphs                     :
+				sString = "Document_MoveParagraphs";
+				break;
 			case AscDFH.historydescription_Document_AddTab                             :
 				sString = "Document_AddTab";
 				break;
@@ -4848,6 +4851,8 @@
 	window['AscDFH'].historydescription_Pdf_ChangeAnnot			= 0x2b7;
 	window['AscDFH'].historydescription_Pdf_Apply_Redact		= 0x2b8;
 	// reserved
+	// Ration Docs: our own descriptions, apart from upstream's numbering
+	window['AscDFH'].historydescription_Document_MoveParagraphs = 0x7001; // #1203
 	window['AscDFH'].historydescription_GroupPoints     = 0xFF01;
 	window['AscDFH'].historydescription_GroupPointsOpen = 0xFF02;
 
