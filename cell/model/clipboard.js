@@ -1748,17 +1748,22 @@
 					if (val[i] && val[i].format && val[i].format.getSkip()) {
 						continue;
 					}
+					// the element opened here is the one closed after the text (an <a> used to end in </span>);
+					// link and tooltip are user data and are escaped like the text
+					var tagName;
 					if (cell == undefined || (cell != undefined && (hyperlink == null || (hyperlink != null && hyperlink.getLocation() != null)))) {
+						tagName = 'span';
 						str += '<span ';
 					} else {
+						tagName = 'a';
 						str += '<a';
 						if (hyperlink.Hyperlink != null) {
-							str += ' href=' + '"' + hyperlink.Hyperlink + '"';
+							str += ' href=' + '"' + CopyPasteCorrectString(hyperlink.Hyperlink) + '"';
 						} else if (hyperlink.getLocation() != null) {
-							str += ' href=' + '"' + "#" + hyperlink.getLocation() + '"';
+							str += ' href=' + '"' + "#" + CopyPasteCorrectString(hyperlink.getLocation()) + '"';
 						}
 						if (hyperlink.Tooltip) {
-							str += ' title=' + '"' + hyperlink.Tooltip + '" ';
+							str += ' title=' + '"' + CopyPasteCorrectString(hyperlink.Tooltip) + '" ';
 						}
 					}
 
@@ -1795,7 +1800,7 @@
 					style += "vertical-align:" + verticalAlign + ";";
 
 					str += ' style="' + style + '">';
-					str += text + '</span>';
+					str += text + '</' + tagName + '>';
 				}
 				return str;
 			},
