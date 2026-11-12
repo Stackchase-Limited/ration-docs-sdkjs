@@ -14320,9 +14320,18 @@ background-repeat: no-repeat;\
 	};
     asc_docs_api.prototype.getPageBackgroundColor = function()
     {
-    	// TODO: get color from theme
+		// Ration Docs #2112: the page colour in the content dark mode is the theme's (canvas-dark-content-background,
+		// #3A3A3A in every built-in theme); the colours on the page follow it (AscCommon.darkModeCorrectColor2)
 		if (this.isDarkMode)
+		{
+			let color = GlobalSkin.PageBackgroundDark;
+			if (typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color))
+			{
+				let c = AscCommon.RgbaHexToRGBA(color);
+				return { R: c.R, G : c.G, B : c.B };
+			}
 			return { R: 0x3A, G : 0x3A, B : 0x3A };
+		}
 		return { R: 0xFF, G : 0xFF, B : 0xFF };
     };
 	asc_docs_api.prototype.getPageStrokeColor = function()

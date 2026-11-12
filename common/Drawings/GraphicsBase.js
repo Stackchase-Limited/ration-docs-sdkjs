@@ -56,11 +56,33 @@
 			return { R : 255 - r, G: 255 - g, B : 255 - b };
 		return { R : r, G : g, B : b };
 	};
+	// Ration Docs #2112: the lightness white gets in the content dark mode is the one of the page colour,
+	// GlobalSkin.PageBackgroundDark (theme colour canvas-dark-content-background): #3A3A3A (58) in every
+	// built-in theme, as the constant was; a theme can set e.g. #000000 for a black page.
+	var darkModePageColor = "", darkModePageLightness = 58;
+	function getDarkModePageLightness()
+	{
+		var skin = AscCommon.GlobalSkin;
+		var color = skin && skin.PageBackgroundDark;
+		if (color !== darkModePageColor)
+		{
+			darkModePageColor = color;
+			darkModePageLightness = 58;
+			if (typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color))
+			{
+				var c = AscCommon.RgbaHexToRGBA(color);
+				darkModePageLightness = (Math.max(c.R, c.G, c.B) + Math.min(c.R, c.G, c.B)) >> 1;
+			}
+		}
+		return darkModePageLightness;
+	}
+	AscCommon.getDarkModePageLightness = getDarkModePageLightness;
+
 	AscCommon.darkModeCorrectColor2 = function(r, g, b)
 	{
 		var oHSL = {}, oRGB = {};
 		AscFormat.CColorModifiers.prototype.RGB2HSL(r, g, b, oHSL);
-		var dKoefL = (255 - 58) / 255;
+		var dKoefL = (255 - getDarkModePageLightness()) / 255;
 		oHSL.L = 255 - ((dKoefL * oHSL.L) >> 0);
 		AscFormat.CColorModifiers.prototype.HSL2RGB(oHSL, oRGB, true);
 		return oRGB;

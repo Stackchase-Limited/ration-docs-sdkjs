@@ -49,6 +49,7 @@ var EditorSkins = {
 
 		BackgroundColor           : "#EEEEEE",
 		PageOutline               : "#BBBEC2",
+		PageBackgroundDark        : "#3A3A3A",
 
 		RulerDark                 : "#D9D9D9",
 		RulerLight                : "#FFFFFF",
@@ -199,6 +200,7 @@ var EditorSkins = {
 
 		BackgroundColor           : "#666666",
 		PageOutline               : "#BBBEC2",
+		PageBackgroundDark        : "#3A3A3A",
 
 		RulerDark                 : "#373737",
 		RulerLight                : "#555555",
@@ -366,6 +368,7 @@ function updateGlobalSkinColors(theme)
 	var colorMap = {
 		BackgroundColor                : "canvas-background",
 		PageOutline                    : "canvas-page-border",
+		PageBackgroundDark             : "canvas-dark-content-background",
 
 		RulerDark                      : "canvas-ruler-margins-background",
 		RulerLight                     : "canvas-ruler-background",
@@ -502,6 +505,9 @@ function updateGlobalSkinColors(theme)
 		if ("" === colorMap[color])
 			continue;
 		if (undefined === theme[colorMap[color]])
+			continue;
+		// #2112: an interface without this newer colour sends "" for it, which would read as black
+		if ("PageBackgroundDark" === color && "" === theme[colorMap[color]])
 			continue;
 
 		if(typeof GlobalSkin[color] === "number")

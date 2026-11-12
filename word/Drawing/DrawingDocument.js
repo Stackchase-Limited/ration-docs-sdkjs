@@ -1088,7 +1088,8 @@ CPage.prototype.Draw = function (context, xDst, yDst, wDst, hDst, api)
 		else
 		{
 			var backColor = api.getPageBackgroundColor();
-			context.fillStyle = "#" + backColor.R.toString(16) + backColor.G.toString(16) + backColor.B.toString(16);
+			// rgb(): the hex form lost the leading zero of a component below 0x10 (#2112: e.g. a black page)
+			context.fillStyle = "rgb(" + backColor.R + "," + backColor.G + "," + backColor.B + ")";
 		}
 
 		strokeColor = GlobalSkin.PageOutline;

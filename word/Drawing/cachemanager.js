@@ -82,7 +82,8 @@ CCacheManager.prototype.Lock = function (_w, _h, _drDocument)
 	if (_drDocument)
 	{
 		var backColor = _drDocument.m_oWordControl.m_oApi.getPageBackgroundColor();
-		backgroundColor = "#" + backColor.R.toString(16) + backColor.G.toString(16) + backColor.B.toString(16);
+		// rgb(): the hex form lost the leading zero of a component below 0x10 (#2112: e.g. a black page)
+		backgroundColor = "rgb(" + backColor.R + "," + backColor.G + "," + backColor.B + ")";
 	}
 
 	for (var i = 0; i < this.arrayCount; ++i)
