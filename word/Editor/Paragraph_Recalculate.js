@@ -2461,11 +2461,14 @@ Paragraph.prototype.private_RecalculateGetTabPos = function(PRS, X, ParaPr, CurP
 		// Так работает Word: если таб начался в допустимом отрезке, а заканчивается вне его,
 		// то мы ограничиваем его правым полем документа, но только если правый отступ параграфа
 		// неположителен (<= 0). (смотри bug 32345)
+		// PowerPoint does not do this for DrawingML text (slides, sheet shapes): a default tab that would
+		// end past the right edge moves to the next line instead (#343)
         var twX      = AscCommon.MMToTwips(X);
         var twEndPos = AscCommon.MMToTwips(endX);
         var twNewX   = AscCommon.MMToTwips(NewX);
 
-        if (twX < twEndPos && twNewX >= twEndPos && AscCommon.MMToTwips(ParaPr.Ind.Right) <= 0)
+        if (twX < twEndPos && twNewX >= twEndPos && AscCommon.MMToTwips(ParaPr.Ind.Right) <= 0
+			&& (this.bFromDocument || PRS.isDocumentEditor()))
 		{
 			NewX = endX;
 			isTabToRightEdge = true;

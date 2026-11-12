@@ -5135,6 +5135,11 @@ ParaRun.prototype.Recalculate_LineMetrics = function(PRS, ParaPr, _CurLine, _Cur
 			}
 			case para_Space:
 			{
+				// PowerPoint sizes a line by every run on it, spaces included: a larger space after the text
+				// makes the line taller (#343). Word documents keep the old behaviour.
+				if (!Para.bFromDocument && !PRS.isDocumentEditor())
+					UpdateLineMetricsText = true;
+
 				break;
 			}
 			case para_Drawing:
