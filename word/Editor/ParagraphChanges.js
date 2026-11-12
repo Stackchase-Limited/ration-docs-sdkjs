@@ -2142,6 +2142,8 @@ CChangesParagraphBidi.prototype.private_SetValue = function(value)
 	paragraph.Pr.Bidi = value;
 	paragraph.CompiledPr.NeedRecalc = true;
 	paragraph.private_UpdateTrackRevisionOnChangeParaPr(false);
+	// With the "Context" numeral setting the digit shapes depend on the direction (#2160)
+	paragraph.RecalcInfo.NeedShapeText();
 };
 CChangesParagraphBidi.prototype.Merge = private_ParagraphChangesOnMergePr;
 CChangesParagraphBidi.prototype.Load = private_ParagraphChangesOnLoadPr;

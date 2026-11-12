@@ -373,9 +373,14 @@
 		}
 
 		let logicDocument = this.Paragraph ? this.Paragraph.GetLogicDocument() : undefined;
-		return (logicDocument
-			&& logicDocument.IsDocumentEditor()
-			&& Asc.c_oNumeralType.hindi === logicDocument.GetNumeralType());
+		if (!logicDocument || !logicDocument.IsDocumentEditor())
+			return false;
+		
+		let numeralType = logicDocument.GetNumeralType();
+		if (Asc.c_oNumeralType.context === numeralType) // like "Context" in Word: Hindi digits in right-to-left paragraphs (#2160)
+			return this.Paragraph.isRtlDirection();
+		
+		return Asc.c_oNumeralType.hindi === numeralType;
 	};
 	CParagraphTextShaper.prototype.private_HandleHindiDigit = function(oItem)
 	{
