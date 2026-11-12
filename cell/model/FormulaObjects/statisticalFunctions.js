@@ -6699,7 +6699,7 @@ function (window, undefined) {
 
 		function frequency(A, B) {
 
-			let tA = [], tB = [Number.NEGATIVE_INFINITY], i, j;
+			let tA = [], tB = [], i, j;
 			for (i = 0; i < A.length; i++) {
 				for (j = 0; j < A[i].length; j++) {
 					let elem = A[i][j];
@@ -6722,9 +6722,8 @@ function (window, undefined) {
 							return elem;
 						}
 
-						if (elem.type === cElementType.string || elem.type === cElementType.bool) {
-							tB.push(0);
-						} else if (elem.type === cElementType.number) {
+						// as in Excel, text and logical values in bins_array are ignored, not taken as 0
+						if (elem.type === cElementType.number) {
 							tB.push(elem.getValue());
 						}
 					}
@@ -6732,22 +6731,27 @@ function (window, undefined) {
 			}
 
 			tA.sort(fSortAscending);
-			tB.push(Number.POSITIVE_INFINITY);
-			tB.sort(fSortAscending);
 
-			let C = [[]], k = 0;
-			for (i = 1; i < tB.length; i++, k++) {
-				if (!C[k]) {
-					C[k] = [];
-				}
-				C[k][0] = new cNumber(0);
-				for (j = 0; j < tA.length; j++) {
-					if (tA[j] > tB[i - 1] && tA[j] <= tB[i]) {
-						let a = C[k][0].getValue();
-						C[k][0] = new cNumber(++a);
-					}
-				}
+			// The intervals come from the sorted bins, but each count goes back to the row of its bin, as in
+			// Excel: bins {7;2;5} give the counts of (5,7], (-inf,2], (2,5], then the rest.
+			let order = [];
+			for (i = 0; i < tB.length; i++) {
+				order.push(i);
 			}
+			order.sort(function (a, b) {
+				return tB[a] - tB[b] || a - b;
+			});
+
+			let C = [], k = 0;
+			for (i = 0; i < order.length; i++) {
+				let count = 0;
+				while (k < tA.length && tA[k] <= tB[order[i]]) {
+					count++;
+					k++;
+				}
+				C[order[i]] = [new cNumber(count)];
+			}
+			C[tB.length] = [new cNumber(tA.length - k)];
 			let res = new cArray();
 			res.fillFromArray(C);
 			return res;
