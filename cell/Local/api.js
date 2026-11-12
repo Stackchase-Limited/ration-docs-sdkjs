@@ -67,15 +67,13 @@ var c_oAscError = Asc.c_oAscError;
 	spreadsheet_api.prototype.asc_showImageFileDialog = spreadsheet_api.prototype.asc_addImage = function(obj)
 	{
 		var t = this;
-		window["AscDesktopEditor"]["OpenFilenameDialog"]("images", false, function(_file) {
-			var file = _file;
-			if (Array.isArray(file))
-				file = file[0];
-			if (!file)
+		window["AscDesktopEditor"]["OpenFilenameDialog"]("images", true, function(files) {
+			// #617: several images can be picked at once, like the online editors' file chooser
+			var urls = AscCommon.getDesktopImageUrls(files);
+			if (!urls.length)
 				return;
 
-			var _url = window["AscDesktopEditor"]["LocalFileGetImageUrl"](file);
-			t._addImageUrl([AscCommon.g_oDocumentUrls.getImageUrl(_url)], obj);
+			t._addImageUrl(urls, obj);
 		});
 	};
 	spreadsheet_api.prototype.AddImageUrlAction = function(url)

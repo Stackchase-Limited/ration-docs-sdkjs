@@ -328,15 +328,13 @@ Asc['asc_docs_api'].prototype.AddImageUrl = function(urls, imgProp, token, obj)
 Asc['asc_docs_api'].prototype.AddImage = Asc['asc_docs_api'].prototype.asc_addImage =
 Asc['PDFEditorApi'].prototype.AddImage = Asc['PDFEditorApi'].prototype.asc_addImage = function(obj)
 {
-	window["AscDesktopEditor"]["OpenFilenameDialog"]("images", false, function(_file) {
-		var file = _file;
-		if (Array.isArray(file))
-			file = file[0];
-		if (!file)
+	window["AscDesktopEditor"]["OpenFilenameDialog"]("images", true, function(files) {
+		// #617: several images can be picked at once, like the online editors' file chooser
+		var urls = AscCommon.getDesktopImageUrls(files);
+		if (!urls.length)
 			return;
 
-		var _url = window["AscDesktopEditor"]["LocalFileGetImageUrl"](file);
-		editor._addImageUrl([AscCommon.g_oDocumentUrls.getImageUrl(_url)], obj);
+		editor._addImageUrl(urls, obj);
 	});
 };
 Asc['asc_docs_api'].prototype.asc_isOffline = function()

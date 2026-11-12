@@ -580,6 +580,23 @@ window["UpdateInstallPlugins"] = function()
 	window.g_asc_plugins.sendPluginsInit(_plugins);
 };
 
+// Ration Docs #617: the document urls of the images picked in the desktop image dialog. With
+// multiselect it answers an array of paths, a single path otherwise ("" when cancelled).
+AscCommon.getDesktopImageUrls = function(files) {
+	if (!Array.isArray(files))
+		files = files ? [files] : [];
+
+	var urls = [];
+	for (var i = 0; i < files.length; i++)
+	{
+		if (!files[i])
+			continue;
+		var localUrl = window["AscDesktopEditor"]["LocalFileGetImageUrl"](files[i]);
+		urls.push(AscCommon.g_oDocumentUrls.getImageUrl(localUrl));
+	}
+	return urls;
+};
+
 // Ration Docs #2095: true for a drag that carries files from the file manager, in the desktop app,
 // whatever their type (AscCommon.CanDropFiles accepts only images).
 AscCommon.IsDesktopFilesDrag = function(e) {
