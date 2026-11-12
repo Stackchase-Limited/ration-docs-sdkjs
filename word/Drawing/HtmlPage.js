@@ -146,7 +146,7 @@ function CEditorPage(api)
 	this.m_oScrollHorApi = null;
 	this.m_oScrollVerApi = null;
 
-	this.zoom_values = [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 320, 340, 360, 380, 400, 425, 450, 475, 500];
+	this.zoom_values = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 320, 340, 360, 380, 400, 425, 450, 475, 500];
 	this.m_nZoomType = 0; // 0 - custom, 1 - fitToWidth, 2 - fitToPage
 	this.m_nZoomValue = 100;
 
