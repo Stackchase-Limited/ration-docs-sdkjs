@@ -2389,6 +2389,13 @@
             window["asc_nativeOnSpellCheck"] = function(response) {
                 var _editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
                 if (_editor.SpellCheckApi) {
+					// #630: answers about the user dictionary are not spell results
+					if (response && "list" === response["type"]) {
+						_editor.sendEvent("asc_onSpellCheckUserDictionary", response["usrWords"] || []);
+						return;
+					}
+					if (response && "remove" === response["type"])
+						return;
                 	// check for message about complete clearing of task queue for current
                 	if ("clear" === response) {
 						_editor.SpellCheckApi.isRestart = false;
@@ -2486,6 +2493,31 @@
 
 			this._spellCheckRestart(word);
 		}
+    };
+    /**
+     * #630: removes a word added with asc_spellCheckAddToDictionary from the user dictionary (desktop) and checks
+     * the document again, so that it is marked as misspelled again
+     * @param {string} word
+     */
+    baseEditorsApi.prototype.asc_spellCheckRemoveFromDictionary  = function(word)
+    {
+		if (!window["AscDesktopEditor"] || typeof word !== "string" || !word.length)
+			return;
+
+		// same raw form as asc_spellCheckAddToDictionary, so that the stored word matches
+		window["AscDesktopEditor"]["SpellCheck"]("{\"type\":\"remove\",\"usrWords\":[\"" + word + "\"]}");
+		this.asc_restartCheckSpelling();
+    };
+    /**
+     * #630: asks for the words of the user dictionary (desktop); they come in asc_onSpellCheckUserDictionary
+     */
+    baseEditorsApi.prototype.asc_spellCheckGetUserDictionary     = function()
+    {
+		if (!window["AscDesktopEditor"])
+			return false;
+
+		window["AscDesktopEditor"]["SpellCheck"]("{\"type\":\"list\"}");
+		return true;
     };
     baseEditorsApi.prototype.asc_spellCheckClearDictionary       = function()
     {

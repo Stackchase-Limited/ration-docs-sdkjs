@@ -10262,6 +10262,8 @@ background-repeat: no-repeat;\
     asc_docs_api.prototype['asc_ignoreMisspelledWord']            = asc_docs_api.prototype.asc_ignoreMisspelledWord;
     asc_docs_api.prototype['asc_spellCheckAddToDictionary']       = asc_docs_api.prototype.asc_spellCheckAddToDictionary;
     asc_docs_api.prototype['asc_spellCheckClearDictionary']       = asc_docs_api.prototype.asc_spellCheckClearDictionary;
+    asc_docs_api.prototype['asc_spellCheckRemoveFromDictionary'] = asc_docs_api.prototype.asc_spellCheckRemoveFromDictionary;
+    asc_docs_api.prototype['asc_spellCheckGetUserDictionary'] = asc_docs_api.prototype.asc_spellCheckGetUserDictionary;
     asc_docs_api.prototype['asc_setDefaultLanguage']              = asc_docs_api.prototype.asc_setDefaultLanguage;
     asc_docs_api.prototype['asc_getDefaultLanguage']              = asc_docs_api.prototype.asc_getDefaultLanguage;
     asc_docs_api.prototype['asc_setDefaultTextBoxAutoFit']        = asc_docs_api.prototype.asc_setDefaultTextBoxAutoFit;

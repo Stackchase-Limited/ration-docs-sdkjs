@@ -10388,6 +10388,8 @@ var editor;
   prot["asc_ignoreMisspelledWord"] = prot.asc_ignoreMisspelledWord;
   prot["asc_spellCheckAddToDictionary"] = prot.asc_spellCheckAddToDictionary;
   prot["asc_spellCheckClearDictionary"] = prot.asc_spellCheckClearDictionary;
+  prot["asc_spellCheckRemoveFromDictionary"] = prot.asc_spellCheckRemoveFromDictionary;
+  prot["asc_spellCheckGetUserDictionary"] = prot.asc_spellCheckGetUserDictionary;
   prot["asc_cancelSpellCheck"] = prot.asc_cancelSpellCheck;
   prot["asc_ignoreNumbers"] = prot.asc_ignoreNumbers;
   prot["asc_ignoreUppercase"] = prot.asc_ignoreUppercase;
