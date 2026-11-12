@@ -1439,6 +1439,58 @@ AscFormat.InitClass(Slide, AscFormat.CBaseFormatObject, AscDFH.historyitem_type_
             }
         }
     };
+    // ONLYOFFICE/DesktopEditors#1885: a click hyperlink on a shape, picture, table frame or group
+    // (cNvPr hlinkClick - "Insert > Hyperlink" on a selected object, or from PowerPoint) did nothing in
+    // an exported PDF; only hyperlinks on text became PDF links (Paragraph drawing). Renderers that
+    // write PDF links (they have AddHyperlink/AddLink) now get the object's bounds as a link area:
+    // a web/mail address as a URI link, a jump to a slide as a link to that page.
+    Slide.prototype.drawHyperlinkAreas = function(graphics, oSp) {
+        if(AscCommon.IsHiddenObj(oSp)) {
+            return;
+        }
+        let oCNvPr = oSp.getCNvProps && oSp.getCNvProps();
+        let oHlink = oCNvPr && oCNvPr.hlinkClick;
+        let sValue = oHlink && oHlink.id;
+        let oBounds = oSp.bounds;
+        if(typeof sValue === "string" && sValue.length > 0 && oBounds &&
+            oBounds.r - oBounds.l > 0.001 && oBounds.b - oBounds.t > 0.001) {
+            let dX = oBounds.l, dY = oBounds.t, dW = oBounds.r - oBounds.l, dH = oBounds.b - oBounds.t;
+            if(AscCommon.IsLinkPPAction(sValue)) {
+                let oPresentation = Asc.editor && Asc.editor.private_GetLogicDocument && Asc.editor.private_GetLogicDocument();
+                let nCount = oPresentation && oPresentation.GetSlidesCount ? oPresentation.GetSlidesCount() : 0;
+                let nCur = AscFormat.isRealNumber(this.num) ? this.num : 0;
+                let nPage = -1;
+                let sMask = "ppaction://hlinksldjumpslide";
+                if(sValue === "ppaction://hlinkshowjump?jump=firstslide") {
+                    nPage = 0;
+                }
+                else if(sValue === "ppaction://hlinkshowjump?jump=lastslide") {
+                    nPage = nCount - 1;
+                }
+                else if(sValue === "ppaction://hlinkshowjump?jump=nextslide") {
+                    nPage = nCur + 1;
+                }
+                else if(sValue === "ppaction://hlinkshowjump?jump=previousslide") {
+                    nPage = nCur - 1;
+                }
+                else if(sValue.indexOf(sMask) === 0) {
+                    nPage = parseInt(sValue.substring(sMask.length));
+                }
+                // other actions (open a file, a custom show, a macro) have no place in a PDF
+                if(AscFormat.isRealNumber(nPage) && nPage >= 0 && nPage < nCount) {
+                    graphics.AddLink(dX, dY, dW, dH, 0, 0, nPage);
+                }
+            }
+            else {
+                graphics.AddHyperlink(dX, dY, dW, dH, sValue, oHlink.tooltip || sValue);
+            }
+        }
+        if(oSp.isGroupObject && oSp.isGroupObject() && oSp.spTree) {
+            for(let nIdx = 0; nIdx < oSp.spTree.length; ++nIdx) {
+                this.drawHyperlinkAreas(graphics, oSp.spTree[nIdx]);
+            }
+        }
+    };
     Slide.prototype.draw = function(graphics) {
         let bCheckBounds = graphics.isBoundsChecker();
         let bSlideShow = this.graphicObjects.isSlideShow();
@@ -1477,6 +1529,9 @@ AscFormat.InitClass(Slide, AscFormat.CBaseFormatObject, AscDFH.historyitem_type_
                 }
             }
             oSp.draw(graphics);
+            if(!bCheckBounds && graphics.AddHyperlink && graphics.AddLink) {
+                this.drawHyperlinkAreas(graphics, oSp);
+            }
         }
 
         if(this.timing) {
