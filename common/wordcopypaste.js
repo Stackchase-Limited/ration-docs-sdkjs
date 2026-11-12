@@ -8713,6 +8713,37 @@ PasteProcessor.prototype =
 		}
 		return computedStyle;
 	},
+	_getDeclaredStyle: function (node, styleProp) {
+		//value set for the node by the pasted html's own style sheets, not by the browser defaults:
+		//LibreOffice writes the Text Body spacing only there, as "p { margin-bottom: 0.25cm; line-height: 115% }"
+		//later rules win; specificity is not compared
+		var res = "";
+		var sheets = node && node.ownerDocument && node.ownerDocument.styleSheets;
+		if (!sheets || !node.matches) {
+			return res;
+		}
+		for (var i = 0; i < sheets.length; i++) {
+			var rules;
+			try {
+				rules = sheets[i].cssRules;
+			} catch (e) {
+				continue;
+			}
+			for (var j = 0; rules && j < rules.length; j++) {
+				var rule = rules[j];
+				var value = rule.selectorText && rule.style && rule.style.getPropertyValue(styleProp);
+				if (value) {
+					try {
+						if (node.matches(rule.selectorText)) {
+							res = value;
+						}
+					} catch (e) {
+					}
+				}
+			}
+		}
+		return res;
+	},
 	_getStyle: function (node, computedStyle, styleProp) {
 		var getStyle = function () {
 			var style = null;
@@ -9062,17 +9093,17 @@ PasteProcessor.prototype =
 			//use not computedStyle -> html often comes with the font size set by the parent, the browser calculate
 			//the font to margin-top/margin-bottom
 			var Spacing = new AscWord.ParaSpacing();
-			var margin_top = node.style.getPropertyValue("margin-top")/*this._getStyle(node, computedStyle, "margin-top")*/;
+			var margin_top = node.style.getPropertyValue("margin-top") || this._getDeclaredStyle(node, "margin-top")/*this._getStyle(node, computedStyle, "margin-top")*/;
 			if (margin_top && null != (margin_top = AscCommon.valueToMm(margin_top)) && margin_top >= 0) {
 				Spacing.Before = margin_top;
 			}
-			var margin_bottom =  node.style.getPropertyValue("margin-bottom")/*this._getStyle(node, computedStyle, "margin-bottom")*/;
+			var margin_bottom =  node.style.getPropertyValue("margin-bottom") || this._getDeclaredStyle(node, "margin-bottom")/*this._getStyle(node, computedStyle, "margin-bottom")*/;
 			if (margin_bottom && null != (margin_bottom = AscCommon.valueToMm(margin_bottom)) && margin_bottom >= 0) {
 				Spacing.After = margin_bottom;
 			}
 			//line height
 			//computedStyle returns value in px. I need % (ms writes exactly % in html)
-			var line_height = node.style && node.style.lineHeight ? node.style.lineHeight : this._getStyle(node, computedStyle, "line-height");
+			var line_height = node.style && node.style.lineHeight ? node.style.lineHeight : (this._getDeclaredStyle(node, "line-height") || this._getStyle(node, computedStyle, "line-height"));
 			if (line_height) {
 				var oLineHeight = AscCommon.valueToMmType(line_height);
 				if (oLineHeight && ("%" === oLineHeight.type || "none" === oLineHeight.type)) {
