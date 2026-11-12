@@ -250,6 +250,29 @@ var c_oAscError = Asc.c_oAscError;
 			}
 			if (aTopLeftCells.length)
 				printOptionsObj["topLeftCells"] = aTopLeftCells.join(";");
+
+			// The caret is view state in the same way: moving it writes nothing to the
+			// change stream, so the saved file kept the selection from open time. Ship each
+			// viewed sheet's active cell and the range holding it, as
+			// "<sheet index>:<active cell>:<range>" (A1 style, ';' between sheets).
+			var aActiveCells = [];
+			var fA1 = function (row, col) {
+				return AscCommon.g_oCellAddressUtils.colnumToColstr(col + 1) + (row + 1);
+			};
+			for (var nSheetSel in wbView.wsViews) {
+				var oWSSel = wbView.wsViews[nSheetSel];
+				var oSelection = oWSSel && oWSSel.model && oWSSel.model.selectionRange;
+				var oActiveCell = oSelection && oSelection.activeCell;
+				var oActiveRange = oSelection && oSelection.getLast();
+				if (!oActiveCell || !oActiveRange)
+					continue;
+				var sRange = fA1(oActiveRange.r1, oActiveRange.c1);
+				if (oActiveRange.r1 !== oActiveRange.r2 || oActiveRange.c1 !== oActiveRange.c2)
+					sRange += ":" + fA1(oActiveRange.r2, oActiveRange.c2);
+				aActiveCells.push(nSheetSel + ":" + fA1(oActiveCell.row, oActiveCell.col) + ":" + sRange);
+			}
+			if (aActiveCells.length)
+				printOptionsObj["activeCells"] = aActiveCells.join(";");
 		}
 
 		return printOptionsObj;
@@ -398,6 +421,8 @@ var c_oAscError = Asc.c_oAscError;
 					viewParamsObj["activeSheet"] = saveParamsObj["activeSheet"];
 				if (undefined !== saveParamsObj["topLeftCells"])
 					viewParamsObj["topLeftCells"] = saveParamsObj["topLeftCells"];
+				if (undefined !== saveParamsObj["activeCells"])
+					viewParamsObj["activeCells"] = saveParamsObj["activeCells"];
 
 				printOptions = JSON.stringify(viewParamsObj);
 			}
