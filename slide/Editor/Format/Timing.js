@@ -2615,6 +2615,20 @@
         var nSeq;
         var oCont1;//containers by depth
         var aAddedEffects = [];
+        // the root also holds the slide's media nodes (p:video/p:audio > p:cMediaNode: volume, mute, loop,
+        // hide while not playing...); they are not effects, so keep them through the rebuild
+        var aMediaNodes = [];
+        var oOldRoot = this.getTimingRootNode();
+        if (oOldRoot) {
+            var aOldChildren = oOldRoot.getChildrenTimeNodes();
+            for (var nChild = 0; nChild < aOldChildren.length; ++nChild) {
+                var oOldChild = aOldChildren[nChild];
+                if ((oOldChild.isVideo() || oOldChild.isAudio()) &&
+                    oOldChild.cMediaNode && oOldChild.cMediaNode.getTargetObjectId()) {
+                    aMediaNodes.push(oOldChild.createDuplicate());
+                }
+            }
+        }
         this.createTimingRoot();
         var oTmRoot = this.getTimingRootNode();
         if (oTmRoot) {
@@ -2649,6 +2663,9 @@
                     oCont1.addEffectToTheEndOfSeq(oEffectToAdd);
                 }
             }
+        }
+        for (var nMedia = 0; nMedia < aMediaNodes.length; ++nMedia) {
+            this.checkTimeRoot().pushToChildTnLst(aMediaNodes[nMedia]);
         }
         this.updateNodesIDs();
         return aAddedEffects;
