@@ -8731,6 +8731,7 @@
         oAdditionalData.vol = AscFormat.isRealNumber(oPr.vol) ? oPr.vol : null;
         oAdditionalData.video = oMediaNode.isVideo();
         oAdditionalData.loop = !!(oPr.cTn && oPr.cTn.repeatCount === "indefinite");
+        oAdditionalData.rewind = !!(oPr.cTn && oPr.cTn.fill === NODE_FILL_REMOVE);
         return oAdditionalData;
     }
     CTiming.prototype.getMediaAdditionalData = function (sDrawingId) {
@@ -8781,12 +8782,14 @@
     // "Mute" - p:cMediaNode mute (the players honour it, see getMediaAdditionalData)
     // "HideWhileNotPlaying" - p:cMediaNode showWhenStopped="0" (see CAnimationDrawer.isMediaHiddenWhileStopped)
     // "Loop" - Loop until stopped, p:cMediaNode > p:cTn repeatCount="indefinite" (the players get it with setMediaFlags)
+    // "Rewind" - Rewind after playing, p:cMediaNode > p:cTn fill="remove" (PowerPoint's default is fill="hold": the last frame stays)
     function getMediaSettings(oMediaNode) {
         let oPr = oMediaNode && oMediaNode.cMediaNode;
         return {
             "Mute": !!(oPr && oPr.mute),
             "HideWhileNotPlaying": !!(oPr && oPr.showWhenStopped === false),
-            "Loop": !!(oPr && oPr.cTn && oPr.cTn.repeatCount === "indefinite")
+            "Loop": !!(oPr && oPr.cTn && oPr.cTn.repeatCount === "indefinite"),
+            "Rewind": !!(oPr && oPr.cTn && oPr.cTn.fill === NODE_FILL_REMOVE)
         };
     }
     CTiming.prototype.getMediaSettings = function (sDrawingId) {
@@ -8804,6 +8807,12 @@
             let oCTn = this.checkMediaNode(oDrawing).cMediaNode.cTn;
             if (oCTn) {
                 oCTn.setRepeatCount(oSettings["Loop"] ? "indefinite" : null);
+            }
+        }
+        if (typeof oSettings["Rewind"] === "boolean" && oSettings["Rewind"] !== oCurSettings["Rewind"]) {
+            let oCTn = this.checkMediaNode(oDrawing).cMediaNode.cTn;
+            if (oCTn) {
+                oCTn.setFill(oSettings["Rewind"] ? NODE_FILL_REMOVE : NODE_FILL_HOLD);
             }
         }
     };
@@ -8835,9 +8844,13 @@
         this.vol = null;
         this.video = null;
         this.loop = null;
+        this.rewind = null;
     }
     CAdditionalMediaData.prototype.isLoop = function () {
         return this.loop === true;
+    };
+    CAdditionalMediaData.prototype.isRewind = function () {
+        return this.rewind === true;
     };
     CAdditionalMediaData.prototype.isFullScreen = function () {
         return this.fullScreen === true;

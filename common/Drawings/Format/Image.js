@@ -1045,9 +1045,14 @@
 				return false;
 			return this.additionalData.isLoop();
 		};
-		// the players' setMediaFlags command carries these in "From": 1 - loop until stopped
+		CMediaData.prototype.isRewind = function() {
+			if(!this.additionalData || !this.additionalData.isRewind)
+				return false;
+			return this.additionalData.isRewind();
+		};
+		// the players' setMediaFlags command carries these in "From": 1 - loop until stopped, 2 - rewind after playing
 		CMediaData.prototype.getPlaybackFlags = function() {
-			return (this.isLoop() ? 1 : 0);
+			return (this.isLoop() ? 1 : 0) | (this.isRewind() ? 2 : 0);
 		};
 		CMediaData.prototype.getVol = function() {
 			if(!this.additionalData)
