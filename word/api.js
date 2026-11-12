@@ -3632,6 +3632,49 @@ background-repeat: no-repeat;\
 		logicDocument.SetDefaultParagraphBidi(isRtl);
 		logicDocument.FinalizeAction();
 	};
+	/**
+	 * Sets the Latin font and the size of the document's default run properties (docDefaults rPrDefault).
+	 * Used for new blank documents (#746).
+	 * @param {?string} fontName - empty keeps the font
+	 * @param {?number} fontSize - in points; 0 keeps the size
+	 */
+	asc_docs_api.prototype.asc_setDefaultTextFont = function(fontName, fontSize)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		if (!logicDocument)
+			return;
+
+		fontSize = Math.min(Math.max(parseFloat(fontSize) || 0, 0), 300);
+		let apply = function()
+		{
+			if (logicDocument.IsSelectionLocked(AscCommon.changestype_Document_Styles))
+				return;
+
+			logicDocument.StartAction(AscDFH.historydescription_Document_SetTextFontName);
+			logicDocument.SetDefaultTextFont(fontName, fontSize);
+			logicDocument.FinalizeAction();
+		};
+
+		if (!fontName)
+			return apply();
+
+		// the font has to be loaded before the text is laid out with it
+		let api      = this;
+		let fontInfo = g_fontApplication.GetFontInfo(fontName);
+		let isAsync  = AscCommon.g_font_loader.LoadFont(fontInfo, function()
+		{
+			api.sync_EndAction(c_oAscAsyncActionType.Information, c_oAscAsyncAction.LoadFont);
+			apply();
+		}, this);
+
+		if (false === isAsync)
+			apply();
+	};
+	asc_docs_api.prototype.asc_getDefaultTextFont = function()
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		return logicDocument ? logicDocument.GetDefaultTextFont() : null;
+	};
 	asc_docs_api.prototype.asc_isRtlTextDirection = function()
 	{
 		let logicDocument = this.private_GetLogicDocument();
@@ -15361,6 +15404,8 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_setRtlTextDirection']                   = asc_docs_api.prototype.asc_setRtlTextDirection;
 	asc_docs_api.prototype['asc_isRtlTextDirection']                    = asc_docs_api.prototype.asc_isRtlTextDirection;
 	asc_docs_api.prototype['asc_setDefaultRtlTextDirection']            = asc_docs_api.prototype.asc_setDefaultRtlTextDirection;
+	asc_docs_api.prototype['asc_setDefaultTextFont']                    = asc_docs_api.prototype.asc_setDefaultTextFont;
+	asc_docs_api.prototype['asc_getDefaultTextFont']                    = asc_docs_api.prototype.asc_getDefaultTextFont;
 	asc_docs_api.prototype['asc_addSpaceBeforeParagraph']               = asc_docs_api.prototype.asc_addSpaceBeforeParagraph;
 	asc_docs_api.prototype['asc_addSpaceAfterParagraph']                = asc_docs_api.prototype.asc_addSpaceAfterParagraph;
 	asc_docs_api.prototype['asc_removeSpaceBeforeParagraph']            = asc_docs_api.prototype.asc_removeSpaceBeforeParagraph;

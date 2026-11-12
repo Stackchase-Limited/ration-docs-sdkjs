@@ -28013,6 +28013,50 @@ CDocument.prototype.GetDefaultParagraphBidi = function()
 {
 	return !!this.GetStyles().Get_DefaultParaPr().Bidi;
 };
+/**
+ * Latin font and size of the default run properties (docDefaults rPrDefault), inherited by all text
+ * that has no font or size of its own (#746). East Asian and complex script fonts are left as they are.
+ * @param {?string} fontName - empty keeps the font
+ * @param {?number} fontSize - in points; 0 keeps the size
+ */
+CDocument.prototype.SetDefaultTextFont = function(fontName, fontSize)
+{
+	let styles    = this.GetStyles();
+	let oldTextPr = styles.Get_DefaultTextPr();
+	let newTextPr = oldTextPr.Copy();
+
+	if (fontName)
+	{
+		newTextPr.RFonts.Ascii      = {Name : fontName, Index : -1};
+		newTextPr.RFonts.HAnsi      = {Name : fontName, Index : -1};
+		newTextPr.RFonts.AsciiTheme = undefined;
+		newTextPr.RFonts.HAnsiTheme = undefined;
+	}
+
+	if (fontSize > 0)
+	{
+		newTextPr.FontSize   = fontSize;
+		newTextPr.FontSizeCS = fontSize;
+	}
+
+	if (newTextPr.IsEqual(oldTextPr))
+		return;
+
+	this.History.Add(new CChangesStylesChangeDefaultTextPr(styles, oldTextPr, newTextPr));
+	styles.Default.TextPr = newTextPr;
+	styles.OnChangeDefaultTextPr();
+
+	this.Recalculate();
+	this.UpdateInterface();
+};
+CDocument.prototype.GetDefaultTextFont = function()
+{
+	let textPr = this.GetStyles().Get_DefaultTextPr();
+	return {
+		Name : textPr.RFonts.Ascii ? textPr.RFonts.Ascii.Name : undefined,
+		Size : textPr.FontSize
+	};
+};
 CDocument.prototype.RestartSpellCheck = function()
 {
 	this.Spelling.Reset();
