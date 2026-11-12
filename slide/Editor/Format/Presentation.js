@@ -10844,6 +10844,43 @@ CPresentation.prototype.GetCurTiming = function () {
 	}
 	return oTiming;
 };
+// the one video or audio selected on the current slide, or null
+CPresentation.prototype.GetSelectedMedia = function () {
+	let oSlide = this.GetCurrentSlide();
+	if (!oSlide || !oSlide.graphicObjects) {
+		return null;
+	}
+	let aSelected = oSlide.graphicObjects.getSelectedArray();
+	if (aSelected.length !== 1 || !aSelected[0].getMediaFileName || !aSelected[0].getMediaFileName()) {
+		return null;
+	}
+	return aSelected[0];
+};
+// playback settings of the selected video/audio (CTiming.getMediaSettings), or null when none is selected
+CPresentation.prototype.GetSelectedMediaSettings = function () {
+	let oMedia = this.GetSelectedMedia();
+	if (!oMedia) {
+		return null;
+	}
+	let oTiming = this.GetCurrentSlide().timing;
+	return oTiming ? oTiming.getMediaSettings(oMedia.Get_Id()) : AscFormat.getMediaSettings(null);
+};
+CPresentation.prototype.SetSelectedMediaSettings = function (oSettings) {
+	let oMedia = this.GetSelectedMedia();
+	if (!oMedia || !oSettings) {
+		return;
+	}
+	if (this.IsSelectionLocked(AscCommon.changestype_Timing) === false) {
+		this.StartAction(0);
+		let oSlide = this.GetCurrentSlide();
+		if (!oSlide.timing) {
+			oSlide.setTiming(new AscFormat.CTiming());
+		}
+		oSlide.timing.setMediaSettings(oMedia, oSettings);
+		this.FinalizeAction();
+		this.Document_UpdateInterfaceState();
+	}
+};
 CPresentation.prototype.CanStartAnimationPreview = function () {
 	if (window['IS_NATIVE_EDITOR']) {
 		return false;

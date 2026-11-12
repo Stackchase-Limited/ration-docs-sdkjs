@@ -8735,6 +8735,64 @@
     CTiming.prototype.getMediaAdditionalData = function (sDrawingId) {
         return getMediaAdditionalData(this.getTimingRootNode(), sDrawingId);
     };
+    // the media node (p:video/p:audio) of a drawing, or null
+    CTiming.prototype.getMediaNode = function (sDrawingId) {
+        let oRoot = this.getTimingRootNode();
+        let oMediaNode = null;
+        if (oRoot) {
+            oRoot.traverseTimeNodes(function (oNode) {
+                if (oNode.isVideo() || oNode.isAudio()) {
+                    let oMedia = oNode.cMediaNode;
+                    if (oMedia && sDrawingId === oMedia.getTargetObjectId()) {
+                        oMediaNode = oNode;
+                        return true;
+                    }
+                }
+            });
+        }
+        return oMediaNode;
+    };
+    // the media node of a video/audio drawing; when it has none (a video inserted here), one is added to the
+    // timing root as PowerPoint writes it: <p:video><p:cMediaNode><p:cTn fill="hold" display="0">
+    // <p:stCondLst><p:cond delay="indefinite"/>... <p:tgtEl><p:spTgt spid=".."/>
+    CTiming.prototype.checkMediaNode = function (oDrawing) {
+        let sId = oDrawing.Get_Id();
+        let oMediaNode = this.getMediaNode(sId);
+        if (oMediaNode) {
+            return oMediaNode;
+        }
+        oMediaNode = oDrawing.isVideo() ? new CVideo() : new CAudio();
+        let oCMediaNode = new CCMediaNode();
+        let oCTn = this.createCCTn(null, NODE_FILL_HOLD, "indefinite", null, null, false);
+        oCTn.setDisplay(false);
+        oCMediaNode.setCTn(oCTn);
+        let oTgtEl = new CTgtEl();
+        let oSpTgt = new CSpTgt();
+        oSpTgt.setSpid(sId);
+        oTgtEl.setSpTgt(oSpTgt);
+        oCMediaNode.setTgtEl(oTgtEl);
+        oMediaNode.setCMediaNode(oCMediaNode);
+        this.checkTimeRoot().pushToChildTnLst(oMediaNode);
+        this.updateNodesIDs();
+        return oMediaNode;
+    };
+    // the playback settings of a video/audio drawing that the editor can change (keys as in the interface):
+    // "Mute" - p:cMediaNode mute (the players honour it, see getMediaAdditionalData)
+    function getMediaSettings(oMediaNode) {
+        let oPr = oMediaNode && oMediaNode.cMediaNode;
+        return {
+            "Mute": !!(oPr && oPr.mute)
+        };
+    }
+    CTiming.prototype.getMediaSettings = function (sDrawingId) {
+        return getMediaSettings(this.getMediaNode(sDrawingId));
+    };
+    CTiming.prototype.setMediaSettings = function (oDrawing, oSettings) {
+        let oCurSettings = this.getMediaSettings(oDrawing.Get_Id());
+        if (typeof oSettings["Mute"] === "boolean" && oSettings["Mute"] !== oCurSettings["Mute"]) {
+            this.checkMediaNode(oDrawing).cMediaNode.setMute(oSettings["Mute"]);
+        }
+    };
     CCmd.prototype.setState = function (nState) {
         CTimeNodeBase.prototype.setState.call(this, nState);
         if (nState === TIME_NODE_STATE_ACTIVE) {
@@ -15016,6 +15074,7 @@
 
     window['AscFormat'].NODE_FILL_FREEZE = NODE_FILL_FREEZE;
     window['AscFormat'].NODE_FILL_HOLD = NODE_FILL_HOLD;
+    window['AscFormat'].getMediaSettings = getMediaSettings;
     window['AscFormat'].NODE_FILL_REMOVE = NODE_FILL_REMOVE;
     window['AscFormat'].NODE_FILL_TRANSITION = NODE_FILL_TRANSITION;
     window['AscFormat'].ANIM_TREE_LAVELS_COUNT = ANIM_TREE_LAVELS_COUNT;

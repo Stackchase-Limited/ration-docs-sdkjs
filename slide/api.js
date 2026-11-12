@@ -4474,6 +4474,26 @@ background-repeat: no-repeat;\
 		}
 		this.WordControl.m_oLogicDocument.AddAnimation(nPresetClass, nPresetId, nPresetSubtype, oColor_, bReplace_, bStartPreview);
 	};
+	// playback settings of the selected video or audio ({"Mute": bool}, see CTiming.getMediaSettings), null when
+	// no single video/audio is selected
+	asc_docs_api.prototype.asc_getMediaSettings = function()
+	{
+		return this.WordControl.m_oLogicDocument.GetSelectedMediaSettings();
+	};
+	// oSettings: the keys of asc_getMediaSettings to change
+	asc_docs_api.prototype.asc_setMediaSettings = function(oSettings)
+	{
+		let oLogicDocument = this.WordControl.m_oLogicDocument;
+		let oMedia = oLogicDocument.GetSelectedMedia();
+		oLogicDocument.SetSelectedMediaSettings(oSettings);
+		// the desktop player of the selected video reads the settings when it opens: (re)open it
+		let oSlide = oLogicDocument.GetCurrentSlide();
+		if (oMedia && oSlide && oSlide.graphicObjects)
+		{
+			this.hideMediaControl();
+			oSlide.graphicObjects.checkShowMediaControlOnSelect();
+		}
+	};
 	asc_docs_api.prototype.asc_getCurSlideObjectsNames = function()
 	{
 		return this.WordControl.m_oLogicDocument.GetCurSlideObjectsNames();
@@ -10117,6 +10137,8 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_addImage']                        = asc_docs_api.prototype.asc_addImage;
 	asc_docs_api.prototype['asc_AddToLayout']                     = asc_docs_api.prototype.asc_AddToLayout;
 	asc_docs_api.prototype['asc_AddAnimation']                    = asc_docs_api.prototype.asc_AddAnimation;
+	asc_docs_api.prototype['asc_getMediaSettings']                = asc_docs_api.prototype.asc_getMediaSettings;
+	asc_docs_api.prototype['asc_setMediaSettings']                = asc_docs_api.prototype.asc_setMediaSettings;
 	asc_docs_api.prototype['asc_StartAnimationPreview']           = asc_docs_api.prototype.asc_StartAnimationPreview;
 	asc_docs_api.prototype['asc_canStartAnimationPreview']        = asc_docs_api.prototype.asc_canStartAnimationPreview;
 	asc_docs_api.prototype['asc_getCurSlideObjectsNames']         = asc_docs_api.prototype.asc_getCurSlideObjectsNames;
