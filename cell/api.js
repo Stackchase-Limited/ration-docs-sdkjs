@@ -1697,6 +1697,22 @@ var editor;
 		this.wb.printPreviewState.clean(true);
 	};
 
+	// #1864: a cheap upper bound of the cells a print preview has to lay out (every sheet's used
+	// rows x columns). Building the preview is synchronous, so the interface asks this first to
+	// decide whether to put up a "please wait" message before starting.
+	spreadsheet_api.prototype.asc_getPrintPreviewCellsCount = function () {
+		var count = 0;
+		if (this.wbModel) {
+			for (var i = 0, n = this.wbModel.getWorksheetCount(); i < n; ++i) {
+				var ws = this.wbModel.getWorksheet(i);
+				if (ws && !ws.getHidden()) {
+					count += ws.nRowsCount * ws.nColsCount;
+				}
+			}
+		}
+		return count;
+	};
+
   spreadsheet_api.prototype.processSavedFile             = function(url, downloadType, filetype)
   {
     if (this.insertDocumentUrlsData && this.insertDocumentUrlsData.convertCallback)
@@ -10149,6 +10165,7 @@ var editor;
   prot["asc_updatePrintPreview"] = prot.asc_updatePrintPreview;
   prot["asc_drawPrintPreview"] = prot.asc_drawPrintPreview;
   prot["asc_closePrintPreview"] = prot.asc_closePrintPreview;
+  prot["asc_getPrintPreviewCellsCount"] = prot.asc_getPrintPreviewCellsCount;
 
 
   prot["asc_getDocumentName"] = prot.asc_getDocumentName;
