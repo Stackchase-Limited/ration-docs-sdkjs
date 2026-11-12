@@ -50,6 +50,7 @@
 		this.DoubleSpaceWithPeriod  = false;
 		this.FirstLetterOfSentences = true;
 		this.FirstLetterOfCells     = true;
+		this.TwoInitialCapitals     = true;
 		this.Hyperlinks             = true;
 		this.FirstLetterExceptions  = new AscCommon.CFirstLetterExceptions();
 	}
@@ -90,6 +91,10 @@
 	{
 		return this.Hyperlinks;
 	};
+	CAutoCorrectSettings.prototype.IsTwoInitialCapitals = function()
+	{
+		return this.TwoInitialCapitals;
+	};
 	//setters
 	CAutoCorrectSettings.prototype.SetSmartQuotes  = function(bVal)
 	{
@@ -126,6 +131,10 @@
 	CAutoCorrectSettings.prototype.SetHyperlinks = function(bVal)
 	{
 		this.Hyperlinks = bVal;
+	};
+	CAutoCorrectSettings.prototype.SetTwoInitialCapitals = function(bVal)
+	{
+		this.TwoInitialCapitals = bVal;
 	};
 	CAutoCorrectSettings.prototype.GetFirstLetterExceptionManager = function()
 	{

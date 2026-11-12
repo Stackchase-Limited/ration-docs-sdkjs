@@ -613,11 +613,12 @@
 
 		// #925: « » (French quotes typed as such) also start the French punctuation autocorrect
 		if (0x00AB === this.Value || 0x00BB === this.Value)
-			return AscWord.AUTOCORRECT_FLAGS_FRENCH_PUNCTUATION | AscWord.AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE | AscWord.AUTOCORRECT_FLAGS_HYPHEN_WITH_DASH;
+			return AscWord.AUTOCORRECT_FLAGS_FRENCH_PUNCTUATION | AscWord.AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE | AscWord.AUTOCORRECT_FLAGS_HYPHEN_WITH_DASH | AscWord.AUTOCORRECT_FLAGS_TWO_INITIAL_CAPITALS;
 
 		// /,\,@  - исключения, на них мы не должны стартовать атозамену первой буквы предложения
+		// TWo INitial CApitals (#222) - только после знака препинания, не после цифры
 		if ((this.IsPunctuation() || this.IsNumber()) && 92 !== this.Value && 47 !== this.Value && 64 !== this.Value)
-			return AscWord.AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE | AscWord.AUTOCORRECT_FLAGS_HYPHEN_WITH_DASH;
+			return AscWord.AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE | AscWord.AUTOCORRECT_FLAGS_HYPHEN_WITH_DASH | (this.IsPunctuation() ? AscWord.AUTOCORRECT_FLAGS_TWO_INITIAL_CAPITALS : 0);
 
 		return AscWord.AUTOCORRECT_FLAGS_NONE;
 	};

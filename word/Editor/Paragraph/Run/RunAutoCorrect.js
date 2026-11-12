@@ -48,6 +48,7 @@
 	const AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE    = 0x00000010;
 	const AUTOCORRECT_FLAGS_NUMBERING                = 0x00000020;
 	const AUTOCORRECT_FLAGS_DOUBLE_SPACE_WITH_PERIOD = 0x00000040;
+	const AUTOCORRECT_FLAGS_TWO_INITIAL_CAPITALS     = 0x00000080;
 	
 	const ALLOWED_SYMBOLS_DOUBLE_SPACE_TO_PERIOD = {
 		0x0022 : 1, // "
@@ -165,6 +166,9 @@
 			return this.private_Return();
 
 		if (!this.private_ProcessAutoCorrect(AUTOCORRECT_FLAGS_HYPERLINK, this.private_ProcessHyperlinkAutoCorrect))
+			return this.private_Return();
+
+		if (!this.private_ProcessAutoCorrect(AUTOCORRECT_FLAGS_TWO_INITIAL_CAPITALS, this.private_ProcessTwoInitialCapitalsAutoCorrect))
 			return this.private_Return();
 
 		if (!this.private_ProcessAutoCorrect(AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE, this.private_ProcessCapitalizeFirstLetterOfSentencesAutoCorrect))
@@ -838,6 +842,90 @@
 		}
 
 		return false;
+	};
+	/**
+	 * TWo INitial CApitals (#222): a word just typed whose first two letters are capitals and the rest
+	 * lowercase ("HEllo") gets its second letter lowercased ("Hello"), as Word and LibreOffice do.
+	 * Three-letter plurals of abbreviations (CDs, IDs, PCs) and units in Hz (MHz, GHz) are left alone.
+	 * @return {boolean}
+	 */
+	CRunAutoCorrect.prototype.private_ProcessTwoInitialCapitalsAutoCorrect = function()
+	{
+		let oDocument          = this.Document;
+		let oParagraph         = this.Paragraph;
+		let oRunElementsBefore = this.RunElementsBefore;
+		let nLang              = this.Lang;
+
+		if (!this.AsYouType || !oDocument.IsAutoCorrectTwoInitialCapitals || !oDocument.IsAutoCorrectTwoInitialCapitals())
+			return false;
+
+		// Элементы идут от курсора назад: [0] - последняя буква слова
+		let arrElements   = oRunElementsBefore.GetElements();
+		let arrContentPos = oRunElementsBefore.GetContentPositions();
+		let nWordLen      = 0;
+		while (nWordLen < arrElements.length && arrElements[nWordLen].IsLetter())
+			++nWordLen;
+
+		// Слово должно начинаться после пробела, начала параграфа или знака препинания (не "x2ABc")
+		if (nWordLen < 3
+			|| nWordLen >= g_nMaxElements
+			|| (nWordLen < arrElements.length && arrElements[nWordLen].IsNumber())
+			|| arrContentPos.length < arrElements.length)
+			return false;
+
+		let sWord = "";
+		for (let nIndex = nWordLen - 1; nIndex >= 0; --nIndex)
+			sWord += String.fromCodePoint(arrElements[nIndex].GetCodePoint());
+
+		let arrChars = Array.from(sWord);
+		let isUpper  = function(sChar) {return (sChar.toUpperCase() === sChar && sChar.toLowerCase() !== sChar);};
+		let isLower  = function(sChar) {return (sChar.toLowerCase() === sChar && sChar.toUpperCase() !== sChar);};
+
+		if (!isUpper(arrChars[0]) || !isUpper(arrChars[1]))
+			return false;
+
+		for (let nIndex = 2; nIndex < arrChars.length; ++nIndex)
+		{
+			if (!isLower(arrChars[nIndex]))
+				return false;
+		}
+
+		if ((3 === arrChars.length && "s" === arrChars[2]) || /^[A-Z]Hz$/.test(sWord))
+			return false;
+
+		let oSecond = arrElements[nWordLen - 2];
+		if (AscCommon.IsGeorgianScript(oSecond.GetCodePoint()))
+			return false;
+
+		// В турецком и азербайджанском I -> ı
+		let nPrimaryLang = nLang & 0x03FF;
+		let sLower       = (0x1F === nPrimaryLang || 0x2C === nPrimaryLang) ? arrChars[1].toLocaleLowerCase("tr") : arrChars[1].toLowerCase();
+		if (1 !== Array.from(sLower).length)
+			return false;
+
+		let oContentPos = arrContentPos[nWordLen - 2].Copy();
+		let nDepth      = oContentPos.GetDepth();
+		if (nDepth <= 0)
+			return false;
+
+		let nInRunPos = oContentPos.Get(nDepth);
+		oContentPos.DecreaseDepth(1);
+		let oRun = oParagraph.GetElementByPos(oContentPos);
+		if (!oRun || !(oRun instanceof ParaRun) || oRun.GetElement(nInRunPos) !== oSecond)
+			return false;
+
+		if (this.private_IsDocumentLocked())
+			return false;
+
+		oDocument.StartAction(AscDFH.historydescription_Document_AutoCorrectCommon);
+
+		oRun.RemoveFromContent(nInRunPos, 1, true);
+		oRun.AddToContent(nInRunPos, new AscWord.CRunText(sLower.codePointAt(0)), true);
+
+		oDocument.Recalculate();
+		oDocument.FinalizeAction();
+
+		return true;
 	};
 	/**
 	 * Производим автозамену для первого символа в предложении
@@ -1529,6 +1617,7 @@
 	window['AscWord'].AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE    = AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE;
 	window['AscWord'].AUTOCORRECT_FLAGS_NUMBERING                = AUTOCORRECT_FLAGS_NUMBERING;
 	window['AscWord'].AUTOCORRECT_FLAGS_DOUBLE_SPACE_WITH_PERIOD = AUTOCORRECT_FLAGS_DOUBLE_SPACE_WITH_PERIOD;
+	window['AscWord'].AUTOCORRECT_FLAGS_TWO_INITIAL_CAPITALS     = AUTOCORRECT_FLAGS_TWO_INITIAL_CAPITALS;
 
 })(window);
 

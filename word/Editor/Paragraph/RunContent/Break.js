@@ -346,7 +346,8 @@
 	CRunBreak.prototype.GetAutoCorrectFlags = function()
 	{
 		return (AscWord.AUTOCORRECT_FLAGS_FIRST_LETTER_SENTENCE
-			| AscWord.AUTOCORRECT_FLAGS_HYPERLINK);
+			| AscWord.AUTOCORRECT_FLAGS_HYPERLINK
+			| AscWord.AUTOCORRECT_FLAGS_TWO_INITIAL_CAPITALS);
 	};
 	CRunBreak.prototype.ToSearchElement = function(oProps)
 	{

@@ -12751,6 +12751,14 @@ background-repeat: no-repeat;\
 
 		return oLogicDocument.SetAutoCorrectFrenchPunctuation(isCorrect);
 	};
+	asc_docs_api.prototype.asc_SetAutoCorrectTwoInitialCapitals = function(isCorrect)
+	{
+		var oLogicDocument = this.private_GetLogicDocument();
+		if (!oLogicDocument)
+			return;
+
+		return oLogicDocument.SetAutoCorrectTwoInitialCapitals(isCorrect);
+	};
 
 	asc_docs_api.prototype.asc_SetFirstLetterAutoCorrectExceptions = function(exceptions, lang)
 	{
@@ -15869,6 +15877,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_SetAutoCorrectFirstLetterOfCells']      = asc_docs_api.prototype.asc_SetAutoCorrectFirstLetterOfCells;
 	asc_docs_api.prototype['asc_SetAutoCorrectDoubleSpaceWithPeriod']   = asc_docs_api.prototype.asc_SetAutoCorrectDoubleSpaceWithPeriod;
 	asc_docs_api.prototype['asc_SetAutoCorrectFrenchPunctuation']       = asc_docs_api.prototype.asc_SetAutoCorrectFrenchPunctuation;
+	asc_docs_api.prototype['asc_SetAutoCorrectTwoInitialCapitals']      = asc_docs_api.prototype.asc_SetAutoCorrectTwoInitialCapitals;
 
 	asc_docs_api.prototype['asc_SetFirstLetterAutoCorrectExceptions']   = asc_docs_api.prototype.asc_SetFirstLetterAutoCorrectExceptions;
 	asc_docs_api.prototype['asc_GetFirstLetterAutoCorrectExceptions']   = asc_docs_api.prototype.asc_GetFirstLetterAutoCorrectExceptions;

@@ -25362,6 +25362,22 @@ CDocument.prototype.IsAutoCorrectFirstLetterOfSentences = function()
 	return this.AutoCorrectSettings.IsFirstLetterOfSentences();
 };
 /**
+ * Set the autocorrect setting for TWo INitial CApitals ("HEllo" -> "Hello")
+ * @param {boolean} isCorrect
+ */
+CDocument.prototype.SetAutoCorrectTwoInitialCapitals = function(isCorrect)
+{
+	this.AutoCorrectSettings.SetTwoInitialCapitals(isCorrect);
+};
+/**
+ * Get the autocorrect setting for TWo INitial CApitals
+ * @return {boolean}
+ */
+CDocument.prototype.IsAutoCorrectTwoInitialCapitals = function()
+{
+	return this.AutoCorrectSettings.IsTwoInitialCapitals();
+};
+/**
  * Выставляем настройку атозамены для первого символа в ячейке таблицы
  * @param {boolean} isCorrect
  */

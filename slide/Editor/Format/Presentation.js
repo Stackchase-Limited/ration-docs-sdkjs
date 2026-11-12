@@ -11418,6 +11418,20 @@ CPresentation.prototype.IsAutoCorrectFirstLetterOfSentences = function () {
 	return this.AutoCorrectSettings.IsFirstLetterOfSentences();
 };
 /**
+ * Set the autocorrect setting for TWo INitial CApitals ("HEllo" -> "Hello")
+ * @param {boolean} isCorrect
+ */
+CPresentation.prototype.SetAutoCorrectTwoInitialCapitals = function (isCorrect) {
+	this.AutoCorrectSettings.SetTwoInitialCapitals(isCorrect);
+};
+/**
+ * Get the autocorrect setting for TWo INitial CApitals
+ * @return {boolean}
+ */
+CPresentation.prototype.IsAutoCorrectTwoInitialCapitals = function () {
+	return this.AutoCorrectSettings.IsTwoInitialCapitals();
+};
+/**
  * Set the autocorrect setting for the first character in a table cell
  * @param {boolean} isCorrect
  */
