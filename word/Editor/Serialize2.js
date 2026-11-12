@@ -753,7 +753,15 @@ var c_oSer_SettingsType = {
 	AutoHyphenation: 21,
 	HyphenationZone: 22,
 	DoNotHyphenateCaps: 23,
-	ConsecutiveHyphenLimit: 24
+	ConsecutiveHyphenLimit: 24,
+	// Ration Docs: settings.xml w:docVars (document variables), see c_oSerDocVars.
+	// Kept clear of upstream's numbering.
+	DocVars: 100
+};
+var c_oSerDocVars = {
+	DocVar: 0,
+	Name: 1,
+	Value: 2
 };
 var c_oDocProtect = {
 	AlgorithmName: 0,
@@ -7296,6 +7304,9 @@ function BinarySettingsTableWriter(memory, doc, saveParams)
 			this.bs.WriteItem(c_oSer_SettingsType.DoNotHyphenateCaps, function() {oThis.memory.WriteBool(true);});
 		if (undefined !== settings.consecutiveHyphenLimit)
 			this.bs.WriteItem(c_oSer_SettingsType.ConsecutiveHyphenLimit, function() {oThis.memory.WriteLong(settings.consecutiveHyphenLimit);});
+		// document variables are not edited here, only kept so that a save does not drop them
+		if (settings.DocVars && settings.DocVars.length > 0)
+			this.bs.WriteItem(c_oSer_SettingsType.DocVars, function() {oThis.WriteDocVars(settings.DocVars);});
 		
 		// if (oThis.Document.Settings && null != oThis.Document.Settings.PrintTwoOnOne) {
 		// 	this.bs.WriteItem(c_oSer_SettingsType.PrintTwoOnOne, function() {oThis.memory.WriteBool(oThis.Document.Settings.PrintTwoOnOne);});
@@ -7355,6 +7366,18 @@ function BinarySettingsTableWriter(memory, doc, saveParams)
 		this.bs.WriteItem(c_oSerCompat.CompatName, function() {oThis.memory.WriteString3(name);});
 		this.bs.WriteItem(c_oSerCompat.CompatUri, function() {oThis.memory.WriteString3(uri);});
 		this.bs.WriteItem(c_oSerCompat.CompatValue, function() {oThis.memory.WriteString3(value);});
+	};
+	this.WriteDocVars = function(docVars)
+	{
+		var oThis = this;
+		for (var i = 0; i < docVars.length; ++i)
+		{
+			let docVar = docVars[i];
+			this.bs.WriteItem(c_oSerDocVars.DocVar, function() {
+				oThis.bs.WriteItem(c_oSerDocVars.Name, function() {oThis.memory.WriteString3(docVar.name);});
+				oThis.bs.WriteItem(c_oSerDocVars.Value, function() {oThis.memory.WriteString3(docVar.value);});
+			});
+		}
 	};
 	this.WriteNotePr = function(notes, notePr, notesSaveParams, posType)
 	{
@@ -16627,10 +16650,41 @@ function Binary_SettingsTableReader(doc, oReadResult, stream)
 		{
 			Settings.setHyphenateCaps(!this.stream.GetBool());
 		}
+		else if (c_oSer_SettingsType.DocVars === type)
+		{
+			let docVars = [];
+			res = this.bcr.Read1(length, function(t, l){
+				return oThis.ReadDocVars(t, l, docVars);
+			});
+			Settings.DocVars = docVars.length > 0 ? docVars : undefined;
+		}
         else
             res = c_oSerConstants.ReadUnknown;
         return res;
     };
+	this.ReadDocVars = function(type, length, docVars)
+	{
+		var res = c_oSerConstants.ReadOk;
+		var oThis = this;
+		if (c_oSerDocVars.DocVar === type)
+		{
+			let docVar = {name : "", value : ""};
+			res = this.bcr.Read1(length, function(t, l){
+				if (c_oSerDocVars.Name === t)
+					docVar.name = oThis.stream.GetString2LE(l);
+				else if (c_oSerDocVars.Value === t)
+					docVar.value = oThis.stream.GetString2LE(l);
+				else
+					return c_oSerConstants.ReadUnknown;
+				return c_oSerConstants.ReadOk;
+			});
+			if (docVar.name)
+				docVars.push(docVar);
+		}
+		else
+			res = c_oSerConstants.ReadUnknown;
+		return res;
+	};
 	this.ReadMathPr = function(type, length, props)
     {
         var res = c_oSerConstants.ReadOk;

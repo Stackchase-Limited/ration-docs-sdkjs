@@ -68,6 +68,7 @@
 		this.GutterAtTop     = false;
 		this.MirrorMargins   = false;
 		this.TrackRevisions  = false; // Флаг рецензирования, который записан в самом файле
+		this.DocVars         = undefined; // w:docVars as [{name, value}]; not edited, kept for the save
 
 		// Compatibility
 		this.SplitPageBreakAndParaMark        = false;
