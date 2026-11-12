@@ -275,7 +275,9 @@
 		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.EditRedo].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.EditRedo, keyCodes.KeyY, false, false, false, true), new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.EditRedo, keyCodes.KeyZ, false, true, false, true));
 		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.InsertHyperlink].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.InsertHyperlink, keyCodes.KeyK, false, false, false, true));
 		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.Bold].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.Bold, keyCodes.KeyB, false, false, false, true));
-		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.Underline].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.Underline, keyCodes.KeyU, false, false, false, true));
+		// Control+U edits the active cell, as in Excel for Mac (F2 needs fn on most Mac keyboards); Cmd+U underlines
+		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.Underline] = [new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.Underline, keyCodes.KeyU, false, false, false, true)];
+		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.EditOpenCellEditor].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.EditOpenCellEditor, keyCodes.KeyU, true, false, false, false));
 		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.Strikeout].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.Strikeout, keyCodes.Digit5, false, false, false, true));
 		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.ToggleAutoFilter].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.ToggleAutoFilter, keyCodes.KeyL, false, true, false, true));
 		c_oAscDefaultShortcuts[Asc.c_oAscSpreadsheetShortcutType.FormatAsTableTemplate].push(new AscShortcut(Asc.c_oAscSpreadsheetShortcutType.FormatAsTableTemplate, keyCodes.KeyL, false, false, false, true));
