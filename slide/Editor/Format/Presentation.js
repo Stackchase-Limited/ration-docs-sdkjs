@@ -11383,6 +11383,13 @@ CPresentation.prototype.IsAutoCorrectFrenchPunctuation = function () {
 	return this.AutoCorrectSettings.IsFrenchPunctuation();
 };
 /**
+ * Set the autocorrect setting for French punctuation (non-breaking spaces before : ; ? ! » and after «)
+ * @param {boolean} isCorrect
+ */
+CPresentation.prototype.SetAutoCorrectFrenchPunctuation = function (isCorrect) {
+	this.AutoCorrectSettings.SetFrenchPunctuation(isCorrect);
+};
+/**
  * Get the autocorrect setting for replacing double space with a period
  * @returns {boolean}
  */

@@ -25322,6 +25322,14 @@ CDocument.prototype.IsAutoCorrectFrenchPunctuation = function()
 	return this.AutoCorrectSettings.IsFrenchPunctuation();
 };
 /**
+ * Set the autocorrect setting for French punctuation (non-breaking spaces before : ; ? ! » and after «)
+ * @param {boolean} isCorrect
+ */
+CDocument.prototype.SetAutoCorrectFrenchPunctuation = function(isCorrect)
+{
+	this.AutoCorrectSettings.SetFrenchPunctuation(isCorrect);
+};
+/**
  * Запрашиваем настройку автозамены двойного пробела на точку
  * @returns {boolean}
  */
