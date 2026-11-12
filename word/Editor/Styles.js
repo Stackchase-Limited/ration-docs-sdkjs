@@ -13093,6 +13093,7 @@ function CTextPr()
     this.Shd        = undefined;
     this.Vanish     = undefined;
 	this.Ligatures  = undefined;
+	this.Kern       = undefined; // DrawingML rPr kern: kern pairs from this font size (pt) up
 
     this.TextOutline    = undefined;
     this.TextFill       = undefined;
@@ -13135,6 +13136,7 @@ CTextPr.prototype.Clear = function()
 	this.Shd            = undefined;
 	this.Vanish         = undefined;
 	this.Ligatures      = undefined;
+	this.Kern           = undefined;
 	this.TextOutline    = undefined;
 	this.TextFill       = undefined;
 	this.HighlightColor = undefined;
@@ -13200,6 +13202,7 @@ CTextPr.prototype.Copy = function(bCopyPrChange, oPr)
 
 	TextPr.Vanish    = this.Vanish;
 	TextPr.Ligatures = this.Ligatures;
+	TextPr.Kern      = this.Kern;
 
 	if (true === bCopyPrChange && undefined !== this.PrChange)
 	{
@@ -13239,6 +13242,7 @@ CTextPr.prototype.createDuplicateForSmartArt = function(oPr)
 
 	TextPr.Vanish    = this.Vanish;
 	TextPr.Ligatures = this.Ligatures;
+	TextPr.Kern      = this.Kern;
 
 	if (oPr.custT) {
 		TextPr.FontSize = this.FontSize;
@@ -13391,6 +13395,9 @@ CTextPr.prototype.Merge = function(TextPr)
 
 	if (undefined !== TextPr.Ligatures && null !== TextPr.Ligatures)
 		this.Ligatures = TextPr.Ligatures;
+
+	if (undefined !== TextPr.Kern && null !== TextPr.Kern)
+		this.Kern = TextPr.Kern;
 
 	if (TextPr.TextOutline)
 		this.TextOutline = TextPr.TextOutline.createDuplicate();
@@ -13571,6 +13578,11 @@ CTextPr.prototype.Apply = function(textPr)
 	else if (undefined !== textPr.Ligatures)
 		this.Ligatures = textPr.Ligatures;
 	
+	if (null === textPr.Kern)
+		this.Kern = undefined;
+	else if (undefined !== textPr.Kern)
+		this.Kern = textPr.Kern;
+	
 	if (null === textPr.FontScale)
 		this.FontScale = undefined;
 	else if (undefined !== textPr.FontScale)
@@ -13687,6 +13699,7 @@ CTextPr.prototype.Set_FromObject = function(TextPr, isUndefinedToNull)
 
 	this.Vanish         = CheckUndefinedToNull(isUndefinedToNull, TextPr.Vanish);
 	this.Ligatures      = CheckUndefinedToNull(isUndefinedToNull, TextPr.Ligatures);
+	this.Kern           = CheckUndefinedToNull(isUndefinedToNull, TextPr.Kern);
 	this.Unifill        = CheckUndefinedToNull(isUndefinedToNull, TextPr.Unifill);
 	this.FontRef        = CheckUndefinedToNull(isUndefinedToNull, TextPr.FontRef);
 	this.TextFill       = CheckUndefinedToNull(isUndefinedToNull, TextPr.TextFill);
@@ -13803,6 +13816,9 @@ CTextPr.prototype.Compare = function(TextPr)
 
 	if (undefined !== this.Ligatures && this.Ligatures !== TextPr.Ligatures)
 		this.Ligatures = undefined;
+
+	if (undefined !== this.Kern && this.Kern !== TextPr.Kern)
+		this.Kern = undefined;
 
 	if (undefined !== this.FontScale && this.FontScale !== TextPr.FontScale)
 		this.FontScale = undefined;
@@ -14181,9 +14197,19 @@ CTextPr.prototype.Write_ToBinary = function(Writer)
 		Flags |= 1073741824;
 	}
 
-	if (undefined != this.Ligatures)
+	// All 32 flag bits are taken, so Kern rides in the Ligatures byte (whose values fit in its low 4 bits):
+	// 0x40 = Ligatures not set, 0x80 = Kern follows as a long (hundredths of a point). Data written
+	// before Kern existed never has either bit set and reads as before (#346)
+	if (undefined != this.Ligatures || undefined != this.Kern)
 	{
-		Writer.WriteByte(this.Ligatures);
+		let ligaturesByte = undefined != this.Ligatures ? this.Ligatures & 0x3F : 0x40;
+		if (undefined != this.Kern)
+			ligaturesByte |= 0x80;
+		
+		Writer.WriteByte(ligaturesByte);
+		if (undefined != this.Kern)
+			Writer.WriteLong(Math.round(this.Kern * 100));
+		
 		Flags |= (1 << 31);
 	}
 
@@ -14353,7 +14379,13 @@ CTextPr.prototype.Read_FromBinary = function(Reader)
 	}
 
 	if (Flags & (1 << 31))
-		this.Ligatures = Reader.GetByte();
+	{
+		let ligaturesByte = Reader.GetByte();
+		if (!(ligaturesByte & 0x40))
+			this.Ligatures = ligaturesByte & 0x3F;
+		if (ligaturesByte & 0x80)
+			this.Kern = Reader.GetLong() / 100;
+	}
 };
 CTextPr.prototype.Check_NeedRecalc = function()
 {
@@ -14618,6 +14650,9 @@ CTextPr.prototype.Is_Equal = function(TextPr)
 	if (this.Ligatures !== TextPr.Ligatures)
 		return false;
 
+	if (this.Kern !== TextPr.Kern)
+		return false;
+
 	if (!IsEqualStyleObjects(this.Shd, TextPr.Shd))
 		return false;
 	if (undefined != TextPr.AscLine)
@@ -14668,6 +14703,7 @@ CTextPr.prototype.Is_Empty = function()
 		|| undefined !== this.Shd
 		|| undefined !== this.Vanish
 		|| undefined !== this.Ligatures
+		|| undefined !== this.Kern
 		|| undefined !== this.TextOutline
 		|| undefined !== this.TextFill
 		|| undefined !== this.HighlightColor)
@@ -14780,6 +14816,9 @@ CTextPr.prototype.GetDiff = function(oTextPr)
 
 	if (this.Ligatures !== oTextPr.Ligatures)
 		oResultTextPr.Ligatures = this.Ligatures;
+
+	if (this.Kern !== oTextPr.Kern)
+		oResultTextPr.Kern = this.Kern;
 
 	if (this.Shd && !this.Shd.IsEqual(oTextPr.Shd))
 		oResultTextPr.Shd = this.Shd.Copy();

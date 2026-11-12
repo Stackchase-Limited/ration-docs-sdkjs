@@ -57,6 +57,7 @@
 		this.TextPr    = null;
 		this.Temporary = false;
 		this.Ligatures = Asc.LigaturesType.None;
+		this.Kern      = undefined;
 		this.Spacing   = 0;
 		this.AscFont   = false; // Специальный случай, когда используемый шрифт ASCW3, а не тот, что задан в настройках
 		
@@ -72,6 +73,7 @@
 		this.TextPr    = null;
 		this.Temporary = isTemporary;
 		this.Ligatures = Asc.LigaturesType.None;
+		this.Kern      = undefined;
 		this.Spacing   = 0;
 		this.AscFont   = false;
 		
@@ -115,6 +117,11 @@
 		let result = this.Ligatures;
 		if (AscFonts.HB_SCRIPT.HB_SCRIPT_ARABIC === textScript)
 			result |= Asc.LigaturesType.Standard;
+		
+		// DrawingML rPr kern: pair kerning for text at or above that size (PowerPoint's default
+		// text styles set kern="1200", kern="0" is off); without it slide text came out wider than in PowerPoint (#346)
+		if (this.Kern && this.FontSize >= this.Kern - 0.001)
+			result |= AscFonts.HB_FEATURE.HB_FEATURE_TYPE_KERNING;
 		
 		return result;
 	};
@@ -245,6 +252,7 @@
 		this.TextPr    = oTextPr;
 		this.Spacing   = isCombForm ? 0 : oTextPr.Spacing;
 		this.Ligatures = isCombForm || Math.abs(this.Spacing) > 0.001 ? Asc.LigaturesType.None : oTextPr.Ligatures;
+		this.Kern      = isCombForm || undefined === oTextPr.Kern || null === oTextPr.Kern ? undefined : oTextPr.Kern;
 		this.AscFont   = oRun.IsUseAscFont(oTextPr);
 	};
 	CParagraphTextShaper.prototype.private_HandleNBSP = function(oItem)
@@ -333,6 +341,7 @@
 			&& t.RTL === oTextPr.RTL
 			&& t.Vanish === oTextPr.Vanish
 			&& t.Ligatures === oTextPr.Ligatures
+			&& t.Kern === oTextPr.Kern
 			&& t.RFonts.IsEqualSlot(oTextPr.RFonts, this.FontSlot));
 	};
 	CParagraphTextShaper.prototype.GetTextScript = function(nUnicode)

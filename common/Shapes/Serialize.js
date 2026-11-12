@@ -9125,7 +9125,7 @@ function BinaryPPTYLoader()
                 }
                 case 8:
                 {
-                    s.Skip2(4); // kern
+                    rPr.Kern = s.GetLong() / 100; // kern: pair kerning from this size (pt) up
                     break;
                 }
                 case 9:

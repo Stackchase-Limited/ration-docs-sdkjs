@@ -2154,6 +2154,9 @@ function CBinaryFileWriter()
         oThis._WriteBool2(1, rPr.Bold);
         oThis._WriteBool2(7, rPr.Italic);
 
+        if (undefined !== rPr.Kern && null !== rPr.Kern)
+            oThis._WriteInt1(8, Math.round(rPr.Kern * 100));
+
         var _cap = null;
         if (rPr.Caps === true)
             _cap = 0;
