@@ -1769,6 +1769,10 @@
 
 			var len = _pluginsTmp[0]["pluginsData"].length;
 			for (var i = 0; i < len; i++) {
+				// Ration Docs #2466: with the "remove built-in plugins" setting the native list marks the
+				// application's plugins it can hide (and restore) as removable
+				if (_pluginsTmp[0]["pluginsData"][i]["canRemoved"] === true)
+					continue;
 				protectedPlugins.push(_pluginsTmp[0]["pluginsData"][i]["guid"]);
 			}
 			
