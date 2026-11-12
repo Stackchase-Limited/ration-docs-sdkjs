@@ -50,7 +50,7 @@
 		this.DoubleSpaceWithPeriod  = false;
 		this.FirstLetterOfSentences = true;
 		this.FirstLetterOfCells     = true;
-		this.TwoInitialCapitals     = true;
+		this.TwoInitialCapitals     = false; // #222: opt-in - existing typing behaviour stays the default
 		this.Hyperlinks             = true;
 		this.FirstLetterExceptions  = new AscCommon.CFirstLetterExceptions();
 	}
