@@ -510,6 +510,61 @@
 		// window["AscDesktopEditor"] is undefined and this is a no-op.
 		// Returns true if it inserted something, in which case the caller must not
 		// go on to paste the raw URI list as text.
+		// Ration Docs #2180: a drawing program (Inkscape) puts the picture on the clipboard as
+		// image/svg+xml, which Chromium 109 does not hand to the page, plus a PNG and - as text/plain -
+		// the SVG document itself. The text branch used to win and pasted the SVG source as text.
+		// When text/plain is a whole SVG document AND the clipboard also holds a picture, it is a
+		// copied picture: insert the SVG (vector) as an image. SVG code copied from a text editor
+		// (no picture alongside) is still pasted as text. Desktop build only.
+		isSvgDocumentText : function(_text_format)
+		{
+			if (!_text_format)
+				return false;
+			var _text = _text_format.replace(/^\uFEFF/, "").trim();
+			if (!/^(<\?xml[^>]*\?>\s*)?(<!--[\s\S]*?-->\s*|<!DOCTYPE[^>]*>\s*)*<svg[\s>]/i.test(_text))
+				return false;
+			return /<\/svg>$/i.test(_text);
+		},
+
+		checkSvgDocumentPaste : function(_clipboard, _text_format)
+		{
+			var _desktop = window["AscDesktopEditor"];
+			if (!_desktop || !_desktop["LocalFileGetImageUrl"] || !this.Api || !this.Api._addImageUrl)
+				return false;
+
+			if (!this.isSvgDocumentText(_text_format))
+				return false;
+
+			var _hasPicture = false;
+			var _items = _clipboard ? _clipboard.items : null;
+			for (var i = 0; _items && i < _items.length; ++i)
+			{
+				if (_items[i].kind === 'file' && _items[i].type.indexOf('image/') === 0)
+					_hasPicture = true;
+			}
+			if (!_hasPicture)
+				return false;
+
+			var _data;
+			try
+			{
+				_data = "data:image/svg+xml;base64," + window.btoa(unescape(encodeURIComponent(_text_format.replace(/^\uFEFF/, "").trim())));
+			}
+			catch (e)
+			{
+				return false;
+			}
+
+			// the native side writes the bytes to a file and keeps it only if core's
+			// CImageFileFormatChecker takes it for an image (SVG here); otherwise "error"
+			var _url = _desktop["LocalFileGetImageUrl"](_data);
+			if (!_url || "error" === _url)
+				return false;
+
+			this.Api._addImageUrl([AscCommon.g_oDocumentUrls.getImageUrl(_url)]);
+			return true;
+		},
+
 		checkFileManagerImagePaste : function(_clipboard, _text_format)
 		{
 			var _desktop = window["AscDesktopEditor"];
@@ -653,7 +708,8 @@
 				// branch below pastes that URI list as literal text. Deliberately
 				// placed AFTER the internal and HTML branches: when real rich content
 				// is also on the clipboard it is the better payload and must still win.
-				if (this.checkFileManagerImagePaste(_clipboard, _text_format))
+				if (this.checkFileManagerImagePaste(_clipboard, _text_format) ||
+					this.checkSvgDocumentPaste(_clipboard, _text_format))
 				{
 					g_clipboardBase.Paste_End();
 					return false;
