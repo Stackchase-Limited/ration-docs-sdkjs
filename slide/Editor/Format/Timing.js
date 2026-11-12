@@ -8730,6 +8730,7 @@
         oAdditionalData.mute = !!oPr.mute;
         oAdditionalData.vol = AscFormat.isRealNumber(oPr.vol) ? oPr.vol : null;
         oAdditionalData.video = oMediaNode.isVideo();
+        oAdditionalData.loop = !!(oPr.cTn && oPr.cTn.repeatCount === "indefinite");
         return oAdditionalData;
     }
     CTiming.prototype.getMediaAdditionalData = function (sDrawingId) {
@@ -8779,11 +8780,13 @@
     // the playback settings of a video/audio drawing that the editor can change (keys as in the interface):
     // "Mute" - p:cMediaNode mute (the players honour it, see getMediaAdditionalData)
     // "HideWhileNotPlaying" - p:cMediaNode showWhenStopped="0" (see CAnimationDrawer.isMediaHiddenWhileStopped)
+    // "Loop" - Loop until stopped, p:cMediaNode > p:cTn repeatCount="indefinite" (the players get it with setMediaFlags)
     function getMediaSettings(oMediaNode) {
         let oPr = oMediaNode && oMediaNode.cMediaNode;
         return {
             "Mute": !!(oPr && oPr.mute),
-            "HideWhileNotPlaying": !!(oPr && oPr.showWhenStopped === false)
+            "HideWhileNotPlaying": !!(oPr && oPr.showWhenStopped === false),
+            "Loop": !!(oPr && oPr.cTn && oPr.cTn.repeatCount === "indefinite")
         };
     }
     CTiming.prototype.getMediaSettings = function (sDrawingId) {
@@ -8796,6 +8799,12 @@
         }
         if (typeof oSettings["HideWhileNotPlaying"] === "boolean" && oSettings["HideWhileNotPlaying"] !== oCurSettings["HideWhileNotPlaying"]) {
             this.checkMediaNode(oDrawing).cMediaNode.setShowWhenStopped(!oSettings["HideWhileNotPlaying"]);
+        }
+        if (typeof oSettings["Loop"] === "boolean" && oSettings["Loop"] !== oCurSettings["Loop"]) {
+            let oCTn = this.checkMediaNode(oDrawing).cMediaNode.cTn;
+            if (oCTn) {
+                oCTn.setRepeatCount(oSettings["Loop"] ? "indefinite" : null);
+            }
         }
     };
     CCmd.prototype.setState = function (nState) {
@@ -8825,7 +8834,11 @@
         this.mute = null;
         this.vol = null;
         this.video = null;
+        this.loop = null;
     }
+    CAdditionalMediaData.prototype.isLoop = function () {
+        return this.loop === true;
+    };
     CAdditionalMediaData.prototype.isFullScreen = function () {
         return this.fullScreen === true;
     };

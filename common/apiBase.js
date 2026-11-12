@@ -3690,6 +3690,15 @@
 			{
 				window["AscDesktopEditor"]["CallMediaPlayerCommand"](oData);
 				this.lastPlCompareOayerData = oData;
+				// what the player does at the end (loop) comes in a command of its own, right after the player
+				// opens: the command data the desktop host passes on has no field for it, so it rides in "From"
+				if(oData && sCmd === "showMediaControl" && AscFormat.isRealNumber(oData["PlaybackFlags"]))
+				{
+					let oFlags = Object.assign({}, oData);
+					oFlags["Cmd"] = "setMediaFlags";
+					oFlags["From"] = oData["PlaybackFlags"];
+					window["AscDesktopEditor"]["CallMediaPlayerCommand"](oFlags);
+				}
 			}
 		}
 	};

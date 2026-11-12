@@ -1040,6 +1040,15 @@
 
 			return this.additionalData.isVideo();
 		};
+		CMediaData.prototype.isLoop = function() {
+			if(!this.additionalData || !this.additionalData.isLoop)
+				return false;
+			return this.additionalData.isLoop();
+		};
+		// the players' setMediaFlags command carries these in "From": 1 - loop until stopped
+		CMediaData.prototype.getPlaybackFlags = function() {
+			return (this.isLoop() ? 1 : 0);
+		};
 		CMediaData.prototype.getVol = function() {
 			if(!this.additionalData)
 				return null;
@@ -1070,6 +1079,7 @@
 			oData["Mute"] = this.isMute();
 			oData["IsVideo"] = this.isVideo();
 			oData["Volume"] = this.getVol();
+			oData["PlaybackFlags"] = this.getPlaybackFlags();
 			oData["StartTime"] = this.getStartTime();
 			oData["EndTime"] = this.getEndTime();
 			oData["FrameRect"] = oFrameRect.toObject();
@@ -1093,6 +1103,7 @@
 			oData["Mute"] = null;
 			oData["IsVideo"] = null;
 			oData["Volume"] = null;
+			oData["PlaybackFlags"] = null;
 			oData["StartTime"] = null;
 			oData["EndTime"] = null;
 			oData["FrameRect"] = null;
