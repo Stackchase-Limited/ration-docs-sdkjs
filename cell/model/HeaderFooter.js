@@ -103,7 +103,17 @@ function (window, undefined) {
 				   everything beside it was correct. doctrenderer now puts the document's
 				   name on the api itself for that case; DocInfo still wins where it has
 				   one, because an open editor knows better than the converter. */
-				res = (api.DocInfo && api.DocInfo.Title) || api.documentTitle || "";
+				/* The desktop's own Save as PDF converts Editor.bin, so doctrenderer has no
+				   name to give and api.documentTitle is still baseEditorsApi's placeholder,
+				   the string "null" - which is what printed. The editor's title does reach
+				   the converter, in the save parameters (formulaProps.docTitle, which
+				   CELL("filename") already reads), so take it from there first, and never
+				   print the placeholder. */
+				let printOptionsJson = api && api.wb && api.wb.getPrintOptionsJson && api.wb.getPrintOptionsJson();
+				let spreadsheetLayout = printOptionsJson && printOptionsJson["spreadsheetLayout"];
+				let formulaProps = spreadsheetLayout && spreadsheetLayout["formulaProps"];
+				let documentTitle = api.documentTitle !== "null" ? api.documentTitle : "";
+				res = (api.DocInfo && api.DocInfo.Title) || (formulaProps && formulaProps["docTitle"]) || documentTitle || "";
 				break;
 			}
 			case asc.c_oAscHeaderFooterField.filePath: {
