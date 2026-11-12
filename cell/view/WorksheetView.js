@@ -93,6 +93,7 @@
     var c_oAscBorderOptions = asc.c_oAscBorderOptions;
     var c_oAscCleanOptions = asc.c_oAscCleanOptions;
     var c_oAscSelectionType = asc.c_oAscSelectionType;
+    var c_oAscActiveCellHighlight = asc.c_oAscActiveCellHighlight;
     var c_oAscAutoFilterTypes = asc.c_oAscAutoFilterTypes;
     var c_oAscChangeTableStyleInfo = asc.c_oAscChangeTableStyleInfo;
     var c_oAscChangeSelectionFormatTable = asc.c_oAscChangeSelectionFormatTable;
@@ -8584,6 +8585,7 @@ function isAllowPasteLink(pastedWb) {
                 if (dialogOtherRanges) {
                     this._drawFormulaRanges(this.oOtherRanges);
                 }
+                this._drawActiveCellHighlight();
                 this._drawSelectionRange();
 
                 if (this.activeFillHandle) {
@@ -8674,6 +8676,44 @@ function isAllowPasteLink(pastedWb) {
 		Api.showForeignSelectLabel(userId, coord._x + coord._width, coord._y, color, foreignCursor.isEdit);
 
 		//this.Update_ForeignCursorLabelPosition(UserId, Coords.X, Coords.Y, Color);
+	};
+
+	/**
+	 * Tints the active cell's row and/or column across the sheet (File > Advanced settings,
+	 * like LibreOffice's row/column highlighting), so a row of a wide table is easy to follow (#1521).
+	 * Off by default.
+	 */
+	WorksheetView.prototype._drawActiveCellHighlight = function () {
+		let mode = this._getActiveCellHighlight();
+		if (!mode) {
+			return;
+		}
+		let cell = this.model.getSelection().activeCell;
+		let lineType = AscCommonExcel.selectionLineType.Selection | AscCommonExcel.selectionLineType.NotStroke;
+		let color = new CColor(255, 192, 0);
+		let bands = [];
+		if (mode & c_oAscActiveCellHighlight.Row) {
+			bands.push(new asc_Range(0, cell.row, this.nColsCount - 1, cell.row));
+		}
+		if (mode & c_oAscActiveCellHighlight.Column) {
+			// leave out the crossing cell when the row is tinted too, so it is not tinted twice
+			let skipRow = !!(mode & c_oAscActiveCellHighlight.Row);
+			if (!skipRow) {
+				bands.push(new asc_Range(cell.col, 0, cell.col, this.nRowsCount - 1));
+			} else {
+				if (cell.row > 0) {
+					bands.push(new asc_Range(cell.col, 0, cell.col, cell.row - 1));
+				}
+				bands.push(new asc_Range(cell.col, cell.row + 1, cell.col, Math.max(cell.row + 1, this.nRowsCount - 1)));
+			}
+		}
+		for (let i = 0; i < bands.length; ++i) {
+			this._drawElements(this._drawSelectionElement, bands[i], lineType, color);
+		}
+	};
+	WorksheetView.prototype._getActiveCellHighlight = function () {
+		let api = this.workbook && this.workbook.Api;
+		return (api && api.activeCellHighlight) || c_oAscActiveCellHighlight.None;
 	};
 
     WorksheetView.prototype._drawSelectionRange = function () {
@@ -9009,7 +9049,8 @@ function isAllowPasteLink(pastedWb) {
 		//print lines view
 		let isTraceDependents = this.traceDependentsManager.isHaveData();
 		let searchSpecificRange = this.handlers.trigger('selectSearchingResults') && this.workbook.SearchEngine && this.workbook.SearchEngine.isSpecificRange();
-		if(this.viewPrintLines || this.getCutRange() || (this.isPageBreakPreview(true) && this.pagesModeData) || searchSpecificRange || isTraceDependents || this.getDynamicArrayFirstCell()) {
+		// the active cell's row/column tint (#1521) spans the sheet, so it needs a full clear like these
+		if(this.viewPrintLines || this.getCutRange() || (this.isPageBreakPreview(true) && this.pagesModeData) || searchSpecificRange || isTraceDependents || this.getDynamicArrayFirstCell() || this._getActiveCellHighlight()) {
 			this.overlayCtx.clear();
 			if (isTraceDependents) {
 				this.traceDependentsManager.clearCoordsData();

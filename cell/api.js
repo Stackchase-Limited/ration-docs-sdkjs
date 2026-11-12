@@ -124,6 +124,8 @@ var editor;
 
     //frozen pane border type
     this.frozenPaneBorderType = Asc.c_oAscFrozenPaneBorderType.shadow;
+    // tint of the active cell's row/column (#1521), off unless the user turns it on
+    this.activeCellHighlight = Asc.c_oAscActiveCellHighlight.None;
 
 	  // Styles sizes
       this.styleThumbnailWidth = 100;
@@ -344,6 +346,21 @@ var editor;
         this.asc_showWorksheet(this.asc_getActiveWorksheetIndex());
       }
     }
+  };
+
+  spreadsheet_api.prototype.asc_setActiveCellHighlight = function(nMode) {
+    nMode = (nMode >> 0) & Asc.c_oAscActiveCellHighlight.RowAndColumn;
+    if (this.activeCellHighlight === nMode) {
+      return;
+    }
+    let ws = this.wb && this.wb.getWorksheet();
+    // clean under the old mode (a tint needs the whole overlay cleared), draw under the new one
+    ws && ws.cleanSelection();
+    this.activeCellHighlight = nMode;
+    ws && ws._drawSelection();
+  };
+  spreadsheet_api.prototype.asc_getActiveCellHighlight = function() {
+    return this.activeCellHighlight;
   };
 
   spreadsheet_api.prototype.initGlobalObjects = function(wbModel, fileSize) {
@@ -10098,6 +10115,8 @@ var editor;
   prot["asc_getGroupSeparator"] = prot.asc_getGroupSeparator;
   prot["asc_getFrozenPaneBorderType"] = prot.asc_getFrozenPaneBorderType;
   prot["asc_setFrozenPaneBorderType"] = prot.asc_setFrozenPaneBorderType;
+  prot["asc_setActiveCellHighlight"] = prot.asc_setActiveCellHighlight;
+  prot["asc_getActiveCellHighlight"] = prot.asc_getActiveCellHighlight;
   prot["asc_getEditorPermissions"] = prot.asc_getEditorPermissions;
   prot["asc_LoadDocument"] = prot.asc_LoadDocument;
   prot["asc_DownloadAs"] = prot.asc_DownloadAs;

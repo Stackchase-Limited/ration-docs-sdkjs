@@ -389,6 +389,14 @@ var c_oAscPopUpSelectorType = {
     line: 2
   };
 
+  // which of the active cell's row and column are tinted (#1521), a bit mask
+  var c_oAscActiveCellHighlight = {
+    None: 0,
+    Row: 1,
+    Column: 2,
+    RowAndColumn: 3
+  };
+
   var c_oAscCFRuleTypeSettings = {
     dataBar: 1,
     colorScale: 2,
@@ -917,6 +925,13 @@ var c_oAscPopUpSelectorType = {
   prot = c_oAscFrozenPaneBorderType;
   prot['shadow'] = prot.shadow;
   prot['line'] = prot.line;
+
+  window['Asc']['c_oAscActiveCellHighlight'] = window['Asc'].c_oAscActiveCellHighlight = c_oAscActiveCellHighlight;
+  prot = c_oAscActiveCellHighlight;
+  prot['None'] = prot.None;
+  prot['Row'] = prot.Row;
+  prot['Column'] = prot.Column;
+  prot['RowAndColumn'] = prot.RowAndColumn;
 
   window['Asc']['c_oAscCFRuleTypeSettings'] = window['Asc'].c_oAscCFRuleTypeSettings = c_oAscCFRuleTypeSettings;
   prot = c_oAscCFRuleTypeSettings;
