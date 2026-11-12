@@ -123,6 +123,12 @@ var c_oAscError = Asc.c_oAscError;
 	{
 		return this._saveCheck();
 	};
+	spreadsheet_api.prototype._isSaveDroppingSheets = function()
+	{
+		// the file is saved back in place when it has a path; csv/tsv hold one sheet
+		var sPath = window["AscDesktopEditor"]["LocalFileGetSourcePath"] ? window["AscDesktopEditor"]["LocalFileGetSourcePath"]() : "";
+		return !!(this.wbModel && this.wbModel.getWorksheetCount() > 1 && /\.(csv|tsv)$/i.test(sPath || ""));
+	};
 	spreadsheet_api.prototype.asc_Save = function (isNoUserSave, isSaveAs, isResaveAttack, options)
 	{
 		if (this.isFrameEditor() || AscCommon.c_oAscAdvancedOptionsAction.None !== this.advancedOptionsAction)
@@ -132,6 +138,24 @@ var c_oAscError = Asc.c_oAscError;
 		this.asc_closeCellEditor();
 
 		var t = this;
+
+		// #1490: a plain Save of a file opened from .csv/.tsv writes that format again, and x2t
+		// keeps only the active sheet - the other sheets were dropped without a word (Save As
+		// CSV already warns). Ask first: "save" keeps the format and saves the active sheet,
+		// anything else opens Save As so the workbook can go to a format that keeps it. Both
+		// end in the host's own save, so a close waiting for this save is never left hanging.
+		if (true !== isNoUserSave && true !== isSaveAs && true !== this.isCsvSheetsSaveConfirmed &&
+			true === this.canSave && this._saveLocalCheck() && this._isSaveDroppingSheets() &&
+			this.handlers.handlers && this.handlers.handlers["asc_onConfirmAction"])
+		{
+			this.handlers.trigger("asc_onConfirmAction", Asc.c_oAscConfirm.ConfirmSaveCsvSheets, function (can) {
+				t.isCsvSheetsSaveConfirmed = true;
+				t.asc_Save(isNoUserSave, !can, isResaveAttack, options);
+				t.isCsvSheetsSaveConfirmed = false;
+			});
+			return;
+		}
+
 		if (true !== isNoUserSave)
 			this.IsUserSave = true;
 
