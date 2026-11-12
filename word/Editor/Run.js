@@ -3867,7 +3867,7 @@ ParaRun.prototype.Recalculate_Range = function(PRS, ParaPr, Depth)
 					let isLigature  = Item.IsLigature();
 					let GraphemeLen = isLigature ? Item.GetLigatureWidth() : LetterLen;
 					
-					let isBreakAfter = Item.IsSpaceAfter(textPr.RFonts.Hint);
+					let isBreakAfter = Item.IsSpaceAfter(textPr.RFonts.Hint) || Para.IsLineBreakAfter(Item);
 
 					if (FirstItemOnLine
 						&& (X + SpaceLen + WordLen + GraphemeLen > XEnd

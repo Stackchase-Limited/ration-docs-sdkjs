@@ -10329,6 +10329,20 @@ background-repeat: no-repeat;\
 		AscCommon.CollaborativeEditing = new AscCommon.CWordCollaborativeEditing();
 	};
 
+	/**
+	 * #371: break lines between the words of Thai, Lao, Khmer and Myanmar text (dictionary word boundaries of
+	 * Intl.Segmenter) instead of at any letter. Off unless the user turns it on in Advanced settings, because it
+	 * changes the layout of existing documents.
+	 * @param {boolean} isOn
+	 */
+	asc_docs_api.prototype.asc_setComplexScriptLineBreak = function(isOn)
+	{
+		if (!AscWord.ComplexScriptLineBreaker.setEnabled(isOn))
+			return;
+		
+		if (this.WordControl && this.WordControl.m_oLogicDocument)
+			this.WordControl.m_oLogicDocument.RecalculateFromStart(true);
+	};
 	asc_docs_api.prototype.asc_Recalculate = function(bIsUpdateInterface)
 	{
 		if (!this.WordControl.m_oLogicDocument)
@@ -16038,6 +16052,7 @@ background-repeat: no-repeat;\
 	
 	// auto hyphenation
 	asc_docs_api.prototype["asc_setAutoHyphenation"]         = asc_docs_api.prototype.asc_setAutoHyphenation;
+	asc_docs_api.prototype["asc_setComplexScriptLineBreak"]  = asc_docs_api.prototype.asc_setComplexScriptLineBreak;
 	asc_docs_api.prototype["asc_isAutoHyphenation"]          = asc_docs_api.prototype.asc_isAutoHyphenation;
 	asc_docs_api.prototype["asc_setHyphenateCaps"]           = asc_docs_api.prototype.asc_setHyphenateCaps;
 	asc_docs_api.prototype["asc_isHyphenateCaps"]            = asc_docs_api.prototype.asc_isHyphenateCaps;

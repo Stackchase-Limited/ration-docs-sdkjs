@@ -19628,6 +19628,8 @@ function CParaRecalcInfo()
 	this.SpellCheck    = false;
 	this.ShapeText     = true;
 	this.HyphenateText = false;
+	this.SegmentText   = true;
+	this.SegmentTextId = 0;
 }
 
 CParaRecalcInfo.prototype =
@@ -19643,7 +19645,8 @@ CParaRecalcInfo.prototype.NeedSpellCheck = function()
 };
 CParaRecalcInfo.prototype.NeedShapeText = function()
 {
-	this.ShapeText = true;
+	this.ShapeText   = true;
+	this.SegmentText = true;
 };
 CParaRecalcInfo.prototype.NeedHyphenateText = function()
 {

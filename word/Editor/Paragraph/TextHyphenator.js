@@ -267,8 +267,118 @@
 			this.document.NeedUpdateTarget = false;
 		}
 	};
+	
+	/**
+	 * #371: Thai, Lao, Khmer and Myanmar are written without spaces between words, so a run of such text is one
+	 * "word" for the line breaker and is cut at whatever letter reaches the margin. When the option is on, the
+	 * word boundaries found by the browser's dictionary-based Intl.Segmenter become line-break opportunities
+	 * (as in Word and LibreOffice). Off by default: it changes the layout of existing documents.
+	 */
+	let complexScriptLineBreak = false;
+	let complexScriptLineBreakId = 0;
+	let wordSegmenter = null;
+	
+	function isNoSpaceScript(codePoint)
+	{
+		return ((0x0E00 <= codePoint && codePoint <= 0x0EFF)     // Thai, Lao
+			|| (0x1000 <= codePoint && codePoint <= 0x109F)      // Myanmar
+			|| (0x1780 <= codePoint && codePoint <= 0x17FF)      // Khmer
+			|| (0x19E0 <= codePoint && codePoint <= 0x19FF)      // Khmer symbols
+			|| (0xAA60 <= codePoint && codePoint <= 0xAA7F));    // Myanmar extended-A
+	}
+	function getWordSegmenter()
+	{
+		// bracket access: the property names are not in the compiler externs
+		if (!wordSegmenter && typeof Intl !== "undefined" && Intl["Segmenter"])
+		{
+			try
+			{
+				wordSegmenter = new Intl["Segmenter"]("th", {"granularity" : "word"});
+			}
+			catch (e)
+			{
+				wordSegmenter = null;
+			}
+		}
+		return wordSegmenter;
+	}
+	const ComplexScriptLineBreaker = {
+		setEnabled : function(isOn)
+		{
+			isOn = !!isOn;
+			if (isOn === complexScriptLineBreak)
+				return false;
+			
+			complexScriptLineBreak = isOn;
+			++complexScriptLineBreakId;
+			return true;
+		},
+		isEnabled : function()
+		{
+			return complexScriptLineBreak;
+		},
+		getId : function()
+		{
+			return complexScriptLineBreakId;
+		},
+		/**
+		 * @param paragraph
+		 * @returns {?Set} text items after which a line may break, or null
+		 */
+		getBreaks : function(paragraph)
+		{
+			if (!complexScriptLineBreak)
+				return null;
+			
+			let text = "", items = [], hasScript = false;
+			paragraph.CheckRunContent(function(run, startPos, endPos)
+			{
+				for (let pos = startPos; pos < endPos; ++pos)
+				{
+					let item = run.GetElement(pos);
+					if (item.IsText())
+					{
+						let codePoint = item.GetCodePoint();
+						let str = String.fromCodePoint(codePoint);
+						if (isNoSpaceScript(codePoint))
+							hasScript = true;
+						
+						text += str;
+						for (let i = 0; i < str.length; ++i)
+							items.push(item);
+					}
+					else
+					{
+						text += " ";
+						items.push(null);
+					}
+				}
+			});
+			
+			let segmenter = hasScript ? getWordSegmenter() : null;
+			if (!segmenter)
+				return null;
+			
+			let breaks = new Set();
+			let segments = segmenter["segment"](text)[Symbol.iterator]();
+			for (let next = segments.next(); !next.done; next = segments.next())
+			{
+				let index = next.value["index"];
+				if (index <= 0 || index >= items.length)
+					continue;
+				
+				let before = items[index - 1], after = items[index];
+				if (before && after && before !== after
+					&& isNoSpaceScript(before.GetCodePoint())
+					&& isNoSpaceScript(after.GetCodePoint()))
+					breaks.add(before);
+			}
+			return breaks.size ? breaks : null;
+		}
+	};
 	//--------------------------------------------------------export----------------------------------------------------
 	window['AscWord'].TextHyphenator = TextHyphenator;
+	window['AscWord'].ComplexScriptLineBreaker = ComplexScriptLineBreaker;
 	
 })(window);
 

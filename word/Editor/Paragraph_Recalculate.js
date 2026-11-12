@@ -340,6 +340,7 @@ Paragraph.prototype.RecalculateFastRunRange = function(oParaPos)
 	this.ShapeTextInRange(this.Get_StartRangePos2(Line, Range), this.Get_EndRangePos2(Line, Range));
 	
 	this.HyphenateText();
+	this.SegmentLineBreaks();
 
 	// Если у нас отрезок, в котором произошли изменения является отрезком с нумерацией, тогда надо запустить
 	// обычный пересчет.
@@ -434,6 +435,7 @@ Paragraph.prototype.Recalculate_Page = function(CurPage, isStart, isFast)
 		this.CalculatedFrame = null;
 		this.ShapeText();
 		this.HyphenateText();
+		this.SegmentLineBreaks();
 	}
 
     this.Clear_NearestPosArray();
@@ -2662,6 +2664,23 @@ Paragraph.prototype.HyphenateText = function()
 		return;
 	
 	AscWord.TextHyphenator.hyphenate(this);
+};
+/**
+ * #371: word boundaries inside Thai/Lao/Khmer/Myanmar text (see AscWord.ComplexScriptLineBreaker)
+ */
+Paragraph.prototype.SegmentLineBreaks = function()
+{
+	let breaker = AscWord.ComplexScriptLineBreaker;
+	if (!this.RecalcInfo.SegmentText && this.RecalcInfo.SegmentTextId === breaker.getId())
+		return;
+	
+	this.RecalcInfo.SegmentText   = false;
+	this.RecalcInfo.SegmentTextId = breaker.getId();
+	this.LineBreaksAfter          = breaker.getBreaks(this);
+};
+Paragraph.prototype.IsLineBreakAfter = function(item)
+{
+	return !!(this.LineBreaksAfter && this.LineBreaksAfter.has(item));
 };
 
 Paragraph.prototype.ShapeTextInRange = function(oStartPos, oEndPos)
