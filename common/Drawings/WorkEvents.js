@@ -979,6 +979,7 @@
 		let isSupportBidirectional = false;
 		let isAllowHorizontal = false;
 		let isUseMaximumDelta = false;
+		let isShiftHorizontal = false;
 		let remainder = null;
 
 		if (options)
@@ -986,6 +987,8 @@
 			isSupportBidirectional = (true === options.isSupportBidirectional);
 			isAllowHorizontal = (true === options.isAllowHorizontal);
 			isUseMaximumDelta = (true === options.isUseMaximumDelta);
+			// #852: Shift+wheel goes sideways, as in the spreadsheet editor (opt-in, asc_setShiftWheelHorizontal)
+			isShiftHorizontal = (true === options.isShiftHorizontal);
 			// {x, y} kept by the caller: the fraction of a pixel cut off below is carried into the next event
 			if (options.remainder)
 				remainder = options.remainder;
@@ -1027,6 +1030,14 @@
 
 				if (0 === deltaX)
 					deltaX = delta;
+			}
+
+			// macOS already sends Shift+wheel of a mouse as a horizontal delta; elsewhere it arrives as a
+			// vertical one with shiftKey set
+			if (isShiftHorizontal && e.shiftKey && 0 === deltaX && !AscBrowser.isMacOs)
+			{
+				deltaX = deltaY;
+				deltaY = 0;
 			}
 		}
 

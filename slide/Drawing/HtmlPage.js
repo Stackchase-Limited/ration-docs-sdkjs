@@ -3994,7 +3994,8 @@
 		let values = AscCommon.checkMouseWhell(e, {
 			isSupportBidirectional : false,
 			isAllowHorizontal : oThis.m_bIsHorScrollVisible,
-			isUseMaximumDelta : true
+			isUseMaximumDelta : true,
+			isShiftHorizontal : true === oThis.m_oApi.isShiftWheelHorizontal
 		});
 
 		oThis.m_nVerticalSlideChangeOnScrollEnabled = true;

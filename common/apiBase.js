@@ -5316,6 +5316,15 @@
 		return (window["Asc"] && window["Asc"]["Addons"] && window["Asc"]["Addons"][type] === true) ? true : false;
 	};
 
+	/**
+	 * #852: Shift+mouse wheel scrolls the document sideways (Windows/Linux; macOS turns Shift+wheel into a
+	 * horizontal scroll itself). Off unless the user turns it on in Advanced settings.
+	 * @param {boolean} isOn
+	 */
+	baseEditorsApi.prototype["asc_setShiftWheelHorizontal"] = function(isOn)
+	{
+		this.isShiftWheelHorizontal = !!isOn;
+	};
 	baseEditorsApi.prototype["asc_setDefaultBlitMode"] = function(value)
 	{
 		AscFonts.setDefaultBlitting(value);

@@ -2336,7 +2336,8 @@
 			let values = AscCommon.checkMouseWhell(e, {
 				isSupportBidirectional : false,
 				isAllowHorizontal : oThis.isVisibleHorScroll,
-				isUseMaximumDelta : true
+				isUseMaximumDelta : true,
+				isShiftHorizontal : true === oThis.Api.isShiftWheelHorizontal
 			});
 			
 			let oField = oThis.getPageFieldByMouse();

@@ -2455,6 +2455,7 @@ function CEditorPage(api)
 			isSupportBidirectional : false,
 			isAllowHorizontal : oThis.m_bIsHorScrollVisible,
 			isUseMaximumDelta : true,
+			isShiftHorizontal : true === oThis.m_oApi.isShiftWheelHorizontal,
 			remainder : oThis.wheelRemainder
 		});
 
