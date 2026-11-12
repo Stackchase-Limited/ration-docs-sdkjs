@@ -336,6 +336,9 @@ var c_oAscError = Asc.c_oAscError;
 		var _param = "";
 		if (isSaveAs === true)
 			_param += "saveas=true;";
+		// #982: "Save Copy as" - the host writes the file but keeps the open document as it is
+		if (isSaveAs === true && options && options.isSaveCopy)
+			_param += "savecopy=true;";
 
 		// settings for pdf
 		var printOptions = "";
