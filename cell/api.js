@@ -4072,7 +4072,14 @@ var editor;
         this.sendSheetsToOtherBooks(where, arrNames, arrSheets, arrBooks);
         this.asc_deleteWorksheet(arrSheets.slice());
       } else if (window["AscDesktopEditor"] && window["AscDesktopEditor"]["IsLocalFile"]()) {
-		  this.copyToNewWorkbook(arrSheets);
+		  // "Move" to a new workbook used to leave the sheets here as well, i.e. it was a copy
+		  // (#1905). Remove them like the other-workbook branch above does, but only once the
+		  // host has the binary for the new tab: if it could not be handed over, removing them
+		  // would lose the sheets. asc_deleteWorksheet refuses to remove every sheet, so moving
+		  // all of them still leaves this workbook as it was.
+		  if (this.copyToNewWorkbook(arrSheets)) {
+			  this.asc_deleteWorksheet(arrSheets.slice());
+		  }
       }
 	  this.removeDocumentInfoEvent();
       return;
@@ -4240,8 +4247,10 @@ var editor;
 	  });
 
 	  if (aBinaryWorkbook) {
-		  window["AscDesktopEditor"]["OpenWorkbook"](AscCommon.Base64.encode(aBinaryWorkbook));
+		  // The host returns true once the binary is on disk for the new tab
+		  return true === window["AscDesktopEditor"]["OpenWorkbook"](AscCommon.Base64.encode(aBinaryWorkbook));
 	  }
+	  return false;
   };
 
   spreadsheet_api.prototype.removeDocumentInfoEvent = function () {
