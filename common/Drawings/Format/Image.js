@@ -754,6 +754,28 @@
 		};
 
 
+		// the media's trim (p14:trim, UniMedia trimSt/trimEnd) in whole ms, null when none; the players get
+		// them as StartTime (cut from the start) and EndTime (cut from the END - a length, not a position)
+		CImageShape.prototype.getMediaStartTime = function() {
+			let oUniMedia = this.getUniMedia();
+			return (oUniMedia && AscFormat.isRealNumber(oUniMedia.trimSt) && oUniMedia.trimSt > 0) ? Math.round(oUniMedia.trimSt) : null;
+		};
+		CImageShape.prototype.getMediaEndTime = function() {
+			let oUniMedia = this.getUniMedia();
+			return (oUniMedia && AscFormat.isRealNumber(oUniMedia.trimEnd) && oUniMedia.trimEnd > 0) ? Math.round(oUniMedia.trimEnd) : null;
+		};
+		// nStart, nEnd: ms cut from the start / the end, 0 or null for none
+		CImageShape.prototype.setMediaTrim = function(nStart, nEnd) {
+			let oUniMedia = this.getUniMedia();
+			if (!oUniMedia || !this.nvPicPr || !this.nvPicPr.nvPr) {
+				return;
+			}
+			let oNew = oUniMedia.createDuplicate();
+			oNew.trimSt = (AscFormat.isRealNumber(nStart) && nStart > 0) ? nStart : null;
+			oNew.trimEnd = (AscFormat.isRealNumber(nEnd) && nEnd > 0) ? nEnd : null;
+			this.nvPicPr.nvPr.setUniMedia(oNew);
+		};
+
 		CImageShape.prototype.isVideo = function() {
 			let oUniMedia = this.getUniMedia();
 			if (oUniMedia && oUniMedia.type === 7) {

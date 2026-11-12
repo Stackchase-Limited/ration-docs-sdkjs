@@ -10863,20 +10863,36 @@ CPresentation.prototype.GetSelectedMediaSettings = function () {
 		return null;
 	}
 	let oTiming = this.GetCurrentSlide().timing;
-	return oTiming ? oTiming.getMediaSettings(oMedia.Get_Id()) : AscFormat.getMediaSettings(null);
+	let oSettings = oTiming ? oTiming.getMediaSettings(oMedia.Get_Id()) : AscFormat.getMediaSettings(null);
+	// "TrimStart", "TrimEnd": ms cut from the start / the end (p14:trim on the drawing, not in the timing)
+	oSettings["TrimStart"] = oMedia.getMediaStartTime() || 0;
+	oSettings["TrimEnd"] = oMedia.getMediaEndTime() || 0;
+	return oSettings;
 };
 CPresentation.prototype.SetSelectedMediaSettings = function (oSettings) {
 	let oMedia = this.GetSelectedMedia();
 	if (!oMedia || !oSettings) {
 		return;
 	}
-	if (this.IsSelectionLocked(AscCommon.changestype_Timing) === false) {
+	// the trim alone does not touch the timing
+	let bTimingKeys = ["Mute", "HideWhileNotPlaying", "Loop", "Rewind"].some(function (sKey) { return typeof oSettings[sKey] === "boolean"; });
+	if (bTimingKeys && this.IsSelectionLocked(AscCommon.changestype_Timing) === false) {
 		this.StartAction(0);
 		let oSlide = this.GetCurrentSlide();
 		if (!oSlide.timing) {
 			oSlide.setTiming(new AscFormat.CTiming());
 		}
 		oSlide.timing.setMediaSettings(oMedia, oSettings);
+		this.FinalizeAction();
+		this.Document_UpdateInterfaceState();
+	}
+	let bTrimStart = AscFormat.isRealNumber(oSettings["TrimStart"]), bTrimEnd = AscFormat.isRealNumber(oSettings["TrimEnd"]);
+	if ((bTrimStart && oSettings["TrimStart"] !== (oMedia.getMediaStartTime() || 0) ||
+		bTrimEnd && oSettings["TrimEnd"] !== (oMedia.getMediaEndTime() || 0)) &&
+		this.IsSelectionLocked(AscCommon.changestype_Drawing_Props) === false) {
+		this.StartAction(0);
+		oMedia.setMediaTrim(bTrimStart ? Math.max(0, oSettings["TrimStart"]) : oMedia.getMediaStartTime(),
+			bTrimEnd ? Math.max(0, oSettings["TrimEnd"]) : oMedia.getMediaEndTime());
 		this.FinalizeAction();
 		this.Document_UpdateInterfaceState();
 	}
