@@ -46,6 +46,9 @@ var CellValueType = AscCommon.CellValueType;
 var c_oAscNumFormatType = Asc.c_oAscNumFormatType;
 
 var gc_sFormatDecimalPoint = ".";
+// Calendar type of a format's locale tag ([$-fa-IR,16] or [$-160429]), Windows CAL_* ids in hex (#2033)
+var c_nCalendarPersian = 0x16;
+var g_aPersianMonthNames = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
 var gc_sFormatThousandSeparator = ",";
 var LocaleFormatSymbol ={};
 var numFormat_Text = 0;
@@ -229,6 +232,8 @@ function FormatObjBracket(sData)
 					this.CurrencyString = aParams[0];
 				} if(aParams.length > 1 && aParams[1].length > 0) {
 					this.Lid = aParams[1];
+					// everything after the first '-': a hex LCID or a locale name, optionally ",<calendar>"
+					this.LocaleTag = data.substring(aParams[0].length + 2);
 				}
             }
 			else if("=" == first || ">" == first || "<" == first)
@@ -673,6 +678,7 @@ function NumFormat(bAddMinusIfNes)
 	this.LCID = null;
 	this.CurrencyString = null;
 	this.DBNum = 0;
+	this.Calendar = null;//c_nCalendarPersian when the locale tag asks for it, else Gregorian
 
 	this.bGeneralChart = false;//if the format contains only one text (e.g. "General" in chart)
     this.bAddMinusIfNes = bAddMinusIfNes;//when formatting for negative numbers is not specified, sometimes a minus sign needs to be inserted
@@ -1613,11 +1619,97 @@ NumFormat.prototype =
 			//After rounding the result may be zero,
 			//but didn't move the sign check here because rounding requires a non-negative number
 
-            if(this.bDateTime === true)
+            if(this.bDateTime === true) {
 				res.date = this.parseDate(number);
+				if (c_nCalendarPersian === this.Calendar)
+					this._toPersianDate(res.date);
+			}
         }
         return res;
     },
+	_parseCalendar: function (sTag) {
+		// [$-160429]: calendar type in bits 16-23; [$-fa-IR,16]: a locale name, then the type in hex.
+		// Only the Persian (Jalali) calendar is supported; any other type keeps the Gregorian dates.
+		if (!sTag) {
+			return;
+		}
+		let nCalendar = null;
+		let nComma = sTag.indexOf(',');
+		if (-1 !== nComma) {
+			nCalendar = parseInt(sTag.substring(nComma + 1), 16);
+			let nLcid = Asc.g_oLcidNameToIdMap && Asc.g_oLcidNameToIdMap[sTag.substring(0, nComma)];
+			if (undefined !== nLcid) {
+				this.LCID = nLcid;
+			}
+		} else if (/^[0-9a-fA-F]+$/.test(sTag)) {
+			nCalendar = (parseInt(sTag, 16) >>> 16) & 0xFF;
+		}
+		if (c_nCalendarPersian === nCalendar) {
+			this.Calendar = nCalendar;
+		}
+	},
+	_toPersianDate: function (date) {
+		// Gregorian -> Jalali (Borkowski's algorithm with the leap-year break table, as in jalaali-js)
+		let div = function (a, b) {
+			return ~~(a / b);
+		};
+		let mod = function (a, b) {
+			return a - ~~(a / b) * b;
+		};
+		let g2d = function (gy, gm, gd) {
+			let d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * mod(gm + 9, 12) + 2, 5) + gd - 34840408;
+			return d - div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) + 752;
+		};
+		let breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178];
+		let jy = date.year - 621;
+		if (jy < breaks[0] || jy >= breaks[breaks.length - 1]) {
+			return;
+		}
+		// year of the Gregorian March in which Farvardin 1 of jy falls, and whether jy - 1 is leap
+		let jalCal = function (jy) {
+			let gy = jy + 621, leapJ = -14, jp = breaks[0], jm, jump = 0, n, i;
+			for (i = 1; i < breaks.length; i += 1) {
+				jm = breaks[i];
+				jump = jm - jp;
+				if (jy < jm) {
+					break;
+				}
+				leapJ = leapJ + div(jump, 33) * 8 + div(mod(jump, 33), 4);
+				jp = jm;
+			}
+			n = jy - jp;
+			leapJ = leapJ + div(n, 33) * 8 + div(mod(n, 33) + 3, 4);
+			if (mod(jump, 33) === 4 && jump - n === 4) {
+				leapJ += 1;
+			}
+			let leapG = div(gy, 4) - div((div(gy, 100) + 1) * 3, 4) - 150;
+			if (jump - n < 6) {
+				n = n - jump + div(jump + 4, 33) * 33;
+			}
+			let leap = mod(mod(n + 1, 33) - 1, 4);
+			return {march: 20 + leapJ - leapG, leap: -1 === leap ? 4 : leap};
+		};
+		let cal = jalCal(jy);
+		let k = g2d(date.year, date.month + 1, date.d) - g2d(date.year, 3, cal.march);
+		if (k >= 0) {
+			if (k <= 185) {
+				date.year = jy;
+				date.month = div(k, 31);
+				date.d = mod(k, 31) + 1;
+				return;
+			}
+			k -= 186;
+		} else {
+			jy -= 1;
+			k += 179;
+			if (1 === cal.leap) {
+				k += 1;
+			}
+		}
+		date.year = jy;
+		date.month = 6 + div(k, 30);
+		date.d = mod(k, 30) + 1;
+	},
 	_parseNumberForPDFDate : function(number) {
 		let oDateTmp = new Date();
 		oDateTmp.setTime(number * (86400 * 1000));
@@ -1997,6 +2089,7 @@ NumFormat.prototype =
 							if (null != item.Lid) {
 								//Excel sometimes add 0x10000(0x442 and 0x10442)
 								this.LCID = parseInt(item.Lid, 16) & 0xFFFF;
+								this._parseCalendar(item.LocaleTag);
 							}
 						}
                     }
@@ -2355,6 +2448,10 @@ NumFormat.prototype =
 						checkRLM();
 						oCurText.text += this._ZeroPad(m + 1);
 					}
+                    else if (c_nCalendarPersian === this.Calendar && item.val >= 3) {
+                        // Jalali months have one name form
+                        oCurText.text += 5 === item.val ? g_aPersianMonthNames[m][0] : g_aPersianMonthNames[m];
+                    }
                     else if (item.val == 3) {
                         if (this.bDay && cultureInfoLCID.AbbreviatedMonthGenitiveNames.length > 0)
                             oCurText.text += cultureInfoLCID.AbbreviatedMonthGenitiveNames[m];
