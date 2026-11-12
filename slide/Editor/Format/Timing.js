@@ -8726,7 +8726,8 @@
         }
         let oPr = oMediaNode.cMediaNode;
         let oAdditionalData = new CAdditionalMediaData();
-        oAdditionalData.fullScreen = !!oPr.fullScrn;
+        // fullScrn is an attribute of <p:video> itself (CVideo), not of its p:cMediaNode
+        oAdditionalData.fullScreen = !!(oMediaNode.isVideo() && oMediaNode.fullScrn);
         oAdditionalData.mute = !!oPr.mute;
         oAdditionalData.vol = AscFormat.isRealNumber(oPr.vol) ? oPr.vol : null;
         oAdditionalData.video = oMediaNode.isVideo();

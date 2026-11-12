@@ -1072,9 +1072,10 @@
 				return false;
 			return this.additionalData.isRewind();
 		};
-		// the players' setMediaFlags command carries these in "From": 1 - loop until stopped, 2 - rewind after playing
+		// the players' setMediaFlags command carries these in "From": 1 - loop until stopped, 2 - rewind after playing,
+		// 4 - play full screen (in a slide show, the video fills the screen while it plays)
 		CMediaData.prototype.getPlaybackFlags = function() {
-			return (this.isLoop() ? 1 : 0) | (this.isRewind() ? 2 : 0);
+			return (this.isLoop() ? 1 : 0) | (this.isRewind() ? 2 : 0) | (this.isFullScreen() ? 4 : 0);
 		};
 		CMediaData.prototype.getVol = function() {
 			if(!this.additionalData)
