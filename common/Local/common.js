@@ -617,6 +617,44 @@ AscCommon.IsDesktopFilesDrag = function(e) {
 };
 
 AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
+	// Ration Docs #2544: "video" / "audio" for a dropped file the presentation editor inserts as
+	// Insert > Video / Audio does (by extension, the lists of the shells' video and audio dialogs),
+	// "" for any other file or editor.
+	function getDropMediaType(editor, path) {
+		if (!editor || !editor.asc_AddVideoCallback || editor.editorId !== AscCommon.c_oEditorId.Presentation || !editor.canEdit() ||
+			!window["AscDesktopEditor"]["AddVideo"] || !window["AscDesktopEditor"]["AddAudio"])
+			return "";
+		var ext = path.substring(path.lastIndexOf(".") + 1).toLowerCase();
+		if (-1 !== ["mp4", "m4v", "mov", "avi", "mkv", "webm", "wmv", "flv", "f4v", "mpg", "mpeg", "mpe", "mpv", "m2v", "ogv", "m2ts", "mts", "ts"].indexOf(ext))
+			return "video";
+		if (-1 !== ["mp3", "mp2", "wav", "wma", "flac", "ogg", "oga", "ape", "aac", "m4a", "alac"].indexOf(ext))
+			return "audio";
+		return "";
+	}
+	// One at a time: AddVideo / AddAudio answer through the single window.on_add_multimedia_local,
+	// which the host clears after calling it, so the next file starts after that.
+	function addDropMedia(editor, media, index) {
+		if (index >= media.length)
+			return;
+		var next = function() {
+			setTimeout(function() { addDropMedia(editor, media, index + 1); }, 0);
+		};
+		if ("video" === media[index].type)
+		{
+			window["AscDesktopEditor"]["AddVideo"](media[index].path, function(local_url, file_url, video_w, video_h) {
+				editor.asc_AddVideoCallback(local_url, file_url, undefined, video_w, video_h);
+				next();
+			});
+		}
+		else
+		{
+			window["AscDesktopEditor"]["AddAudio"](media[index].path, function(local_url, file_url) {
+				editor.asc_AddAudioCallback(local_url, file_url, undefined);
+				next();
+			});
+		}
+	}
+
 	if ("undefined" != typeof(FileReader) && null != oHtmlElement) {
 		oHtmlElement["ondragover"] = function (e) {
 			e.preventDefault();
@@ -653,6 +691,7 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 			let countInserted = 0;
 			let canInsert = editor.isEnabledDropTarget();
 			let otherFiles = [];
+			let mediaFiles = [];
 			if (0 !== _files.length)
 			{
 				let imageFiles = [];
@@ -661,7 +700,14 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 				{
 					if (!window["AscDesktopEditor"]["IsImageFile"](_files[i]))
 					{
-						if (_files[i] !== "")
+						if (_files[i] === "")
+							continue;
+						// Ration Docs #2544: a video or audio file dropped on a slide is inserted
+						// (it went to "open file" below, which cannot open it, and nothing happened).
+						let mediaType = canInsert ? getDropMediaType(editor, _files[i]) : "";
+						if (mediaType)
+							mediaFiles.push({ path : _files[i], type : mediaType });
+						else
 							otherFiles.push(_files[i]);
 						continue;
 					}
@@ -684,6 +730,9 @@ AscCommon.InitDragAndDrop = function(oHtmlElement, callback) {
 				countInserted = imageFiles.length;
 				if (0 !== countInserted)
 					editor._addImageUrl(imageFiles);
+
+				countInserted += mediaFiles.length;
+				addDropMedia(editor, mediaFiles, 0);
 			}
 
 			// Ration Docs #2095: a dropped file that is not an image (docx, xlsx, pdf, csv, ...)
