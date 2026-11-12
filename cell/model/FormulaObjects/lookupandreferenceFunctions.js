@@ -1743,6 +1743,18 @@ function (window, undefined) {
 					}
 				} else if (parserHelp.isName.call(o, o.Formula, o.pCurrPos)) {
 					found_operand = new cName3D(o.operand_str, wsFrom);
+				} else if (wsTo === wsFrom && (_tableTMP = parserHelp.isTable.call(o, o.Formula, o.pCurrPos))) {
+					// #159: a sheet-qualified structured reference ("Sheet2!Table1[Column1]", as Excel accepts in
+					// INDIRECT and in list data validation) - the table must be on that sheet
+					found_operand = AscCommonExcel.cStrucTable.prototype.createFromVal(_tableTMP, wb, ws);
+					if (found_operand.type === cElementType.error) {
+						found_operand = null;
+					} else {
+						found_operand = found_operand.toRef ? found_operand.toRef() : null;
+						if (found_operand && found_operand.getWS && found_operand.getWS() !== wsFrom) {
+							found_operand = null;
+						}
+					}
 				}
 			} else if (parserHelp.isArea.call(o, o.Formula, o.pCurrPos)) {
 				found_operand = new cArea(o.real_str ? o.real_str.toUpperCase() : o.operand_str.toUpperCase(), ws);
