@@ -4522,6 +4522,16 @@ var editor;
 		return AscCommonExcel.g_R1C1Mode;
 	};
 
+	// #2258: Ctrl+D / Ctrl+R fill down / right in the cell grid (Excel's keys). Off by
+	// default; see asc_CEventsController.executeShortcut and _onWindowKeyDown for the rule.
+	spreadsheet_api.prototype.asc_setFillShortcuts = function (value) {
+		this.fillShortcuts = !!value;
+	};
+
+	spreadsheet_api.prototype.asc_getFillShortcuts = function () {
+		return !!this.fillShortcuts;
+	};
+
 	spreadsheet_api.prototype.asc_SetAutoCorrectHyperlinks = function (value) {
 		window['AscCommonExcel'].g_AutoCorrectHyperlinks = value;
 	};
@@ -10227,6 +10237,8 @@ var editor;
   prot["asc_setWorksheetRange"] = prot.asc_setWorksheetRange;
 
   prot["asc_setR1C1Mode"] = prot.asc_setR1C1Mode;
+  prot["asc_setFillShortcuts"] = prot.asc_setFillShortcuts;
+  prot["asc_getFillShortcuts"] = prot.asc_getFillShortcuts;
   prot["asc_getR1C1Mode"] = prot.asc_getR1C1Mode;
   prot["asc_setIncludeNewRowColTable"] = prot.asc_setIncludeNewRowColTable;
 

@@ -1057,6 +1057,18 @@
 					this.view.setFontAttributes("changeFontSize", nShortcutAction === Asc.c_oAscSpreadsheetShortcutType.IncreaseFontSize);
 					break;
 				}
+				case Asc.c_oAscSpreadsheetShortcutType.RightPara: {
+					// #2258: Ctrl+R (Cmd+R) is RightPara. Text in a shape or chart gets it first and
+					// is right-aligned (CommonController.executeShortcut); it only reaches the grid
+					// when no drawing took it, and there it did nothing. With the "fill down / right"
+					// option on it fills right - in the grid, cell editor closed, the sheet editable.
+					if (this.view.Api.asc_getFillShortcuts() && bCanEdit && !bSelectionDialogMode && !this.getCellEditMode()) {
+						this.view.Api.asc_FillCells(Asc.c_oAscFillType.fillRight);
+					} else {
+						oRet = null;
+					}
+					break;
+				}
 				default: {
 					const oCustom = this.view.Api.getCustomShortcutAction(nShortcutAction);
 					if (oCustom) {
@@ -1117,6 +1129,18 @@
 				nRetValue = oShortcutRes.keyResult;
 			} else {
 				switch (oEvent.GetKeyCode()) {
+					case 68: // d
+						// #2258: Ctrl+D (Cmd+D) has no shortcut of its own; with the "fill down / right"
+						// option on it fills down - same rule as Ctrl+R in executeShortcut above. A user
+						// shortcut on Ctrl+D is an action, so it never gets here.
+						if (this.view.Api.asc_getFillShortcuts() && !bIsSelect && !oEvent.IsAlt() &&
+							(bIsMacOs ? oEvent.IsCmd() : oEvent.IsShortcutCtrl())) {
+							if (bCanEdit && !oThis.getCellEditMode() && !bSelectionDialogMode) {
+								this.view.Api.asc_FillCells(Asc.c_oAscFillType.fillDown);
+							}
+							nRetValue = keydownresult_PreventAll;
+						}
+						break;
 					case 82:
 						if (oEvent.CtrlKey && bIsSelect) {
 							if (bCanEdit && !oThis.getCellEditMode() && !bSelectionDialogMode) {
