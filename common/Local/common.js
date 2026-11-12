@@ -83,6 +83,12 @@
 
 		window["AscDesktopEditor"] && window["AscDesktopEditor"]["SetLocalRestrictions"] && window["AscDesktopEditor"]["SetLocalRestrictions"](value);
 	};
+	// #517: the format the save dialog offers first when a new document is saved for the first
+	// time (a c_oAscFileType, e.g. ODT); 0 - the editor's own (docx/xlsx/pptx), as before
+	AscCommon.baseEditorsApi.prototype["asc_setNewFileSaveFormat"] = function(fileType)
+	{
+		this.newFileSaveFormat = (fileType > 0) ? fileType : 0;
+	};
 	AscCommon.baseEditorsApi.prototype["asc_getLocalRestrictions"] = function()
 	{
 		if (undefined === this.localRestrintions)

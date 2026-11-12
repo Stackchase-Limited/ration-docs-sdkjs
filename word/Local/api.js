@@ -232,6 +232,9 @@ window["DesktopOfflineAppDocumentStartSave"] = function(isSaveAs, password, isFo
 	// #982: "Save Copy as" - the host writes the file but keeps the open document as it is
 	if (isSaveAs === true && options && options.isSaveCopy)
 		_param += "savecopy=true;";
+	// #517: preferred format for the first save of a new document (the host decides if it applies)
+	if (editor.newFileSaveFormat)
+		_param += "newformat=" + editor.newFileSaveFormat + ";";
 
 	var jsonOptions = editor["getAdditionalSaveParams"]();
 

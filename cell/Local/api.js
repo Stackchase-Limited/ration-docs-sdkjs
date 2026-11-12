@@ -339,6 +339,9 @@ var c_oAscError = Asc.c_oAscError;
 		// #982: "Save Copy as" - the host writes the file but keeps the open document as it is
 		if (isSaveAs === true && options && options.isSaveCopy)
 			_param += "savecopy=true;";
+		// #517: preferred format for the first save of a new document (the host decides if it applies)
+		if (asc["editor"].newFileSaveFormat)
+			_param += "newformat=" + asc["editor"].newFileSaveFormat + ";";
 
 		// settings for pdf
 		var printOptions = "";
