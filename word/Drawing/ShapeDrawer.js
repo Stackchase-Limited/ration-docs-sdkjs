@@ -48,6 +48,88 @@ var CShapeColor = AscFormat.CShapeColor;
 
 var c_oAscFill = Asc.c_oAscFill;
 
+// A picture's "transparent colour" (a:clrChange, PowerPoint's Set Transparent Color): every pixel of clrFrom becomes
+// clrTo (the alpha of clrFrom is compared only with useA). The changed copy is made once per image and colours
+// and kept with the image (a canvas); null when there is nothing to change or the image cannot be read
+// (a cross-origin image taints the canvas), then the picture is drawn as it is.
+var g_oClrChangeCache = typeof WeakMap !== "undefined" ? new WeakMap() : null;
+function getClrChangeColor(oUniColor, oShape)
+{
+    if (!oUniColor || !oUniColor.color)
+        return null;
+    var oParents = oShape && oShape.getParentObjects ? oShape.getParentObjects() : null;
+    var oTheme = oParents ? oParents.theme : null;
+    if (!oTheme && oShape && oShape.Get_Theme)
+        oTheme = oShape.Get_Theme();
+    oUniColor.Calculate(oTheme, oParents && oParents.slide, oParents && oParents.layout, oParents && oParents.master, {R: 0, G: 0, B: 0, A: 255});
+    return oUniColor.RGBA ? oUniColor.RGBA : null;
+}
+function getClrChangeImage(oBlipFill, oImage, oShape)
+{
+    if (!oBlipFill || !Array.isArray(oBlipFill.Effects) || !oImage || !g_oClrChangeCache || typeof document === "undefined")
+        return null;
+    var oEffect = null;
+    for (var i = 0; i < oBlipFill.Effects.length; ++i)
+    {
+        if (oBlipFill.Effects[i] instanceof AscFormat.CClrChange)
+        {
+            oEffect = oBlipFill.Effects[i];
+            break;
+        }
+    }
+    if (!oEffect)
+        return null;
+    var oFrom = getClrChangeColor(oEffect.clrFrom, oShape);
+    var oTo = getClrChangeColor(oEffect.clrTo, oShape);
+    var nW = oImage.width, nH = oImage.height;
+    if (!oFrom || !oTo || !nW || !nH)
+        return null;
+    var bUseA = oEffect.useA === true;
+    var sKey = [oFrom.R, oFrom.G, oFrom.B, oFrom.A, oTo.R, oTo.G, oTo.B, oTo.A, bUseA ? 1 : 0, nW, nH].join(",");
+    var oByColors = g_oClrChangeCache.get(oImage);
+    if (!oByColors)
+    {
+        oByColors = {};
+        g_oClrChangeCache.set(oImage, oByColors);
+    }
+    if (oByColors.hasOwnProperty(sKey))
+        return oByColors[sKey];
+
+    var oCanvas = null;
+    try
+    {
+        oCanvas = document.createElement("canvas");
+        oCanvas.width = nW;
+        oCanvas.height = nH;
+        var oCtx = oCanvas.getContext("2d");
+        oCtx.drawImage(oImage, 0, 0, nW, nH);
+        var oData = oCtx.getImageData(0, 0, nW, nH);
+        var aPx = oData.data;
+        var nChanged = 0;
+        for (var nPos = 0, nLen = aPx.length; nPos < nLen; nPos += 4)
+        {
+            if (aPx[nPos] === oFrom.R && aPx[nPos + 1] === oFrom.G && aPx[nPos + 2] === oFrom.B && (!bUseA || aPx[nPos + 3] === oFrom.A))
+            {
+                aPx[nPos] = oTo.R;
+                aPx[nPos + 1] = oTo.G;
+                aPx[nPos + 2] = oTo.B;
+                aPx[nPos + 3] = Math.round(aPx[nPos + 3] * oTo.A / 255);
+                ++nChanged;
+            }
+        }
+        if (nChanged > 0)
+            oCtx.putImageData(oData, 0, 0);
+        else
+            oCanvas = null;
+    }
+    catch (e)
+    {
+        oCanvas = null;
+    }
+    oByColors[sKey] = oCanvas;
+    return oCanvas;
+}
+
 function DrawLineEnd(xEnd, yEnd, xPrev, yPrev, type, w, len, drawer, trans)
 {
     switch (type)
@@ -1665,6 +1747,9 @@ CShapeDrawer.prototype =
 		const isImageLoaded = imageData != undefined && imageData.Image != null && imageData.Status == AscFonts.ImageLoadStatus.Complete;
 		if (!isImageLoaded) return;
 
+		// the picture with its transparent colour applied (a:clrChange), when it has one
+		const clrChangeCanvas = this.UniFill.fill.canvas ? null : getClrChangeImage(this.UniFill.fill, imageData.Image, this.Shape);
+
 		graphics.save();
 		graphics.clip();
 
@@ -1672,17 +1757,17 @@ CShapeDrawer.prototype =
 		const isTileSupported = !(AscCommon.AscBrowser.isIE && imageName && imageName.lastIndexOf('.svg') == imageName.length - 4);
 
 		if (isTile && isTileSupported) {
-			this.drawBlipFillTile(imageData);
+			this.drawBlipFillTile(imageData, clrChangeCanvas);
 		} else if (this.UniFill.IsTransitionTextures) {
 			this.drawTransitionTextures(this.UniFill.canvas1, this.UniFill.alpha1, this.UniFill.canvas2, this.UniFill.alpha2);
 		} else {
-			this.drawBlipFillStretch(imageData);
+			this.drawBlipFillStretch(imageData, clrChangeCanvas);
 		}
 
 		graphics.restore();
 	},
 
-	drawBlipFillTile: function (imageData) {
+	drawBlipFillTile: function (imageData, clrChangeCanvas) {
 		const graphics = this.Graphics.isTrack() ? this.Graphics.Graphics : this.Graphics;
 		if (!graphics) return;
 
@@ -1766,14 +1851,14 @@ CShapeDrawer.prototype =
 			offsetX + alignOffsetX,
 			offsetY + alignOffsetY,
 			flipH, flipV,
-			this.UniFill.fill.canvas
+			clrChangeCanvas || this.UniFill.fill.canvas
 		);
 
 		graphics.m_bPenColorInit = false;
 		graphics.m_bBrushColorInit = false;
 	},
 
-	drawBlipFillStretch: function (imageData) {
+	drawBlipFillStretch: function (imageData, clrChangeCanvas) {
 		const graphics = this.Graphics.isTrack() ? this.Graphics.Graphics : this.Graphics;
 		if (!graphics) return;
 
@@ -1829,7 +1914,7 @@ CShapeDrawer.prototype =
 			alpha,
 			dstRect.l, dstRect.t, dstRect.r - dstRect.l, dstRect.b - dstRect.t,
 			srcRect,
-			this.UniFill.fill.canvas
+			clrChangeCanvas || this.UniFill.fill.canvas
 		);
 	},
 
