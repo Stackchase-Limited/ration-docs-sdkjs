@@ -1192,6 +1192,32 @@
 		}
 	};
 
+	// #2045: "Duplicate" - the document as it is now opens as an unsaved copy in a new tab (desktop, local files).
+	// The editor writes its current state as its own binary (getDocumentBinaryForDuplicate, per editor) and hands
+	// it to the host as "copy sheet to a new workbook" does (OpenWorkbook): the host copies this view's recovery
+	// folder, puts the binary in place of Editor.bin and drops the copied changes (desktop-sdk
+	// OpenCopyAsRecoverFile, RD-0031), so nothing has to be saved or flushed first and the edits are not replayed
+	// twice. Returns false when the host did not take it (not a local file, nothing written).
+	baseEditorsApi.prototype.getDocumentBinaryForDuplicate = function()
+	{
+		return null;
+	};
+	baseEditorsApi.prototype.asc_CanDuplicateDocument = function()
+	{
+		return !!(window["AscDesktopEditor"] && window["AscDesktopEditor"]["OpenBinaryAsNewFile"])
+			&& this.getDocumentBinaryForDuplicate !== baseEditorsApi.prototype.getDocumentBinaryForDuplicate;
+	};
+	baseEditorsApi.prototype.asc_DuplicateDocument = function()
+	{
+		if (!this.asc_CanDuplicateDocument())
+			return false;
+
+		let data = this.getDocumentBinaryForDuplicate();
+		if (!data || !data.length)
+			return false;
+
+		return true === window["AscDesktopEditor"]["OpenBinaryAsNewFile"](AscCommon.Base64.encode(data));
+	};
 	baseEditorsApi.prototype.asc_SaveDrawingAsPicture = function(sFormat)
 	{
 		let oController = this.getGraphicController();
@@ -6308,6 +6334,8 @@
 	prot['asc_EditSelectAll'] = prot.asc_EditSelectAll;
 	prot['setOpenedAt'] = prot.setOpenedAt;
 	prot['asc_SaveDrawingAsPicture'] = prot.asc_SaveDrawingAsPicture;
+	prot['asc_CanDuplicateDocument'] = prot.asc_CanDuplicateDocument;
+	prot['asc_DuplicateDocument'] = prot.asc_DuplicateDocument;
 	prot['AddImageUrl'] = prot.AddImageUrl;
 	prot['asc_SetDrawImagePreviewBulletForMenu'] = prot['SetDrawImagePreviewBulletForMenu'] = prot.SetDrawImagePreviewBulletForMenu;
 	prot['asc_GetPossibleNumberingLanguage'] = prot.asc_GetPossibleNumberingLanguage;

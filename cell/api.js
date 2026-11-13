@@ -4243,6 +4243,19 @@ var editor;
   spreadsheet_api.prototype.asc_cancelMoveCopyWorksheet = function () {
 	this.removeDocumentInfoEvent();
   };
+  // #2045: the workbook as it is now, in the format of Editor.bin ("Duplicate", see apiBase.js); written as
+  // copyToNewWorkbook does, with every sheet
+  spreadsheet_api.prototype.getDocumentBinaryForDuplicate = function () {
+	  let data = null;
+	  let wbModel = this.wbModel;
+	  if (!this.wb || !wbModel)
+		  return null;
+
+	  this.wb.executeWithCurrentTopLeftCell(function () {
+		  data = (new AscCommonExcel.BinaryFileWriter(wbModel)).Write(true);
+	  });
+	  return data;
+  };
 
   spreadsheet_api.prototype.copyToNewWorkbook = function (arrSheets) {
 	  let aBinaryWorkbook = null;

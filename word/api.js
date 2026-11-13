@@ -7893,6 +7893,12 @@ background-repeat: no-repeat;\
 		let logicDocument = this.private_GetLogicDocument();
 		return logicDocument ? logicDocument.MoveCursorToCaretPath(path) : false;
 	};
+	// #2045: the document as it is now, in the format of Editor.bin ("Duplicate", see apiBase.js)
+	asc_docs_api.prototype.getDocumentBinaryForDuplicate = function()
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		return logicDocument ? (new AscCommonWord.BinaryFileWriter(logicDocument)).Write(true) : null;
+	};
 	/*callbacks*/
 	asc_docs_api.prototype.sync_zoomChangeCallback  = function(percent, type)
 	{	//c_oAscZoomType.Current, c_oAscZoomType.FitWidth, c_oAscZoomType.FitPage

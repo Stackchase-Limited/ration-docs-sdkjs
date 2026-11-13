@@ -583,6 +583,8 @@
 		this.DocumentRenderer.scrollToXY(y, x);
 		return true;
 	}
+	// #2045: not for PDF: its recovery folder is laid out differently from the Editor.bin the copy is opened from
+	PDFEditorApi.prototype.getDocumentBinaryForDuplicate = AscCommon.baseEditorsApi.prototype.getDocumentBinaryForDuplicate;
 	PDFEditorApi.prototype.getSelectedPages = function() {
 		const oThumbnails = this.DocumentRenderer.thumbnails;
 		if (oThumbnails) {

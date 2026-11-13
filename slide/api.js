@@ -5277,6 +5277,16 @@ background-repeat: no-repeat;\
 	{
 		return this.WordControl.m_oDrawingDocument.SlideCurrent;
 	};
+	// #2045: the presentation as it is now, in the format of Editor.bin ("Duplicate", see apiBase.js)
+	asc_docs_api.prototype.getDocumentBinaryForDuplicate = function()
+	{
+		let presentation = this.private_GetLogicDocument();
+		if (!presentation)
+			return null;
+
+		presentation.CalculateComments();
+		return (new AscCommon.CBinaryFileWriter()).WriteDocument3(presentation);
+	};
 	/*callbacks*/
 	asc_docs_api.prototype.sync_zoomChangeCallback  = function(percent, type)
 	{	//c_oAscZoomType.Current, c_oAscZoomType.FitWidth, c_oAscZoomType.FitPage
