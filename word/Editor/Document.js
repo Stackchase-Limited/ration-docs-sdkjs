@@ -24664,6 +24664,116 @@ CDocument.prototype.GoToBookmark = function(sName, isSelect)
 	else
 		this.BookmarksManager.GoToBookmark(sName);
 };
+/**
+ * #1675: the caret in the main text as plain numbers, so the editor can keep it outside the document and put the
+ * caret back there when the same file is opened again. Inside the paragraph the caret is counted in characters, not
+ * in runs: runs are split and merged differently after a save and reopen.
+ * @returns {?{b : number[], c : number}} b - element indexes down to the paragraph (a table adds its row and cell),
+ * c - the characters before the caret in that paragraph; null when the caret is not in the main text (headers,
+ * notes, shapes)
+ */
+CDocument.prototype.GetCaretPath = function()
+{
+	if (docpostype_Content !== this.GetDocPosType())
+		return null;
+
+	let docPos = this.GetContentPosition(this.IsSelectionUse(), false);
+	for (let index = 0; index < docPos.length; ++index)
+	{
+		let paragraph = docPos[index].Class;
+		if (paragraph instanceof AscWord.Paragraph)
+		{
+			let path = {b : [], c : 0};
+			for (let i = 0; i < index; ++i)
+				path.b.push(docPos[i].Position);
+
+			let paraPos = this.IsSelectionUse() ? paragraph.Get_ParaContentPos(true, false) : paragraph.Get_ParaContentPos(false, false);
+			paragraph.CheckRunContent(function(run, startPos, endPos)
+			{
+				path.c += endPos - startPos;
+			}, null, paraPos);
+
+			return path;
+		}
+	}
+	return null;
+};
+/**
+ * #1675: puts the caret where GetCaretPath was taken. Indexes the document no longer has are refused (false); more
+ * characters than the paragraph has put the caret at its end.
+ * @param {{b : number[], c : number}} path
+ * @returns {boolean}
+ */
+CDocument.prototype.MoveCursorToCaretPath = function(path)
+{
+	function isIndex(n)
+	{
+		return (typeof n === "number" && (n | 0) === n && n >= 0);
+	}
+
+	if (!path || !Array.isArray(path.b) || !path.b.length || !path.b.every(isIndex) || !isIndex(path.c))
+		return false;
+
+	let content   = this;
+	let paragraph = null;
+	for (let i = 0; i < path.b.length && !paragraph;)
+	{
+		let element = content.Content[path.b[i++]];
+		if (!element)
+			return false;
+
+		if (element.IsParagraph())
+		{
+			if (i !== path.b.length)
+				return false;
+
+			paragraph = element;
+		}
+		else if (element.IsTable())
+		{
+			let row  = element.GetRow(path.b[i++]);
+			let cell = row ? row.GetCell(path.b[i++]) : null;
+			if (!cell)
+				return false;
+
+			content = cell.GetContent();
+		}
+		else if (element.IsBlockLevelSdt())
+		{
+			content = element.GetContent();
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	if (!paragraph)
+		return false;
+
+	let left    = path.c;
+	let paraPos = null;
+	paragraph.CheckRunContent(function(run, startPos, endPos, currentPos)
+	{
+		if (left > endPos - startPos)
+		{
+			left -= endPos - startPos;
+			return false;
+		}
+
+		paraPos = currentPos.Copy();
+		paraPos.Add(startPos + left);
+		return true;
+	}, null, null, true);
+
+	this.RemoveSelection();
+	if (paraPos)
+		paragraph.Set_ParaContentPos(paraPos, false, -1, -1, true);
+	else
+		paragraph.MoveCursorToEndPos(false);
+	paragraph.Document_SetThisElementCurrent(true);
+	return true;
+};
 CDocument.prototype.private_RemoveBookmark = function(sName)
 {
 	var arrBookmarkChars = this.BookmarksManager.GetBookmarkByName(sName);

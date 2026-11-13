@@ -7882,6 +7882,17 @@ background-repeat: no-repeat;\
 	{
 		return this.WordControl.m_oDrawingDocument.m_lCurrentPage;
 	};
+	// #1675: the caret as plain numbers (null outside the main text), for "Continue where you left off"
+	asc_docs_api.prototype.asc_GetCaretPath = function()
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		return logicDocument ? logicDocument.GetCaretPath() : null;
+	};
+	asc_docs_api.prototype.asc_MoveCursorToCaretPath = function(path)
+	{
+		let logicDocument = this.private_GetLogicDocument();
+		return logicDocument ? logicDocument.MoveCursorToCaretPath(path) : false;
+	};
 	/*callbacks*/
 	asc_docs_api.prototype.sync_zoomChangeCallback  = function(percent, type)
 	{	//c_oAscZoomType.Current, c_oAscZoomType.FitWidth, c_oAscZoomType.FitPage
@@ -15665,6 +15676,8 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['goToPage']                                  = asc_docs_api.prototype.goToPage;
 	asc_docs_api.prototype['getCountPages']                             = asc_docs_api.prototype.getCountPages;
 	asc_docs_api.prototype['getCurrentPage']                            = asc_docs_api.prototype.getCurrentPage;
+	asc_docs_api.prototype['asc_GetCaretPath']                          = asc_docs_api.prototype.asc_GetCaretPath;
+	asc_docs_api.prototype['asc_MoveCursorToCaretPath']                 = asc_docs_api.prototype.asc_MoveCursorToCaretPath;
 	asc_docs_api.prototype['sync_countPagesCallback']                   = asc_docs_api.prototype.sync_countPagesCallback;
 	asc_docs_api.prototype['sync_currentPageCallback']                  = asc_docs_api.prototype.sync_currentPageCallback;
 	asc_docs_api.prototype['asc_enableKeyEvents']                       = asc_docs_api.prototype.asc_enableKeyEvents;
