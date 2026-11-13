@@ -9815,7 +9815,9 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype.asc_StartMailMerge              = function(oData)
 	{
 		var t = this;
-		if (oData) {
+		if (!oData && this.asc_isSupportLocalMailMerge()) {
+			this.startMailMergeLocal();
+		} else if (oData) {
 			this.mailMergeFileData = oData;
 			this.downloadAs(Asc.c_oAscAsyncAction.MailMergeLoadFile, new Asc.asc_CDownloadOptions(Asc.c_oAscFileType.JSON));
 		} else {
@@ -9836,6 +9838,107 @@ background-repeat: no-repeat;\
 				reader.readAsArrayBuffer(files[0]);
 			});
 		}
+	};
+	// #733: mail merge in the desktop app on a local file, with no document server. The recipients come
+	// from a spreadsheet the user picks in the native dialog; the merged result opens as a new unsaved tab
+	// through the host call "Duplicate" (#2045) uses. Online, both steps go through the server (downloadAs
+	// to JSON, then to DOCX/PDF/e-mail), which is why mail merge used to be off offline.
+	asc_docs_api.prototype.asc_isSupportLocalMailMerge     = function()
+	{
+		var oDesktop = window["AscDesktopEditor"];
+		return !!(oDesktop && oDesktop["IsLocalFile"] && oDesktop["IsLocalFile"]()
+			&& oDesktop["OpenFilenameDialog"] && oDesktop["convertFile"] && oDesktop["loadLocalFile"] && oDesktop["OpenBinaryAsNewFile"]);
+	};
+	// The picked file is only ever read the two ways the desktop already reads a file the user picked:
+	// spreadsheets through the local converter (x2t to the same JSON rows the server makes), CSV/TSV text
+	// as bytes (convertFile cannot pass x2t the delimiter and encoding it needs for text) parsed with the
+	// editors' own CSV parser.
+	asc_docs_api.prototype.startMailMergeLocal             = function()
+	{
+		var t = this;
+		window["AscDesktopEditor"]["OpenFilenameDialog"]("cell", false, function(_file) {
+			var sFile = Array.isArray(_file) ? _file[0] : _file;
+			if (!sFile)
+				return;
+
+			t.sync_StartAction(c_oAscAsyncActionType.BlockInteraction, c_oAscAsyncAction.MailMergeLoadFile);
+			var fEnd = function(aList) {
+				t.sync_EndAction(c_oAscAsyncActionType.BlockInteraction, c_oAscAsyncAction.MailMergeLoadFile);
+				if (!aList || !Array.isArray(aList))
+					t.sendEvent("asc_onError", c_oAscError.ID.MailMergeLoadFile, c_oAscError.Level.NoCritical);
+				else
+					t.asc_StartMailMergeByList(aList);
+			};
+
+			var sExt = AscCommon.GetFileExtension(sFile);
+			if ("csv" === sExt || "tsv" === sExt || "txt" === sExt) {
+				window["AscDesktopEditor"]["loadLocalFile"](sFile, function(data) {
+					var aList = null;
+					try {
+						aList = data && data.length ? parseMailMergeText(AscCommon.UTF8ArrayToString(data, 0, data.length), "tsv" === sExt) : null;
+					} catch (e) {
+						aList = null;
+					}
+					fEnd(aList);
+				});
+			} else {
+				window["AscDesktopEditor"]["convertFile"](sFile, Asc.c_oAscFileType.JSON, function(_res) {
+					var aList = null;
+					if (_res) {
+						try {
+							var data = new Uint8Array(_res["get"]());
+							aList = JSON.parse(AscCommon.UTF8ArrayToString(data, 0, data.length).replace(/^﻿/, ""));
+						} catch (e) {
+							aList = null;
+						}
+						_res["close"]();
+					}
+					fEnd(aList);
+				});
+			}
+		});
+	};
+	// CSV/TSV as UTF-8 (a BOM is dropped); the delimiter of a .csv/.txt is whichever of comma, semicolon
+	// and tab occurs most in its first line outside quotes (comma when none does)
+	function parseMailMergeText(sText, isTab) {
+		sText = sText.replace(/^﻿/, "");
+		var nDelimiter = AscCommon.c_oAscCsvDelimiter.Tab;
+		if (!isTab) {
+			var oCounts = {",": 0, ";": 0, "\t": 0}, isQuoted = false;
+			for (var nPos = 0; nPos < sText.length; ++nPos) {
+				var sChar = sText.charAt(nPos);
+				if ("\"" === sChar)
+					isQuoted = !isQuoted;
+				else if (!isQuoted && ("\n" === sChar || "\r" === sChar))
+					break;
+				else if (!isQuoted && undefined !== oCounts[sChar])
+					oCounts[sChar]++;
+			}
+			nDelimiter = AscCommon.c_oAscCsvDelimiter.Comma;
+			if (oCounts[";"] > oCounts[","] && oCounts[";"] >= oCounts["\t"])
+				nDelimiter = AscCommon.c_oAscCsvDelimiter.Semicolon;
+			else if (oCounts["\t"] > oCounts[","] && oCounts["\t"] > oCounts[";"])
+				nDelimiter = AscCommon.c_oAscCsvDelimiter.Tab;
+		}
+		return AscCommon.parseText(sText, new Asc.asc_CTextOptions(AscCommon.c_oAscCodePageUtf8, nDelimiter), false);
+	}
+	// "Merge to new document": the records StartIndex..EndIndex, one section each (Get_MailMergedDocument,
+	// as the online DOCX/PDF merge), written as Editor.bin and opened by the host as a new unsaved tab
+	// (OpenBinaryAsNewFile; it copies this tab's recovery folder, so pictures come along)
+	asc_docs_api.prototype.asc_MailMergeToNewDocument      = function(StartIndex, EndIndex)
+	{
+		if (this.isLongAction() || !this.asc_isSupportLocalMailMerge())
+			return false;
+
+		var oDocumentMailMerge = this.WordControl.m_oLogicDocument.Get_MailMergedDocument(StartIndex, EndIndex);
+		if (!oDocumentMailMerge)
+			return false;
+
+		var data = (new AscCommonWord.BinaryFileWriter(oDocumentMailMerge)).Write(true);
+		if (!data || !data.length)
+			return false;
+
+		return true === window["AscDesktopEditor"]["OpenBinaryAsNewFile"](AscCommon.Base64.encode(data));
 	};
 	function trimMailMergeList(aList) {
 		// Handle empty or invalid lists
@@ -15784,6 +15887,8 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_AddPageCount']                          = asc_docs_api.prototype.asc_AddPageCount;
 	asc_docs_api.prototype['asc_StartMailMerge']                        = asc_docs_api.prototype.asc_StartMailMerge;
 	asc_docs_api.prototype['asc_StartMailMergeByList']                  = asc_docs_api.prototype.asc_StartMailMergeByList;
+	asc_docs_api.prototype['asc_isSupportLocalMailMerge']               = asc_docs_api.prototype.asc_isSupportLocalMailMerge;
+	asc_docs_api.prototype['asc_MailMergeToNewDocument']                = asc_docs_api.prototype.asc_MailMergeToNewDocument;
 	asc_docs_api.prototype['asc_GetReceptionsCount']                    = asc_docs_api.prototype.asc_GetReceptionsCount;
 	asc_docs_api.prototype['asc_GetMailMergeFieldsNameList']            = asc_docs_api.prototype.asc_GetMailMergeFieldsNameList;
 	asc_docs_api.prototype['asc_AddMailMergeField']                     = asc_docs_api.prototype.asc_AddMailMergeField;
