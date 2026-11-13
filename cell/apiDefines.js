@@ -52,7 +52,8 @@ var c_oAscMergeOptions = {
   None: 0,
   Merge: 1,
   MergeCenter: 2,
-  MergeAcross: 3
+  MergeAcross: 3,
+  MergeKeepContent: 4 // #2044: merge, joining every cell's text with line breaks (WPS "merge content")
 };
 
 var c_oAscBorderOptions = {
@@ -747,6 +748,7 @@ var c_oAscPopUpSelectorType = {
   prot['Merge'] = prot.Merge;
   prot['MergeCenter'] = prot.MergeCenter;
   prot['MergeAcross'] = prot.MergeAcross;
+  prot['MergeKeepContent'] = prot.MergeKeepContent;
   window['Asc']['c_oAscBorderOptions'] = window['Asc'].c_oAscBorderOptions = c_oAscBorderOptions;
   prot = c_oAscBorderOptions;
   prot['Top'] = prot.Top;

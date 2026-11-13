@@ -16692,6 +16692,31 @@ function isAllowPasteLink(pastedWb) {
 								}
                                 t.cellCommentator.mergeComments(range.getBBox0());
                                 break;
+                            case c_oAscMergeOptions.MergeKeepContent: {
+                                // #2044: as Merge, but nothing is lost - the text of every non-empty cell, as
+                                // shown, row by row, goes into the merged cell one per line (WPS "merge content").
+                                // One non-empty cell: a plain merge, the value keeps its type and format.
+                                let aTexts = [];
+                                range._foreachNoEmpty(function (oCell) {
+                                    if (false === t._isCellNullText(oCell)) {
+                                        aTexts.push(oCell.getValue());
+                                    }
+                                });
+                                let mergeRes = range.merge(c_oAscMergeOptions.Merge);
+                                if (mergeRes && mergeRes.errorType) {
+                                    t.handlers.trigger("onErrorEvent", mergeRes.errorType, c_oAscError.Level.NoCritical);
+                                    break;
+                                }
+                                if (aTexts.length > 1) {
+                                    let oFirst = t.model.getRange3(range.bbox.r1, range.bbox.c1, range.bbox.r1, range.bbox.c1);
+                                    oFirst.setValueData(new AscCommonExcel.UndoRedoData_CellValueData(null, new AscCommonExcel.CCellValue({
+                                        text: aTexts.join("\n"), type: CellValueType.String
+                                    })));
+                                    range.setWrap(true);
+                                }
+                                t.cellCommentator.mergeComments(range.getBBox0());
+                                break;
+                            }
                             case c_oAscMergeOptions.None:
                                 range.unmerge();
                                 break;
