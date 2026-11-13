@@ -1032,6 +1032,15 @@ var editor;
 
   spreadsheet_api.prototype.asc_PasteData = function (_format, data1, data2, text_data, doNotShowButton, callback) {
     if (this.canEdit()) {
+      // #2020: Ctrl+Shift+V armed this paste (EventsController, case 86): paste only the values,
+      // as Paste Special > Values does. One paste only, and only if it comes soon after the keys.
+      var armed = this.pasteValuesNext && Date.now() - this.pasteValuesNext < 2000;
+      this.pasteValuesNext = 0;
+      if (armed && !this.wb.getCellEditMode() && !AscCommon.g_specialPasteHelper.specialPasteProps) {
+        var valuesProps = new Asc.SpecialPasteProps();
+        valuesProps.asc_setProps(Asc.c_oSpecialPasteProps.pasteOnlyValues);
+        AscCommon.g_specialPasteHelper.specialPasteProps = valuesProps;
+      }
       this.wb.pasteData(_format, data1, data2, text_data, doNotShowButton, callback);
       //this.asc_EndMoveSheet2(data1, 1, "test2");
     }
@@ -4559,6 +4568,16 @@ var editor;
 
 	spreadsheet_api.prototype.asc_getFillShortcuts = function () {
 		return !!this.fillShortcuts;
+	};
+
+	// #2020: Ctrl+Shift+V (Cmd+Shift+V) pastes values only (Excel's keys). Off by default; see
+	// asc_CEventsController._onWindowKeyDown (case 86) and asc_PasteData for the rule.
+	spreadsheet_api.prototype.asc_setPasteValuesShortcut = function (value) {
+		this.pasteValuesShortcut = !!value;
+	};
+
+	spreadsheet_api.prototype.asc_getPasteValuesShortcut = function () {
+		return !!this.pasteValuesShortcut;
 	};
 
 	spreadsheet_api.prototype.asc_SetAutoCorrectHyperlinks = function (value) {
@@ -10269,6 +10288,8 @@ var editor;
   prot["asc_setR1C1Mode"] = prot.asc_setR1C1Mode;
   prot["asc_setFillShortcuts"] = prot.asc_setFillShortcuts;
   prot["asc_getFillShortcuts"] = prot.asc_getFillShortcuts;
+  prot["asc_setPasteValuesShortcut"] = prot.asc_setPasteValuesShortcut;
+  prot["asc_getPasteValuesShortcut"] = prot.asc_getPasteValuesShortcut;
   prot["asc_getR1C1Mode"] = prot.asc_getR1C1Mode;
   prot["asc_setIncludeNewRowColTable"] = prot.asc_setIncludeNewRowColTable;
 

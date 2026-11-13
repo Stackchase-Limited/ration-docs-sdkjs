@@ -1141,6 +1141,23 @@
 							nRetValue = keydownresult_PreventAll;
 						}
 						break;
+					case 86: // v
+						// #2020: Ctrl+Shift+V (Cmd+Shift+V) has no shortcut of its own; with the "paste values"
+						// option on it pastes only the values (Paste Special > Values), as in Excel - in the grid,
+						// cell editor closed, no drawing selected, the sheet editable. It arms the next paste
+						// (asc_PasteData) and asks the host for it; in a browser the keys' own paste event follows.
+						if (this.view.Api.asc_getPasteValuesShortcut() && bIsSelect && !oEvent.IsAlt() &&
+							(bIsMacOs ? oEvent.IsCmd() : oEvent.IsShortcutCtrl())) {
+							if (bCanEdit && !oThis.getCellEditMode() && !bSelectionDialogMode &&
+								!(oWs && oWs.objectRender && oWs.objectRender.selectedGraphicObjectsExists())) {
+								this.view.Api.pasteValuesNext = Date.now();
+								if (window["AscDesktopEditor"]) {
+									this.view.Api.asc_Paste();
+									nRetValue = keydownresult_PreventAll;
+								}
+							}
+						}
+						break;
 					case 82:
 						if (oEvent.CtrlKey && bIsSelect) {
 							if (bCanEdit && !oThis.getCellEditMode() && !bSelectionDialogMode) {
