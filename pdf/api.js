@@ -893,6 +893,33 @@
 		const oDoc = this.getPDFDoc();
 		return !oDoc.IsMergeLock();
 	};
+	// #1858: the selected pages (in the thumbnails, else the current page) can be saved as a new PDF. Only for a PDF
+	// file, as copying pages; the edits made so far go with them (GetPagesBinary, as for copy).
+	PDFEditorApi.prototype.asc_CanExtractPages = function() {
+		const oDoc = this.getPDFDoc();
+		return !!(oDoc && oDoc.Viewer && oDoc.Viewer.file && oDoc.Viewer.file.type === 0 && !oDoc.IsMergeLock());
+	};
+	// The new PDF is handed to the browser as a download of a blob made here; the desktop app turns that into its
+	// native Save dialog (desktop-sdk cefview.cpp OnBeforeDownload), a browser into its usual download.
+	PDFEditorApi.prototype.asc_ExtractPages = function(sFileName, aPages) {
+		if (!this.asc_CanExtractPages())
+			return false;
+
+		const oDoc = this.getPDFDoc();
+		const nPagesCount = oDoc.GetPagesCount();
+		aPages = (Array.isArray(aPages) ? aPages : this.getSelectedPages()).filter(function(nPage, nIndex, aAll) {
+			return (typeof nPage === "number" && (nPage | 0) === nPage && nPage >= 0 && nPage < nPagesCount && aAll.indexOf(nPage) === nIndex);
+		});
+		if (!aPages.length)
+			return false;
+
+		const aBytes = oDoc.GetPagesBinary(aPages, false);
+		if (!aBytes || !aBytes.length)
+			return false;
+
+		AscCommon.DownloadFileFromBytes(aBytes, sFileName || "pages.pdf", "application/pdf");
+		return true;
+	};
 	PDFEditorApi.prototype.asc_GetSelectedText = function(bClearText, select_Pr) {
 		if (!this.DocumentRenderer)
 			return "";
@@ -5322,6 +5349,8 @@
 	PDFEditorApi.prototype['asc_CanRemovePages']           = PDFEditorApi.prototype.asc_CanRemovePages;
 	PDFEditorApi.prototype['asc_CanRotatePages']           = PDFEditorApi.prototype.asc_CanRotatePages;
 	PDFEditorApi.prototype['asc_CanPastePage']             = PDFEditorApi.prototype.asc_CanPastePage;
+	PDFEditorApi.prototype['asc_CanExtractPages']          = PDFEditorApi.prototype.asc_CanExtractPages;
+	PDFEditorApi.prototype['asc_ExtractPages']             = PDFEditorApi.prototype.asc_ExtractPages;
 	PDFEditorApi.prototype['asc_createSmartArt']		   = PDFEditorApi.prototype.asc_createSmartArt;
 	PDFEditorApi.prototype['asc_undoAllChanges']		   = PDFEditorApi.prototype.asc_undoAllChanges;
 	PDFEditorApi.prototype['asc_addChartDrawingObject']	   = PDFEditorApi.prototype.asc_addChartDrawingObject;
