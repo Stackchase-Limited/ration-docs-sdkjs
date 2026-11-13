@@ -70,6 +70,8 @@ function CPdfPrinter(fontManager, font)
     this.InvertTransform = new AscCommon.CMatrix();
 
     this.bIsSimpleCommands = false;
+    // last width given to setLineWidth, in the same units as the coordinates (see lineHor)
+    this.lineWidth = 1;
 }
 
 CPdfPrinter.prototype =
@@ -227,6 +229,7 @@ CPdfPrinter.prototype =
     },
     setLineWidth : function(val)
     {
+        this.lineWidth = val;
         this.DocumentRenderer.p_width(val * 1000 * vector_koef);
         return this;
     },
@@ -378,14 +381,21 @@ CPdfPrinter.prototype =
 		this.DocumentRenderer._l(x2 * vector_koef, y2 * vector_koef);
 		return this;
 	},
+	// A line of odd width is drawn half a pixel down / right, as DrawingContext.lineHor/lineVer do on screen, so
+	// that it fills the pixel row or column it is given. Cell borders are placed for that: a cell's top border
+	// starts at the cell's left edge, and the vertical border before it occupies the pixel column just left of
+	// it. Without the shift that column was centred half a pixel too far left, so every thin or thick
+	// horizontal border printed with a gap after each vertical one.
 	lineHor : function (x1, y, x2)
 	{
+		y += 0 !== this.lineWidth % 2 ? 0.5 : 0;
 		this.DocumentRenderer._m(x1 * vector_koef, y * vector_koef);
 		this.DocumentRenderer._l(x2 * vector_koef, y * vector_koef);
 		return this;
 	},
 	lineVer : function (x, y1, y2)
 	{
+		x += 0 !== this.lineWidth % 2 ? 0.5 : 0;
 		this.DocumentRenderer._m(x * vector_koef, y1 * vector_koef);
 		this.DocumentRenderer._l(x * vector_koef, y2 * vector_koef);
 		return this;
