@@ -7466,7 +7466,10 @@ CPresentation.prototype.GetSelectionState = function () {
 
 CPresentation.prototype.SetSelectionState = function (State) {
 	if (State.CurPage > -1) {
-		if(State.mode !== null && State.mode !== undefined && State.mode !== Asc.editor.presentationViewMode) {
+		// normal view and slide sorter show the same slides: undo in one of them does not switch to the other
+		const nMaster = Asc.c_oAscPresentationViewMode.masterSlide;
+		if(State.mode !== null && State.mode !== undefined && State.mode !== Asc.editor.presentationViewMode &&
+			(State.mode === nMaster || Asc.editor.presentationViewMode === nMaster)) {
 			Asc.editor.asc_changePresentationViewMode(State.mode);
 		}
 		var oSlide = this.GetSlide(State.CurPage);

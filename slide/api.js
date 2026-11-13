@@ -762,6 +762,21 @@
 	asc_docs_api.prototype.isNormalMode = function() {
 		return this.presentationViewMode === Asc.c_oAscPresentationViewMode.normal && !this.isSlideShow();
 	};
+	// slide sorter: the thumbnails panel fills the editor area as a grid of slides
+	asc_docs_api.prototype.isSorterMode = function() {
+		return this.presentationViewMode === Asc.c_oAscPresentationViewMode.sorter;
+	};
+	asc_docs_api.prototype.asc_IsSorterMode = function() {
+		return this.isSorterMode();
+	};
+	// thumbnails per row in the slide sorter
+	asc_docs_api.prototype.asc_SetSorterColumns = function(nColumns) {
+		if (this.WordControl && this.WordControl.Thumbnails)
+			this.WordControl.Thumbnails.SetSorterColumns(nColumns);
+	};
+	asc_docs_api.prototype.asc_GetSorterColumns = function() {
+		return (this.WordControl && this.WordControl.Thumbnails) ? this.WordControl.Thumbnails.SorterColumns : 0;
+	};
 	asc_docs_api.prototype.asc_IsMasterMode = function() {
 		return this.isMasterMode();
 	};
@@ -9849,6 +9864,10 @@ background-repeat: no-repeat;\
 	};
 
 	asc_docs_api.prototype.getThumbnailsPosition = function () {
+		if(this.isSorterMode()) {
+			// the sorter grid is laid out like a left panel stretched over the whole editor area
+			return AscCommon.thumbnailsPositionMap.left;
+		}
 		if(!this.isRtlInterface) {
 			return this.thumbnailsPosition;
 		}
@@ -10507,6 +10526,9 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype["asc_CanDeleteMaster"] = asc_docs_api.prototype.asc_CanDeleteMaster;
 	asc_docs_api.prototype["asc_CanDeleteLayout"] = asc_docs_api.prototype.asc_CanDeleteLayout;
 	asc_docs_api.prototype["asc_IsMasterMode"] = asc_docs_api.prototype.asc_IsMasterMode;
+	asc_docs_api.prototype["asc_IsSorterMode"] = asc_docs_api.prototype.asc_IsSorterMode;
+	asc_docs_api.prototype["asc_SetSorterColumns"] = asc_docs_api.prototype.asc_SetSorterColumns;
+	asc_docs_api.prototype["asc_GetSorterColumns"] = asc_docs_api.prototype.asc_GetSorterColumns;
 
 	asc_docs_api.prototype["asc_setViewerTargetType"] = asc_docs_api.prototype.asc_setViewerTargetType;
 

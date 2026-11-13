@@ -4174,6 +4174,11 @@ CMasterThumbnails.prototype.update = function() {
 	}
 };
 
+// most thumbnails per row in the slide sorter
+const SORTER_MAX_COLUMNS = 10;
+// drawn over hidden slides in the slide sorter
+const SORTER_HIDDEN_SLIDE_VEIL = "#808080";
+
 function CThumbnailsManager(editorPage)
 {
 	this.isInit = false;
@@ -4238,6 +4243,102 @@ function CThumbnailsManager(editorPage)
 
 	this.IsMasterMode = function() {
 		return Asc.editor.isMasterMode();
+	};
+
+	// slide sorter: the same thumbnails, laid out as a grid of SorterColumns per row over the whole editor area
+	this.SorterColumns = 4;
+	this.IsSorterMode = function() {
+		return Asc.editor.isSorterMode();
+	};
+	this.SetSorterColumns = function(nColumns) {
+		nColumns = Math.max(1, Math.min(SORTER_MAX_COLUMNS, nColumns >> 0));
+		if (nColumns === this.SorterColumns)
+			return;
+		this.SorterColumns = nColumns;
+		if (this.IsSorterMode()) {
+			this.CheckSizes();
+			const nCurrent = this.m_oWordControl.m_oDrawingDocument.SlideCurrent;
+			if (nCurrent >= 0 && nCurrent < this.m_arrPages.length)
+				this.ShowPage(nCurrent);
+		}
+	};
+	this.GetSorterGeometry = function(widthPx) {
+		const nColumns = Math.max(1, this.SorterColumns);
+		const cellWidth = widthPx / nColumns;
+		const thumbWidth = Math.max(1, (cellWidth - this.const_offset_x - this.const_offset_r) >> 0);
+		const thumbHeight = Math.max(1, (thumbWidth * this.SlideHeight / this.SlideWidth) >> 0);
+		return {
+			columns: nColumns,
+			cellWidth: cellWidth,
+			thumbWidth: thumbWidth,
+			thumbHeight: thumbHeight,
+			rowHeight: thumbHeight + 3 * this.const_border_w
+		};
+	};
+	this.GetSorterContentHeight = function(widthPx) {
+		const geometry = this.GetSorterGeometry(widthPx);
+		const nRows = Math.ceil(this.GetSlidesCount() / geometry.columns);
+		return 2 * this.const_offset_y + nRows * geometry.thumbHeight + (nRows > 0 ? (nRows - 1) * 3 * this.const_border_w : 0);
+	};
+	this.CalculateSorterPlaces = function(canvasWidth, canvasHeight, scrollPx) {
+		const geometry = this.GetSorterGeometry(canvasWidth);
+		const nCount = this.GetSlidesCount();
+		this.m_lDrawingFirst = -1;
+		this.m_lDrawingEnd = -1;
+		for (let nIdx = 0; nIdx < nCount; nIdx++) {
+			if (nIdx >= this.m_arrPages.length) {
+				this.m_arrPages[nIdx] = new CThPage();
+				if (nIdx === 0)
+					this.m_arrPages[0].IsSelected = true;
+			}
+			const page = this.m_arrPages[nIdx];
+			page.pageIndex = nIdx;
+			const nCol = nIdx % geometry.columns;
+			const nRow = (nIdx / geometry.columns) >> 0;
+			page.left = (nCol * geometry.cellWidth + this.const_offset_x) >> 0;
+			page.top = this.const_offset_y + nRow * geometry.rowHeight - scrollPx;
+			page.right = page.left + geometry.thumbWidth;
+			page.bottom = page.top + geometry.thumbHeight;
+			if (page.bottom > 0 && page.top < canvasHeight) {
+				if (this.m_lDrawingFirst === -1)
+					this.m_lDrawingFirst = nIdx;
+				this.m_lDrawingEnd = nIdx;
+			}
+		}
+		if (this.m_arrPages.length > nCount)
+			this.m_arrPages.splice(nCount, this.m_arrPages.length - nCount);
+	};
+	// insert position (0..count) for a drop at (x, y): the nearest row, then the nearest slide in it
+	this.GetSorterInsertPos = function(x, y) {
+		let nMinDy = Infinity;
+		for (let i = 0; i < this.m_arrPages.length; i++) {
+			const page = this.m_arrPages[i];
+			const dy = y < page.top ? page.top - y : (y > page.bottom ? y - page.bottom : 0);
+			nMinDy = Math.min(nMinDy, dy);
+		}
+		let nBest = -1, nMinDx = Infinity;
+		for (let i = 0; i < this.m_arrPages.length; i++) {
+			const page = this.m_arrPages[i];
+			const dy = y < page.top ? page.top - y : (y > page.bottom ? y - page.bottom : 0);
+			if (dy !== nMinDy)
+				continue;
+			const dx = Math.abs(x - (page.left + page.right) / 2);
+			if (dx < nMinDx) {
+				nMinDx = dx;
+				nBest = i;
+			}
+		}
+		if (nBest === -1)
+			return 0;
+		const bestPage = this.m_arrPages[nBest];
+		return x < (bestPage.left + bestPage.right) / 2 ? nBest : nBest + 1;
+	};
+	this.OpenSlideFromSorter = function(nSlide) {
+		this.MouseDownTrack.Reset();
+		if (nSlide >= 0 && nSlide < this.GetSlidesCount())
+			this.m_oWordControl.GoToPage(nSlide);
+		this.m_oWordControl.m_oApi.asc_changePresentationViewMode(Asc.c_oAscPresentationViewMode.normal);
+		this.SetFocusElement(FOCUS_OBJECT_MAIN);
 	};
 	// init
 	this.Init = function()
@@ -4429,7 +4530,7 @@ function CThumbnailsManager(editorPage)
 			return false;
 		}
 
-		AscCommon.check_MouseDownEvent(e);
+		AscCommon.check_MouseDownEvent(e, oThis.IsSorterMode());
 		global_mouseEvent.LockMouse();
 		const oPresentation = oThis.m_oWordControl.m_oLogicDocument;
 		let nStartHistoryIndex = oPresentation.History.Index;
@@ -4456,6 +4557,13 @@ function CThumbnailsManager(editorPage)
 				oThis.showContextMenu(false);
 			}
 			checkSelectionEnd();
+			return false;
+		}
+
+		if (oThis.IsSorterMode() && 0 == global_mouseEvent.Button && global_mouseEvent.ClickCount >= 2 &&
+			!global_keyboardEvent.CtrlKey && !global_keyboardEvent.ShiftKey) {
+			// double click in the slide sorter: open the slide in normal view
+			oThis.OpenSlideFromSorter(pos.Page);
 			return false;
 		}
 
@@ -4893,6 +5001,15 @@ function CThumbnailsManager(editorPage)
 			if (AscCommon.isCopyPasteEvent(oEvent)) {
 				return;
 			}
+			if (this.IsSorterMode() && this.onSorterKeyDown(oEvent))
+			{
+				e.preventDefault();
+				if(nStartHistoryIndex === oPresentation.History.Index)
+				{
+					oApi.sendEvent("asc_onSelectionEnd");
+				}
+				return false;
+			}
 			switch (oEvent.KeyCode)
 			{
 				case 13: // enter
@@ -5057,6 +5174,53 @@ function CThumbnailsManager(editorPage)
 		return bReturnValue;
 	};
 
+	// slide sorter keys that differ from the thumbnails panel: Enter opens the slide, the arrows move in the grid
+	// (Ctrl+Up/Down still move the selected slides, Shift extends the selection); returns true if handled
+	this.onSorterKeyDown = function(oEvent)
+	{
+		const oDrawingDocument = this.m_oWordControl.m_oDrawingDocument;
+		const nCount = oDrawingDocument.GetSlidesCount();
+		const nCurrent = oDrawingDocument.SlideCurrent;
+		let nStep = 0;
+		switch (oEvent.KeyCode)
+		{
+			case 13: // enter
+			{
+				if (oEvent.CtrlKey || oEvent.ShiftKey || oEvent.AltKey)
+					return false;
+				this.OpenSlideFromSorter(nCurrent);
+				return true;
+			}
+			case 37: // left
+				nStep = -1;
+				break;
+			case 39: // right
+				nStep = 1;
+				break;
+			case 38: // up
+				nStep = -this.SorterColumns;
+				break;
+			case 40: // down
+				nStep = this.SorterColumns;
+				break;
+			default:
+				return false;
+		}
+		if (oEvent.CtrlKey || oEvent.AltKey)
+			return false;
+		if (oEvent.ShiftKey)
+		{
+			// extend the selection one slide at a time (a whole row for Up/Down)
+			for (let i = 0; i < Math.abs(nStep); i++)
+				this.CorrectShiftSelect(nStep < 0, false);
+			return true;
+		}
+		const nNext = nCurrent + nStep;
+		if (nCurrent >= 0 && nNext >= 0 && nNext < nCount)
+			this.m_oWordControl.GoToPage(nNext);
+		return true;
+	};
+
 	this.SetFocusElement = function(type)
 	{
 		if(this.FocusObjType === type)
@@ -5098,6 +5262,19 @@ function CThumbnailsManager(editorPage)
 	this.ShowPage = function (pageNum) {
 		const scrollApi = this.m_oWordControl.m_oScrollThumbApi;
 		if (!scrollApi) return;
+
+		if (this.IsSorterMode()) {
+			const page = this.m_arrPages[pageNum];
+			if (!page || !this.m_bIsScrollVisible) return;
+			const sorterStart = page.top - this.const_border_w;
+			const sorterEnd = page.bottom + this.const_border_w;
+			const sorterVisible = this.m_oWordControl.m_oThumbnails.HtmlElement.height;
+			if (sorterStart < 0)
+				scrollApi.scrollByY(sorterStart);
+			else if (sorterEnd > sorterVisible)
+				scrollApi.scrollByY(sorterEnd - sorterVisible);
+			return;
+		}
 
 		let startCoord, endCoord, visibleAreaSize, scrollTo, scrollBy;
 		if (Asc.editor.getThumbnailsPosition() === thumbnailsPositionMap.bottom) {
@@ -5347,6 +5524,10 @@ function CThumbnailsManager(editorPage)
 					textPosX = Asc.editor.isRtlInterface
 						? page.right * g_dKoef_pix_to_mm - slideNumberTextWidth - 1 * AscCommon.AscBrowser.retinaPixelRatio
 						: page.left * g_dKoef_pix_to_mm + 1 * AscCommon.AscBrowser.retinaPixelRatio;
+				} else if (this.IsSorterMode()) {
+					// in the gap to the left of each thumbnail of the grid
+					textPosY = page.top * g_dKoef_pix_to_mm + 3 * AscCommon.AscBrowser.retinaPixelRatio;
+					textPosX = page.left * g_dKoef_pix_to_mm - (digitDistance + slideNumberTextWidth) / 2;
 				} else {
 					textPosY = page.top * g_dKoef_pix_to_mm + 3 * AscCommon.AscBrowser.retinaPixelRatio;
 					textPosX = Asc.editor.isRtlInterface
@@ -5367,8 +5548,9 @@ function CThumbnailsManager(editorPage)
 					context.stroke();
 
 					context.beginPath();
-					context.fillStyle = AscCommon.GlobalSkin.BackgroundColorThumbnails;
-					context.globalAlpha = 0.5;
+					// in the slide sorter's big thumbnails a veil of the (light) panel colour is barely visible: grey them
+					context.fillStyle = this.IsSorterMode() ? SORTER_HIDDEN_SLIDE_VEIL : AscCommon.GlobalSkin.BackgroundColorThumbnails;
+					context.globalAlpha = this.IsSorterMode() ? 0.4 : 0.5;
 					context.fillRect(page.left, page.top, page.right - page.left, page.bottom - page.top);
 					context.globalAlpha = 1;
 				}
@@ -5605,6 +5787,21 @@ function CThumbnailsManager(editorPage)
 		const oPage = this.m_arrPages[nPosition - 1];
 
 		context.strokeStyle = "#DEDEDE";
+		if (this.IsSorterMode()) {
+			// a vertical line before the slide at the drop position (or after the last slide of its row)
+			const oNext = this.m_arrPages[nPosition];
+			const oRef = (oNext && (!oPage || oPage.top !== oNext.top)) ? oNext : oPage;
+			if (!oRef)
+				return;
+			const x = (oRef === oNext ? oNext.left - 1.5 * this.const_border_w : oPage.right + 1.5 * this.const_border_w) >> 0;
+			context.lineWidth = 3;
+			context.beginPath();
+			context.moveTo(x + 0.5, oRef.top + 4);
+			context.lineTo(x + 0.5, oRef.bottom - 4);
+			context.stroke();
+			context.beginPath();
+			return;
+		}
 		if (isHorizontalThumbnails) {
 			const containerRightBorder = editor.WordControl.m_oThumbnailsContainer.AbsolutePosition.R * AscCommon.AscBrowser.retinaPixelRatio * g_dKoef_mm_to_pix;
 
@@ -5958,6 +6155,9 @@ function CThumbnailsManager(editorPage)
 		if (convertedX < 0 || convertedX > thControlWidth || convertedY < 0 || convertedY > thControlHeight)
 			return -1;
 
+		if (this.IsSorterMode())
+			return this.GetSorterInsertPos(convertedX, convertedY);
+
 		const isHorizontalThumbnails = Asc.editor.getThumbnailsPosition() === thumbnailsPositionMap.bottom;
 		const isRightToLeft = Asc.editor.isRtlInterface;
 
@@ -6039,6 +6239,11 @@ function CThumbnailsManager(editorPage)
 		const currentScrollPx = isRightToLeft && !isVerticalThumbnails
 			? this.m_dScrollY_max - this.m_dScrollY >> 0
 			: this.m_dScrollY >> 0;
+
+		if (this.IsSorterMode()) {
+			this.CalculateSorterPlaces(canvasWidth, canvasHeight, currentScrollPx);
+			return;
+		}
 
 		let isFirstSlideFound = false;
 		let isLastSlideFound = false;
@@ -6395,6 +6600,9 @@ function CThumbnailsManager(editorPage)
 			thumbnailWidth = (containerWidth * dKoefToPix >> 0) - (this.const_offset_x + this.const_offset_r);
 			thumbnailHeight = thumbnailWidth * this.SlideHeight / this.SlideWidth >> 0;
 		}
+
+		if (this.IsSorterMode())
+			return this.GetSorterContentHeight(containerWidth * dKoefToPix >> 0);
 
 		let cumulativeThumbnailLength = 0;
 

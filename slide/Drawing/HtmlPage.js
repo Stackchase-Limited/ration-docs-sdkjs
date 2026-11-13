@@ -258,6 +258,10 @@
 		this.SplitterType = 0;
 		this.IsUseNullThumbnailsSplitter = false;
 
+		// view mode layout (UpdateViewMode): the slide sorter shows only the thumbnails, as a grid
+		this.m_bIsSorterLayout = false;
+		this.m_bIsMasterLayout = false;
+
 		// axis Y
 		this.SlideScrollMIN = 0;
 		this.SlideScrollMAX = 0;
@@ -1248,6 +1252,9 @@
 			this.m_oThumbnailsSplit.Bounds.SetParams(0, 0, 1000, this.splitters[0].position, false, false, false, true, -1, GlobalSkin.SplitterWidthMM);
 			this.m_oThumbnailsSplit.Anchor = (g_anchor_left | g_anchor_right | g_anchor_bottom);
 		}
+
+		if (this.m_bIsSorterLayout)
+			this.applySorterLayout();
 	};
 	CEditorPage.prototype.recalculateMainContentBounds = function () {
 		if (Asc.editor.getThumbnailsPosition() === thumbnailsPositionMap.left) {
@@ -1463,6 +1470,10 @@
 	CEditorPage.prototype.hitToSplitter = function () {
 		let nResult = 0;
 		const oWordControl = oThis;
+
+		// the slide sorter shows no splitters
+		if (oWordControl.m_bIsSorterLayout)
+			return nResult;
 
 		const splitterWidth = GlobalSkin.SplitterWidthMM * g_dKoef_mm_to_pix;
 
@@ -1872,6 +1883,9 @@
 		} else {
 			this.m_oAnimationPaneContainer.HtmlElement.style.display = "none";
 		}
+
+		if (this.m_bIsSorterLayout)
+			this.applySorterLayout();
 
 		if (true !== isNoNeedResize)
 			this.OnResize2(true);
@@ -4054,7 +4068,7 @@
 		}
 
 		if (oWordControl.Thumbnails.FocusObjType == FOCUS_OBJECT_THUMBNAILS) {
-			if (0 == oWordControl.splitters[0].position) {
+			if (0 == oWordControl.splitters[0].position && !oWordControl.m_oApi.isSorterMode()) {
 				// thumbnails are not visible. Why handle keyboard for them then
 				e.preventDefault();
 				return false;
@@ -5170,12 +5184,44 @@
 		let oPlayerData = this.GetMediaPlayerData();
 		console.log(JSON.stringify(oPlayerData))
 	};
+	// Slide sorter: the thumbnails panel (same drawing, selection, drag and drop and keys) is stretched over
+	// the whole editor area and laid out as a grid (CThumbnailsManager.CalculateSorterPlaces); the slide view
+	// with notes and the animation pane is hidden.
+	CEditorPage.prototype.applySorterLayout = function () {
+		this.m_oThumbnailsContainer.Bounds.SetParams(0, 0, 1000, 1000, false, false, false, false, -1, -1);
+		this.m_oThumbnailsContainer.Anchor = (g_anchor_left | g_anchor_top | g_anchor_right | g_anchor_bottom);
+		this.m_oThumbnailsContainer.HtmlElement.style.display = "block";
+		this.m_oThumbnailsSplit.HtmlElement.style.display = "none";
+		this.m_oMainParent.HtmlElement.style.display = "none";
+	};
+	CEditorPage.prototype.enterSorterLayout = function () {
+		this.m_bIsSorterLayout = true;
+		this.recalculateThumbnailsBounds();
+		this.Thumbnails.SetFocusElement(FOCUS_OBJECT_THUMBNAILS);
+		this.OnResize(true);
+		if (this.m_oDrawingDocument.SlideCurrent >= 0)
+			this.Thumbnails.ShowPage(this.m_oDrawingDocument.SlideCurrent);
+	};
+	CEditorPage.prototype.leaveSorterLayout = function () {
+		this.m_bIsSorterLayout = false;
+		this.m_oMainParent.HtmlElement.style.display = "";
+		this.recalculateThumbnailsBounds();
+		this.recalculateMainContentBounds();
+		this.onSplitterResize(true);
+		this.OnResize(true);
+	};
 	CEditorPage.prototype.UpdateViewMode = function () {
 		let nMode = Asc.editor.presentationViewMode;
+		const isFromSorter = !!this.m_bIsSorterLayout;
+		const isFromMaster = !!this.m_bIsMasterLayout;
+		this.m_bIsMasterLayout = (nMode === Asc.c_oAscPresentationViewMode.masterSlide);
+		if (isFromSorter && nMode !== Asc.c_oAscPresentationViewMode.sorter)
+			this.leaveSorterLayout();
 		switch (nMode) {
 			case Asc.c_oAscPresentationViewMode.normal:
 				{
-					this.GoToPage(0);
+					// from the sorter: open the slide that is current there
+					this.GoToPage(isFromSorter ? Math.max(this.m_oDrawingDocument.SlideCurrent, 0) : 0);
 					this.setNotesEnable(true);
 					this.setAnimPaneEnable(true);
 					this.m_oApi.hideMediaControl();
@@ -5205,6 +5251,16 @@
 				}
 			case Asc.c_oAscPresentationViewMode.sorter:
 				{
+					// slide indices of normal view and sorter are the same; layouts of the master view are not
+					const nCurrent = this.m_oDrawingDocument.SlideCurrent;
+					this.GoToPage(isFromMaster ? 0 : Math.max(nCurrent, 0));
+					this.setNotesEnable(true);
+					this.setAnimPaneEnable(true);
+					this.m_oApi.hideMediaControl();
+					this.m_oApi.asc_hideComments();
+					this.m_oLogicDocument.Recalculate({ Drawings: { All: true, Map: {} } });
+					this.enterSorterLayout();
+					this.m_oLogicDocument.Document_UpdateInterfaceState();
 					break;
 				}
 		}
