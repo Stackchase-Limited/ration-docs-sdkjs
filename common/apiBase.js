@@ -1367,6 +1367,18 @@
 		return (this.canEdit() || this.isRestrictionComments() || this.isRestrictionForms());
 	};
 	/**
+	 * Ration Docs #1064: the English name of the step Undo would revert ("Typing", "Paste", "Insert Rows"),
+	 * "Edit" for a step without a name, null when there is nothing to undo here.
+	 * @returns {?string}
+	 */
+	baseEditorsApi.prototype.asc_getUndoLabel = function()
+	{
+		const history = AscCommon.History;
+		if (!history || !history.Can_Undo || true !== history.Can_Undo() || !this.canUndoRedoByRestrictions())
+			return null;
+		return AscDFH.getHistoryPointLabel(history.Points[history.Index]) || "Edit";
+	};
+	/**
 	 * Function for font loader (whether to load default fonts). For Excel always returns false
 	 * @returns {boolean}
 	 */
@@ -6286,6 +6298,7 @@
 	prot = baseEditorsApi.prototype;
 	prot['asc_loadFontsFromServer'] = prot.asc_loadFontsFromServer;
 	prot['asc_setRestriction'] = prot.asc_setRestriction;
+	prot['asc_getUndoLabel'] = prot.asc_getUndoLabel;
 	prot['asc_addRestriction'] = prot.asc_addRestriction;
 	prot['asc_removeRestriction'] = prot.asc_removeRestriction;
 	prot['asc_getRestrictionSettings'] = prot.asc_getRestrictionSettings = prot.getRestrictionSettings;

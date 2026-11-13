@@ -5966,4 +5966,342 @@
 			changeClass.prototype.IsNeedRecalculate = DoNotRecalculate;
 	};
 
+	// Ration Docs #1064: English names of the commonest undo steps, so that the Undo tooltip can say what it
+	// undoes ("Undo: Typing"). Steps without a name here are shown as a generic "Edit" by asc_getUndoLabel.
+	(function()
+	{
+		const AscDFH = window['AscDFH'];
+		const descriptionLabels = {};
+		const labels = [
+			["Typing", [AscDFH.historydescription_Document_AddLetter, AscDFH.historydescription_Document_AddLetterUnion,
+				AscDFH.historydescription_Document_SpaceButton, AscDFH.historydescription_Document_AddTab,
+				AscDFH.historydescription_Document_CompositeInput, AscDFH.historydescription_Document_CompositeInputReplace,
+				AscDFH.historydescription_Document_AddEuroLetter, AscDFH.historydescription_Document_MinusButton,
+				AscDFH.historydescription_Document_Shortcut_AddNonBreakingSpace, AscDFH.historydescription_Spreadsheet_AddItem,
+				AscDFH.historydescription_Spreadsheet_AddSpace, AscDFH.historydescription_Spreadsheet_AddTab,
+				AscDFH.historydescription_Spreadsheet_ParagraphAdd, AscDFH.historydescription_Presentation_ParagraphAdd]],
+			["New Paragraph", [AscDFH.historydescription_Document_EnterButton, AscDFH.historydescription_Presentation_AddNewParagraph,
+				AscDFH.historydescription_Spreadsheet_AddNewParagraph]],
+			["Delete", [AscDFH.historydescription_Document_BackSpaceButton, AscDFH.historydescription_Document_DeleteButton,
+				AscDFH.historydescription_Document_ShiftDeleteButton, AscDFH.historydescription_Spreadsheet_Remove,
+				AscDFH.historydescription_Presentation_RemoveDrawingObject, AscDFH.historydescription_Pdf_ContextMenuRemove]],
+			["Cut", [AscDFH.historydescription_Cut, AscDFH.historydescription_Document_CutHotKey]],
+			["Paste", [AscDFH.historydescription_PasteButtonIE, AscDFH.historydescription_PasteButtonNotIE,
+				AscDFH.historydescription_PasteNative, AscDFH.historydescription_Document_PasteHotKey,
+				AscDFH.historydescription_Document_PasteSafariHotKey, AscDFH.historydescription_Document_ShiftInsert,
+				AscDFH.historydescription_Document_ShiftInsertSafari, AscDFH.historydescription_Presentation_PasteOnThumbnails,
+				AscDFH.historydescription_Presentation_PasteOnThumbnailsSafari]],
+			["Paste Formatting", [AscDFH.historydescription_Document_FormatPasteHotKey,
+				AscDFH.historydescription_Document_FormatPasteHotKey2, AscDFH.historydescription_Presentation_ParaFormatPaste]],
+			["Font", [AscDFH.historydescription_Document_SetTextFontName, AscDFH.historydescription_Document_SetTextFontNameLong,
+				AscDFH.historydescription_Presentation_PutTextPrFontName]],
+			["Font Size", [AscDFH.historydescription_Document_SetTextFontSize, AscDFH.historydescription_Document_IncFontSize,
+				AscDFH.historydescription_Document_DecFontSize, AscDFH.historydescription_Presentation_PutTextPrFontSize,
+				AscDFH.historydescription_Presentation_PutTextPrIncreaseFontSize,
+				AscDFH.historydescription_Presentation_PutTextPrDecreaseFontSize,
+				AscDFH.historydescription_Presentation_ParagraphIncDecFontSize]],
+			["Bold", [AscDFH.historydescription_Document_SetTextBold, AscDFH.historydescription_Document_SetTextBoldHotKey,
+				AscDFH.historydescription_Presentation_PutTextPrBold]],
+			["Italic", [AscDFH.historydescription_Document_SetTextItalic, AscDFH.historydescription_Document_SetTextItalicHotKey,
+				AscDFH.historydescription_Presentation_PutTextPrItalic]],
+			["Underline", [AscDFH.historydescription_Document_SetTextUnderline,
+				AscDFH.historydescription_Document_SetTextUnderlineHotKey, AscDFH.historydescription_Presentation_PutTextPrUnderline]],
+			["Strikethrough", [AscDFH.historydescription_Document_SetTextStrikeout,
+				AscDFH.historydescription_Document_SetTextStrikeoutHotKey, AscDFH.historydescription_Document_SetTextDStrikeout,
+				AscDFH.historydescription_Presentation_PutTextPrStrikeout]],
+			["Font Color", [AscDFH.historydescription_Document_SetTextColor, AscDFH.historydescription_Presentation_PutTextColor,
+				AscDFH.historydescription_Presentation_PutTextColor2]],
+			["Highlight", [AscDFH.historydescription_Document_SetTextHighlight, AscDFH.historydescription_Document_SetTextHighlight2,
+				AscDFH.historydescription_Document_SetTextHighlightColor, AscDFH.historydescription_Document_SetTextHighlightNone]],
+			["Superscript/Subscript", [AscDFH.historydescription_Document_SetTextVertAlign,
+				AscDFH.historydescription_Document_SetTextVertAlignHotKey, AscDFH.historydescription_Document_SetTextVertAlignHotKey2,
+				AscDFH.historydescription_Document_SetTextVertAlignHotKey3, AscDFH.historydescription_Presentation_PutTextPrBaseline]],
+			["Change Case", [AscDFH.historydescription_Document_ChangeTextCase]],
+			["Clear Formatting", [AscDFH.historydescription_Document_ClearFormatting,
+				AscDFH.historydescription_Document_Shortcut_ClearFormatting,
+				AscDFH.historydescription_Presentation_ParagraphClearFormatting]],
+			["Alignment", [AscDFH.historydescription_Document_SetParagraphAlign,
+				AscDFH.historydescription_Document_SetParagraphAlignHotKey, AscDFH.historydescription_Document_SetParagraphAlignHotKey2,
+				AscDFH.historydescription_Document_SetParagraphAlignHotKey3, AscDFH.historydescription_Document_SetParagraphAlignHotKey4,
+				AscDFH.historydescription_Presentation_SetParagraphAlign, AscDFH.historydescription_Presentation_PutTextPrAlign]],
+			["Line Spacing", [AscDFH.historydescription_Document_SetParagraphLineSpacing,
+				AscDFH.historydescription_Document_SetParagraphLineSpacingBeforeAfter,
+				AscDFH.historydescription_Presentation_SetParagraphSpacing, AscDFH.historydescription_Presentation_PutTextPrLineSpacing,
+				AscDFH.historydescription_Presentation_PutTextPrSpacingBeforeAfter]],
+			["Indent", [AscDFH.historydescription_Document_SetParagraphIndent, AscDFH.historydescription_Document_IncParagraphIndent,
+				AscDFH.historydescription_Document_DecParagraphIndent, AscDFH.historydescription_Document_SetParagraphIndentRight,
+				AscDFH.historydescription_Document_SetParagraphIndentFirstLine,
+				AscDFH.historydescription_Document_SetParagraphIndentFromRulers,
+				AscDFH.historydescription_Presentation_SetParagraphIndent, AscDFH.historydescription_Presentation_ParagraphIncDecIndent,
+				AscDFH.historydescription_Presentation_PutPrIndent, AscDFH.historydescription_Presentation_PutPrIndentRight,
+				AscDFH.historydescription_Presentation_PutPrFirstLineIndent]],
+			["List", [AscDFH.historydescription_Document_SetParagraphNumbering,
+				AscDFH.historydescription_Document_SetParagraphNumberingHotKey,
+				AscDFH.historydescription_Presentation_SetParagraphNumbering, AscDFH.historydescription_Presentation_PutTextPrListType]],
+			["Style", [AscDFH.historydescription_Document_SetParagraphStyle, AscDFH.historydescription_Document_SetStyleHeading,
+				AscDFH.historydescription_Document_Shortcut_SetStyleHeading1,
+				AscDFH.historydescription_Document_Shortcut_SetStyleHeading2,
+				AscDFH.historydescription_Document_Shortcut_SetStyleHeading3]],
+			["Paragraph Settings", [AscDFH.historydescription_Document_SetParagraphPr,
+				AscDFH.historydescription_Document_SetParagraphTabs, AscDFH.historydescription_Document_SetParagraphShd,
+				AscDFH.historydescription_Document_SetParagraphBorders, AscDFH.historydescription_Presentation_SetParagraphTabs]],
+			["Replace", [AscDFH.historydescription_Document_ReplaceSingle, AscDFH.historydescription_Document_ReplaceMisspelledWord,
+				AscDFH.historydescription_Document_ReplaceCurrentWord]],
+			["Replace All", [AscDFH.historydescription_Document_ReplaceAll]],
+			["AutoCorrect", [AscDFH.historydescription_Document_AutoCorrectCommon,
+				AscDFH.historydescription_Document_AutoCorrectSmartQuotes, AscDFH.historydescription_Document_AutoCorrectHyphensWithDash,
+				AscDFH.historydescription_Document_AutoCorrectFirstLetterOfSentence, AscDFH.historydescription_Document_MathAutoCorrect,
+				AscDFH.historydescription_Document_AutoCorrectMath]],
+			["Insert Table", [AscDFH.historydescription_Document_AddTable, AscDFH.historydescription_Presentation_AddFlowTable,
+				AscDFH.historydescription_Document_DrawNewTable, AscDFH.historydescription_Document_ConvertTextToTable]],
+			["Insert Rows", [AscDFH.historydescription_Document_TableAddRowAbove, AscDFH.historydescription_Document_TableAddRowBelow,
+				AscDFH.historydescription_Document_TableAddNewRowByTab, AscDFH.historydescription_Presentation_AddRowAbove,
+				AscDFH.historydescription_Presentation_AddRowBelow]],
+			["Insert Columns", [AscDFH.historydescription_Document_TableAddColumnLeft,
+				AscDFH.historydescription_Document_TableAddColumnRight, AscDFH.historydescription_Presentation_AddColLeft,
+				AscDFH.historydescription_Presentation_AddColRight]],
+			["Delete Rows", [AscDFH.historydescription_Document_TableRemoveRow, AscDFH.historydescription_Presentation_RemoveRow]],
+			["Delete Columns", [AscDFH.historydescription_Document_TableRemoveColumn, AscDFH.historydescription_Presentation_RemoveCol]],
+			["Delete Table", [AscDFH.historydescription_Document_RemoveTable, AscDFH.historydescription_Presentation_RemoveTable]],
+			["Merge Cells", [AscDFH.historydescription_Document_MergeTableCells, AscDFH.historydescription_Presentation_MergeCells]],
+			["Split Cells", [AscDFH.historydescription_Document_SplitTableCells, AscDFH.historydescription_Presentation_SplitCells]],
+			["Table Settings", [AscDFH.historydescription_Document_ApplyTablePr, AscDFH.historydescription_Presentation_TblApply,
+				AscDFH.historydescription_Presentation_TableBorder, AscDFH.historydescription_Document_ResizeTable,
+				AscDFH.historydescription_Document_MoveTableBorder]],
+			["Insert Picture", [AscDFH.historydescription_Document_AddImageUrl, AscDFH.historydescription_Document_AddImageUrlLong,
+				AscDFH.historydescription_Document_AddImageToPage, AscDFH.historydescription_Document_AddImage,
+				AscDFH.historydescription_Document_AddImages, AscDFH.historydescription_Presentation_AddFlowImage,
+				AscDFH.historydescription_Spreadsheet_AddImageUrls]],
+			["Insert Shape", [AscDFH.historydescription_Document_AddNewShape, AscDFH.historydescription_CommonStatesAddNewShape,
+				AscDFH.historydescription_Presentation_AddShape, AscDFH.historydescription_Spreadsheet_AddShape,
+				AscDFH.historydescription_Document_AddTextArt]],
+			["Insert Chart", [AscDFH.historydescription_Document_AddChart, AscDFH.historydescription_Presentation_AddChart,
+				AscDFH.historydescription_Spreadsheet_AddChart]],
+			["Edit Chart", [AscDFH.historydescription_Document_EditChart, AscDFH.historydescription_Presentation_EditChart,
+				AscDFH.historydescription_Spreadsheet_EditChart, AscDFH.historydescription_Presentation_ChartApply,
+				AscDFH.historydescription_ChartDrawingObjects]],
+			["Move", [AscDFH.historydescription_CommonDrawings_EndTrack, AscDFH.historydescription_Document_MoveInlineObject,
+				AscDFH.historydescription_Document_MoveInGroup, AscDFH.historydescription_Document_DragText,
+				AscDFH.historydescription_Document_MoveInlineTable, AscDFH.historydescription_Document_MoveFlowTable,
+				AscDFH.historydescription_Document_MoveParagraphs]],
+			["Rotate", [AscDFH.historydescription_CommonStatesRotate, AscDFH.historydescription_Document_RotateInlineDrawing,
+				AscDFH.historydescription_Document_RotateFlowDrawingCtrl, AscDFH.historydescription_Document_RotateFlowDrawingNoCtrl]],
+			["Duplicate", [AscDFH.historydescription_CommonDrawings_CopyCtrl, AscDFH.historydescription_Document_CopyAndMoveInlineObject]],
+			["Shape Settings", [AscDFH.historydescription_Presentation_SetShapeProps,
+				AscDFH.historydescription_Presentation_SetImageProps, AscDFH.historydescription_Document_ApplyImagePr,
+				AscDFH.historydescription_Spreadsheet_SetGraphicObjectsProps, AscDFH.historydescription_CommonDrawings_ChangeAdj,
+				AscDFH.historydescription_Presentation_ChangeShapeType, AscDFH.historydescription_Presentation_SetVerticalAlign]],
+			["Arrange", [AscDFH.historydescription_Document_GrObjectsBringToFront,
+				AscDFH.historydescription_Document_GrObjectsBringForward, AscDFH.historydescription_Document_GrObjectsSendToBack,
+				AscDFH.historydescription_Document_GrObjectsBringBackward, AscDFH.historydescription_Presentation_BringToFront,
+				AscDFH.historydescription_Presentation_BringForward, AscDFH.historydescription_Presentation_SendToBack,
+				AscDFH.historydescription_Presentation_BringBackward, AscDFH.historydescription_Spreadsheet_GraphicObjectLayer]],
+			["Group", [AscDFH.historydescription_Document_GroupUnGroup, AscDFH.historydescription_Presentation_CreateGroup,
+				AscDFH.historydescription_Presentation_UnGroup, AscDFH.historydescription_Spreadsheet_CreateGroup,
+				AscDFH.historydescription_CommonControllerUnGroup]],
+			["Hyperlink", [AscDFH.historydescription_Document_AddHyperlink, AscDFH.historydescription_Document_ChangeHyperlink,
+				AscDFH.historydescription_Document_RemoveHyperlink, AscDFH.historydescription_Presentation_HyperlinkAdd,
+				AscDFH.historydescription_Presentation_HyperlinkModify, AscDFH.historydescription_Presentation_HyperlinkRemove]],
+			["Comment", [AscDFH.historydescription_Document_AddComment, AscDFH.historydescription_Document_ChangeComment,
+				AscDFH.historydescription_Document_RemoveComment, AscDFH.historydescription_Presentation_AddComment,
+				AscDFH.historydescription_Presentation_ChangeComment, AscDFH.historydescription_Presentation_RemoveComment,
+				AscDFH.historydescription_Spreadsheet_AddComment]],
+			["Page Break", [AscDFH.historydescription_Document_AddPageBreak, AscDFH.historydescription_Presentation_AddPageBreak,
+				AscDFH.historydescription_Document_AddColumnBreak]],
+			["Section Break", [AscDFH.historydescription_Document_AddSectionBreak]],
+			["Header/Footer", [AscDFH.historydescription_Document_AddHeader, AscDFH.historydescription_Document_AddFooter,
+				AscDFH.historydescription_Document_RemoveHdrFtr, AscDFH.historydescription_Document_AddPageNumToHdrFtr,
+				AscDFH.historydescription_Document_AddPageNumHotKey]],
+			["Page Setup", [AscDFH.historydescription_Document_SetPageOrientation, AscDFH.historydescription_Document_SetPageSize,
+				AscDFH.historydescription_Document_SetDocumentMargin_Hor, AscDFH.historydescription_Document_SetDocumentMargin_Ver,
+				AscDFH.historydescription_Document_SetColumnsProps, AscDFH.historydescription_Document_SetSectionProps]],
+			["Insert Equation", [AscDFH.historydescription_Document_AddMath, AscDFH.historydescription_Document_AddMathHotKey]],
+			["Footnote", [AscDFH.historydescription_Document_AddFootnote, AscDFH.historydescription_Document_AddEndnote]],
+			["Table of Contents", [AscDFH.historydescription_Document_AddTableOfContents, AscDFH.historydescription_Document_UpdateTableOfContents]],
+			["Track Changes", [AscDFH.historydescription_Document_AcceptAllRevisionChanges,
+				AscDFH.historydescription_Document_RejectAllRevisionChanges, AscDFH.historydescription_Document_AcceptRevisionChange,
+				AscDFH.historydescription_Document_RejectRevisionChange,
+				AscDFH.historydescription_Document_AcceptRevisionChangesBySelection,
+				AscDFH.historydescription_Document_RejectRevisionChangesBySelection]],
+			["New Slide", [AscDFH.historydescription_Presentation_AddNextSlide]],
+			["Delete Slides", [AscDFH.historydescription_Presentation_DeleteSlides]],
+			["Move Slides", [AscDFH.historydescription_Presentation_MoveSlidesToEnd,
+				AscDFH.historydescription_Presentation_MoveSlidesNextPos, AscDFH.historydescription_Presentation_MoveSlidesPrevPos,
+				AscDFH.historydescription_Presentation_MoveSlidesToStart, AscDFH.historydescription_Presentation_ShiftSlides]],
+			["Hide Slides", [AscDFH.historydescription_Presentation_HideSlides]],
+			["Slide Layout", [AscDFH.historydescription_Presentation_ChangeLayout]],
+			["Background", [AscDFH.historydescription_Presentation_ChangeBackground,
+				AscDFH.historydescription_Presentation_ResetSlideBackground, AscDFH.historydescription_Presentation_ApplyBackgroundToAll]],
+			["Transition", [AscDFH.historydescription_Presentation_ApplyTransition, AscDFH.historydescription_Presentation_ApplyTransitionToAll]],
+			["Theme", [AscDFH.historydescription_Presentation_ChangeTheme, AscDFH.historydescription_Presentation_ChangeColorScheme,
+				AscDFH.historydescription_Document_ChangeColorScheme]],
+			["Slide Size", [AscDFH.historydescription_Presentation_ChangeSlideSize]],
+			["Align", [AscDFH.historydescription_Presentation_DistHor, AscDFH.historydescription_Presentation_DistVer]]
+		];
+		for (let i = 0; i < labels.length; ++i)
+		{
+			const values = labels[i][1];
+			for (let j = 0; j < values.length; ++j)
+			{
+				if (typeof values[j] === "number")
+					descriptionLabels[values[j]] = labels[i][0];
+			}
+		}
+
+		// Spreadsheet points mostly have no description: name them by their changes, the most telling one first.
+		function getItemLabels(AscCommonExcel, AscCH)
+		{
+			const rowCol = [
+				[AscCH.historyitem_RowCol_SetStyle, 1, "Format Cells"],
+				[AscCH.historyitem_RowCol_Num, 1, "Number Format"],
+				[AscCH.historyitem_RowCol_Fill, 1, "Fill Color"],
+				[AscCH.historyitem_RowCol_Border, 1, "Borders"],
+				[AscCH.historyitem_RowCol_Bold, 1, "Bold"],
+				[AscCH.historyitem_RowCol_Italic, 1, "Italic"],
+				[AscCH.historyitem_RowCol_Fontname, 1, "Font"],
+				[AscCH.historyitem_RowCol_Fontsize, 1, "Font Size"],
+				[AscCH.historyitem_RowCol_Fontcolor, 1, "Font Color"],
+				[AscCH.historyitem_RowCol_AlignHorizontal, 1, "Alignment"],
+				[AscCH.historyitem_RowCol_SetCellStyle, 1, "Cell Style"]
+			];
+			return [
+				[AscCommonExcel.g_oUndoRedoWorkbook, [
+					[AscCH.historyitem_Workbook_SheetAdd, 5, "Insert Sheet"],
+					[AscCH.historyitem_Workbook_SheetRemove, 5, "Delete Sheet"],
+					[AscCH.historyitem_Workbook_DefinedNamesChange, 4, "Named Range"]
+				]],
+				[AscCommonExcel.g_oUndoRedoWorksheet, [
+					[AscCH.historyitem_Worksheet_AddRows, 5, "Insert Rows"],
+					[AscCH.historyitem_Worksheet_AddCols, 5, "Insert Columns"],
+					[AscCH.historyitem_Worksheet_RemoveRows, 5, "Delete Rows"],
+					[AscCH.historyitem_Worksheet_RemoveCols, 5, "Delete Columns"],
+					[AscCH.historyitem_Worksheet_ShiftCellsLeft, 5, "Delete Cells"],
+					[AscCH.historyitem_Worksheet_ShiftCellsTop, 5, "Delete Cells"],
+					[AscCH.historyitem_Worksheet_ShiftCellsRight, 5, "Insert Cells"],
+					[AscCH.historyitem_Worksheet_ShiftCellsBottom, 5, "Insert Cells"],
+					[AscCH.historyitem_Worksheet_Sort, 5, "Sort"],
+					[AscCH.historyitem_Worksheet_MoveRange, 5, "Move"],
+					[AscCH.historyitem_Worksheet_Rename, 5, "Rename Sheet"],
+					[AscCH.historyitem_Worksheet_Hide, 5, "Hide Sheet"],
+					[AscCH.historyitem_Worksheet_ChangeMerge, 4, "Merge Cells"],
+					[AscCH.historyitem_Worksheet_ChangeHyperlink, 4, "Hyperlink"],
+					[AscCH.historyitem_Worksheet_SetTabColor, 5, "Tab Color"],
+					[AscCH.historyitem_Worksheet_RowHide, 4, "Hide Rows"],
+					[AscCH.historyitem_Worksheet_ColProp, 1, "Column Width"],
+					[AscCH.historyitem_Worksheet_RowProp, 1, "Row Height"],
+					[AscCH.historyitem_Worksheet_ChangeFrozenCell, 5, "Freeze Panes"],
+					[AscCH.historyitem_Worksheet_GroupRow, 4, "Group"],
+					[AscCH.historyitem_Worksheet_GroupCol, 4, "Group"],
+					[AscCH.historyitem_Worksheet_PivotAdd, 5, "Insert Pivot Table"],
+					[AscCH.historyitem_Worksheet_PivotDelete, 5, "Delete Pivot Table"],
+					[AscCH.historyitem_Worksheet_DataValidationAdd, 4, "Data Validation"],
+					[AscCH.historyitem_Worksheet_DataValidationChange, 4, "Data Validation"],
+					[AscCH.historyitem_Worksheet_DataValidationDelete, 4, "Data Validation"],
+					[AscCH.historyitem_Worksheet_CFRuleAdd, 4, "Conditional Formatting"],
+					[AscCH.historyitem_Worksheet_CFRuleDelete, 4, "Conditional Formatting"]
+				]],
+				[AscCommonExcel.g_oUndoRedoComment, [
+					[AscCH.historyitem_Comment_Add, 4, "Comment"],
+					[AscCH.historyitem_Comment_Remove, 4, "Comment"],
+					[AscCH.historyitem_Comment_Change, 4, "Comment"]
+				]],
+				[AscCommonExcel.g_oUndoRedoAutoFilters, [
+					[AscCH.historyitem_AutoFilter_Add, 4, "Filter"],
+					[AscCH.historyitem_AutoFilter_Apply, 4, "Filter"],
+					[AscCH.historyitem_AutoFilter_Sort, 5, "Sort"],
+					[AscCH.historyitem_AutoFilter_Delete, 4, "Filter"],
+					[AscCH.historyitem_AutoFilter_ClearFilterColumn, 4, "Filter"],
+					[AscCH.historyitem_AutoFilter_ChangeTableStyle, 4, "Table Style"]
+				]],
+				[AscCommonExcel.g_oUndoRedoCell, [
+					[AscCH.historyitem_Cell_ChangeValue, 2, "Entry"],
+					[AscCH.historyitem_Cell_Num, 1, "Number Format"],
+					[AscCH.historyitem_Cell_Border, 1, "Borders"],
+					[AscCH.historyitem_Cell_Fill, 1, "Fill Color"],
+					[AscCH.historyitem_Cell_Fontname, 1, "Font"],
+					[AscCH.historyitem_Cell_Fontsize, 1, "Font Size"],
+					[AscCH.historyitem_Cell_Fontcolor, 1, "Font Color"],
+					[AscCH.historyitem_Cell_Bold, 1, "Bold"],
+					[AscCH.historyitem_Cell_Italic, 1, "Italic"],
+					[AscCH.historyitem_Cell_Underline, 1, "Underline"],
+					[AscCH.historyitem_Cell_Strikeout, 1, "Strikethrough"],
+					[AscCH.historyitem_Cell_AlignHorizontal, 1, "Alignment"],
+					[AscCH.historyitem_Cell_AlignVertical, 1, "Alignment"],
+					[AscCH.historyitem_Cell_Wrap, 1, "Wrap Text"],
+					[AscCH.historyitem_Cell_Angle, 1, "Text Orientation"],
+					[AscCH.historyitem_Cell_Indent, 1, "Indent"],
+					[AscCH.historyitem_Cell_SetStyle, 1, "Format Cells"],
+					[AscCH.historyitem_Cell_SetFont, 1, "Font"],
+					[AscCH.historyitem_Cell_Style, 1, "Cell Style"]
+				]],
+				[AscCommonExcel.g_oUndoRedoRow, rowCol],
+				[AscCommonExcel.g_oUndoRedoCol, rowCol]
+			];
+		}
+		let itemLabelsByClass = null;
+		function getItemLabelsByClass()
+		{
+			// resolved lazily: the undo classes are created when the spreadsheet model loads
+			const AscCommonExcel = window['AscCommonExcel'];
+			const AscCH = window['AscCH'];
+			if (!AscCommonExcel || !AscCH || !AscCommonExcel.g_oUndoRedoCell)
+				return null;
+			if (!itemLabelsByClass)
+			{
+				itemLabelsByClass = [];
+				const all = getItemLabels(AscCommonExcel, AscCH);
+				for (let i = 0; i < all.length; ++i)
+				{
+					if (!all[i][0])
+						continue;
+					const byType = {};
+					for (let j = 0; j < all[i][1].length; ++j)
+					{
+						const row = all[i][1][j];
+						if (typeof row[0] === "number")
+							byType[row[0]] = [row[1], row[2]];
+					}
+					itemLabelsByClass.push({undoClass: all[i][0], byType: byType});
+				}
+			}
+			return itemLabelsByClass;
+		}
+
+		/**
+		 * The English name of a history point ("Typing", "Paste", "Insert Rows"), or null when it has none.
+		 * @param {{Description: number, Items: Array}} point
+		 * @returns {?string}
+		 */
+		AscDFH.getHistoryPointLabel = function(point)
+		{
+			if (!point)
+				return null;
+			if (descriptionLabels.hasOwnProperty(point.Description))
+				return descriptionLabels[point.Description];
+			const byClass = Array.isArray(point.Items) && point.Items.length ? getItemLabelsByClass() : null;
+			if (!byClass)
+				return null;
+			// a big paste has many changes and the tooltip asks after every edit: remember the answer per point size
+			if (point.rdUndoLabelItems === point.Items.length)
+				return point.rdUndoLabel;
+			let best = null;
+			for (let i = 0; i < point.Items.length; ++i)
+			{
+				const item = point.Items[i];
+				for (let j = 0; j < byClass.length; ++j)
+				{
+					if (item.Class !== byClass[j].undoClass)
+						continue;
+					const found = byClass[j].byType[item.Type];
+					if (found && (!best || found[0] > best[0]))
+						best = found;
+					break;
+				}
+			}
+			point.rdUndoLabelItems = point.Items.length;
+			point.rdUndoLabel = best ? best[1] : null;
+			return point.rdUndoLabel;
+		};
+	})();
+
 })(window);
