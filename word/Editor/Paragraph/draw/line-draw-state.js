@@ -38,6 +38,14 @@
 (function(window)
 {
 	/**
+	 * #2100: text an input method is still composing is underlined. Some input methods style their own preedit
+	 * (fcitx5 and IBus engines can turn the underline off), which the editor cannot see, so the underline can be
+	 * switched off here instead. On by default.
+	 * @type {boolean}
+	 */
+	let compositeInputUnderline = true;
+	
+	/**
 	 * Class for storing the current draw state of various lines in the paragraph (underline/spelling/etc.)
 	 * @param {AscWord.ParagraphDrawState} drawState
 	 * @constructor
@@ -699,6 +707,9 @@
 	};
 	ParagraphLineDrawState.prototype.addCompositeInputLine = function(element, run, inRunPos)
 	{
+		if (!compositeInputUnderline)
+			return;
+		
 		if (para_Text !== element.Type || !run.CompositeInput || !run.CompositeInput.isInside(inRunPos))
 			return;
 		
@@ -739,5 +750,18 @@
 	};
 	//--------------------------------------------------------export----------------------------------------------------
 	AscWord.ParagraphLineDrawState = ParagraphLineDrawState;
+	/**
+	 * @param {boolean} isOn
+	 * @returns {boolean} whether the setting changed
+	 */
+	AscWord.setCompositeInputUnderline = function(isOn)
+	{
+		isOn = false !== isOn;
+		if (isOn === compositeInputUnderline)
+			return false;
+		
+		compositeInputUnderline = isOn;
+		return true;
+	};
 	
 })(window);

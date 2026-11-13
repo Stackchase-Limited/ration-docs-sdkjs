@@ -10360,6 +10360,17 @@ background-repeat: no-repeat;\
 		if (this.WordControl && this.WordControl.m_oLogicDocument)
 			this.WordControl.m_oLogicDocument.RecalculateFromStart(true);
 	};
+	/**
+	 * #2100: underline the text an input method is still composing (default), or not - for input methods that
+	 * style their own preedit, which the editor is not told about.
+	 * @param {boolean} isOn
+	 */
+	asc_docs_api.prototype.asc_setCompositeInputUnderline = function(isOn)
+	{
+		// Only text being composed is affected, and nothing is being composed while settings are applied,
+		// so no redraw is needed.
+		AscWord.setCompositeInputUnderline(isOn);
+	};
 	asc_docs_api.prototype.asc_Recalculate = function(bIsUpdateInterface)
 	{
 		if (!this.WordControl.m_oLogicDocument)
@@ -16072,6 +16083,7 @@ background-repeat: no-repeat;\
 	// auto hyphenation
 	asc_docs_api.prototype["asc_setAutoHyphenation"]         = asc_docs_api.prototype.asc_setAutoHyphenation;
 	asc_docs_api.prototype["asc_setComplexScriptLineBreak"]  = asc_docs_api.prototype.asc_setComplexScriptLineBreak;
+	asc_docs_api.prototype["asc_setCompositeInputUnderline"] = asc_docs_api.prototype.asc_setCompositeInputUnderline;
 	asc_docs_api.prototype["asc_isAutoHyphenation"]          = asc_docs_api.prototype.asc_isAutoHyphenation;
 	asc_docs_api.prototype["asc_setHyphenateCaps"]           = asc_docs_api.prototype.asc_setHyphenateCaps;
 	asc_docs_api.prototype["asc_isHyphenateCaps"]            = asc_docs_api.prototype.asc_isHyphenateCaps;
