@@ -1861,6 +1861,69 @@ function (window, undefined) {
 			oLogicDocument.Recalculate();
 		}
 	};
+	// Custom error bars whose plus/minus values come from sheet ranges (or constant arrays such as "={1,2}").
+	// nBarType: AscFormat.st_errbartypeBOTH/MINUS/PLUS; bEndCap: draw the end caps; nErrDir: st_errdirY (default) or X.
+	// The values are cached from the sheet and refreshed when those cells change, like the series values.
+	asc_ChartSettings.prototype.setCustomErrorBars = function (sPlus, sMinus, nBarType, bEndCap, nErrDir) {
+		if (!this.chartSpace) {
+			return Asc.c_oAscError.ID.No;
+		}
+		const nCheck = this.isValidCustomErrorBars(sPlus, sMinus);
+		if (nCheck !== Asc.c_oAscError.ID.No) {
+			return nCheck;
+		}
+		const selectedSeries = this.chartSpace.getSelectedSeries();
+		const seriesToProcess = selectedSeries ? [selectedSeries] : this.chartSpace.getAllSeries();
+		if (!seriesToProcess.length) {
+			return Asc.c_oAscError.ID.No;
+		}
+
+		AscCommon.History.Create_NewPoint(AscDFH.historyitem_type_ChartSpace);
+		seriesToProcess.forEach(function (ser) {
+			ser.setCustomErrBars(sPlus, sMinus, nBarType, bEndCap === false, nErrDir);
+		});
+
+		this.updateChart();
+		const oLogicDocument = Asc.editor.getLogicDocument();
+		if (oLogicDocument) {
+			oLogicDocument.Recalculate();
+		}
+		return Asc.c_oAscError.ID.No;
+	};
+	asc_ChartSettings.prototype.isValidCustomErrorBars = function (sPlus, sMinus) {
+		return AscFormat.ExecuteNoHistory(function () {
+			const aValues = [sPlus, sMinus];
+			let bAny = false;
+			for (let nIdx = 0; nIdx < aValues.length; ++nIdx) {
+				if (typeof aValues[nIdx] === "string" && aValues[nIdx].length > 0) {
+					const oResult = new AscFormat.CMinusPlus().setValues(aValues[nIdx]);
+					if (!oResult.isSuccessful()) {
+						return oResult.getError();
+					}
+					bAny = true;
+				}
+			}
+			return bAny ? Asc.c_oAscError.ID.No : Asc.c_oAscError.ID.NoValues;
+		}, this, []);
+	};
+	// {plus, minus, barType, endCap, errValType} of the selected (or first) series' error bars, or null.
+	asc_ChartSettings.prototype.getCustomErrorBars = function (nErrDir) {
+		if (!this.chartSpace) {
+			return null;
+		}
+		const ser = this.chartSpace.getSelectedSeries() || this.chartSpace.getAllSeries()[0];
+		const oInfo = ser && ser.getCustomErrBars(nErrDir);
+		if (!oInfo) {
+			return null;
+		}
+		return {
+			"plus": oInfo.plus,
+			"minus": oInfo.minus,
+			"barType": oInfo.barType,
+			"endCap": !oInfo.noEndCap,
+			"errValType": oInfo.errValType
+		};
+	};
 	asc_ChartSettings.prototype.setDisplayGridlines = function (bShowHorMajor, bShowVerMajor, bShowHorMinor, bShowVerMinor) {
 		if (!this.chartSpace) {
 			return;
@@ -8515,6 +8578,9 @@ function (window, undefined) {
 	prot["setDisplayDataLabels"] = prot.setDisplayDataLabels;
 	prot["setDisplayDataTable"] = prot.setDisplayDataTable;
 	prot["setDisplayErrorBars"] = prot.setDisplayErrorBars;
+	prot["setCustomErrorBars"] = prot.setCustomErrorBars;
+	prot["isValidCustomErrorBars"] = prot.isValidCustomErrorBars;
+	prot["getCustomErrorBars"] = prot.getCustomErrorBars;
 	prot["setDisplayGridlines"] = prot.setDisplayGridlines;
 	prot["setDisplayLegend"] = prot.setDisplayLegend;
 	prot["setDisplayTrendlines"] = prot.setDisplayTrendlines;

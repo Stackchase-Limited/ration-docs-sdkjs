@@ -4060,6 +4060,70 @@
 			errBar.setParent(null);
 		}
 	};
+	// Custom error bars: sPlus/sMinus are ranges or constant arrays ("" leaves that side out).
+	// Reuses the series' error bars in direction nErrDir (default Y) and keeps their formatting.
+	CSeriesBase.prototype.setCustomErrBars = function (sPlus, sMinus, nBarType, bNoEndCap, nErrDir) {
+		const errDir = AscFormat.isRealNumber(nErrDir) ? nErrDir : AscFormat.st_errdirY;
+		const aValues = [sPlus, sMinus];
+		const aMinusPlus = [null, null];
+		for (let nIdx = 0; nIdx < aValues.length; ++nIdx) {
+			const sValues = aValues[nIdx];
+			if (typeof sValues === "string" && sValues.length > 0) {
+				const oMinusPlus = new AscFormat.CMinusPlus();
+				const oResult = oMinusPlus.setValues(sValues);
+				if (!oResult.isSuccessful()) {
+					return oResult.getError();
+				}
+				aMinusPlus[nIdx] = oMinusPlus;
+			}
+		}
+		if (!aMinusPlus[0] && !aMinusPlus[1]) {
+			return Asc.c_oAscError.ID.NoValues;
+		}
+		let errBars = null;
+		for (let nIdx = 0; nIdx < this.errBars.length; ++nIdx) {
+			if (this.errBars[nIdx].errDir === errDir || (this.errBars[nIdx].errDir === null && errDir === AscFormat.st_errdirY)) {
+				errBars = this.errBars[nIdx];
+				break;
+			}
+		}
+		if (!errBars) {
+			if (this.errBars.length === 0) {
+				this.createAllErrBars(AscFormat.st_errvaltypeCUST);
+				errBars = this.errBars[0];
+			} else {
+				errBars = this.errBars[0].createDuplicate();
+				this.addErrBars(errBars);
+			}
+		}
+		errBars.setErrDir(errDir);
+		errBars.setErrValType(AscFormat.st_errvaltypeCUST);
+		errBars.setVal(null);
+		errBars.setErrBarType(AscFormat.isRealNumber(nBarType) ? nBarType : AscFormat.st_errbartypeBOTH);
+		errBars.setNoEndCap(!!bNoEndCap);
+		errBars.setPlus(aMinusPlus[0]);
+		errBars.setMinus(aMinusPlus[1]);
+		errBars.updateWithHistory();
+		// the refs were parsed before they had a chart: let the chart watch the new cells
+		this.onChangeDataRefs();
+		return Asc.c_oAscError.ID.No;
+	};
+	CSeriesBase.prototype.getCustomErrBars = function (nErrDir) {
+		const errDir = AscFormat.isRealNumber(nErrDir) ? nErrDir : AscFormat.st_errdirY;
+		for (let nIdx = 0; nIdx < this.errBars.length; ++nIdx) {
+			const errBars = this.errBars[nIdx];
+			if (errBars.errDir === errDir || (errBars.errDir === null && errDir === AscFormat.st_errdirY)) {
+				return {
+					plus: errBars.plus ? this.checkR1C1ModeForExternal(errBars.plus.getFormula()) : "",
+					minus: errBars.minus ? this.checkR1C1ModeForExternal(errBars.minus.getFormula()) : "",
+					barType: AscFormat.isRealNumber(errBars.errBarType) ? errBars.errBarType : AscFormat.st_errbartypeBOTH,
+					noEndCap: !!errBars.noEndCap,
+					errValType: errBars.errValType
+				};
+			}
+		}
+		return null;
+	};
     CSeriesBase.prototype.getChildren = function() {
         let aResult = [this.spPr, this.tx, this.cat || this.xVal, this.val || this.yVal];
         for (let nIdx = 0; nIdx < this.errBars.length; ++nIdx) {
@@ -10663,7 +10727,7 @@
         this.errDir = pr;
     };
     CErrBars.prototype.setErrValType = function(pr) {
-        AscCommon.History.CanAddChanges() && AscCommon.History.Add(new CChangesDrawingsLong(this, AscDFH.historyitem_ErrBars_SetErrValType, this.errDir, pr));
+        AscCommon.History.CanAddChanges() && AscCommon.History.Add(new CChangesDrawingsLong(this, AscDFH.historyitem_ErrBars_SetErrValType, this.errValType, pr));
         this.errValType = pr;
     };
     CErrBars.prototype.setMinus = function(pr) {
@@ -10733,13 +10797,13 @@
     };
     CErrBars.prototype.getMinusDataRefs = function() {
         if(this.minus) {
-            this.minus.getDataRefs();
+            return this.minus.getDataRefs();
         }
         return new CDataRefs([]);
     };
     CErrBars.prototype.getPlusDataRefs = function() {
         if(this.plus) {
-            this.plus.getDataRefs();
+            return this.plus.getDataRefs();
         }
         return new CDataRefs([]);
     };
@@ -11888,6 +11952,36 @@
             return true;
         }
         return false;
+    };
+    // Custom error values from a sheet range ("Sheet1!$C$2:$C$5") or a constant array ("={1,2}"), as series values.
+    CMinusPlus.prototype.setValues = function(sValues) {
+        var oResult = new CParseResult();
+        fParseNumLit(sValues, true, oResult);
+        if(oResult.isSuccessful()) {
+            if(this.numRef) {
+                this.setNumRef(null);
+            }
+            this.setNumLit(oResult.getObject());
+            return oResult;
+        }
+        oResult = new CParseResult();
+        fParseNumRef(sValues, true, oResult);
+        if(oResult.isSuccessful()) {
+            if(this.numLit) {
+                this.setNumLit(null);
+            }
+            this.setNumRef(oResult.getObject());
+        }
+        return oResult;
+    };
+    CMinusPlus.prototype.getFormula = function() {
+        if(this.numRef) {
+            return this.numRef.getFormula();
+        }
+        if(this.numLit) {
+            return this.numLit.getFormula();
+        }
+        return "";
     };
 
     function CMultiLvlStrCache() {
@@ -18371,6 +18465,27 @@
         }
         return false;
     };
+    CSeriesDataRefs.prototype.hasErrBarsIntersection = function(oRange) {
+        for(let nIdx = 0; nIdx < this.errBarsMinus.length; ++nIdx) {
+            if(this.errBarsMinus[nIdx].hasIntersection(oRange)) {
+                return true;
+            }
+        }
+        for(let nIdx = 0; nIdx < this.errBarsPlus.length; ++nIdx) {
+            if(this.errBarsPlus[nIdx].hasIntersection(oRange)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    CSeriesDataRefs.prototype.collectErrBarsBoundsByWS = function(oBounds) {
+        for(let nIdx = 0; nIdx < this.errBarsMinus.length; ++nIdx) {
+            this.errBarsMinus[nIdx].collectBoundsByWS(oBounds);
+        }
+        for(let nIdx = 0; nIdx < this.errBarsPlus.length; ++nIdx) {
+            this.errBarsPlus[nIdx].collectBoundsByWS(oBounds);
+        }
+    };
     CSeriesDataRefs.prototype.collectBoundsByWS = function(oBounds) {
         this.val.collectBoundsByWS(oBounds);
         this.cat.collectBoundsByWS(oBounds);
@@ -18683,6 +18798,9 @@
             this.val.collectBoundsByWS(this.boundsByWS);
             this.cat.collectBoundsByWS(this.boundsByWS);
             this.tx.collectBoundsByWS(this.boundsByWS);
+            for(var nSeries = 0; nSeries < this.seriesRefs.length; ++nSeries) {
+                this.seriesRefs[nSeries].collectErrBarsBoundsByWS(this.boundsByWS);
+            }
         }
         else {
             for(var nSeries = 0; nSeries < this.seriesRefs.length; ++nSeries) {
@@ -19265,6 +19383,12 @@
             }
             if(this.tx.hasIntersection(oRange)) {
                 return true;
+            }
+            // custom error bar values live outside the chart's common range
+            for(var nSeries = 0; nSeries < this.seriesRefs.length; ++nSeries) {
+                if(this.seriesRefs[nSeries].hasErrBarsIntersection(oRange)) {
+                    return true;
+                }
             }
         }
         else {
