@@ -1244,6 +1244,10 @@ window['AscFormat'].PRESET_CLASS_VERB = window['AscFormat']["PRESET_CLASS_VERB"]
 //presets of animations
 window['AscFormat'].ANIM_PRESET_NONE = window['AscFormat']["ANIM_PRESET_NONE"] = -2;
 window['AscFormat'].ANIM_PRESET_MULTIPLE = window['AscFormat']["ANIM_PRESET_MULTIPLE"] = -1;
+//presets of the media effects (PRESET_CLASS_MEDIACALL)
+window['AscFormat'].MEDIACALL_PLAY = window['AscFormat']["MEDIACALL_PLAY"] = 1;
+window['AscFormat'].MEDIACALL_PAUSE = window['AscFormat']["MEDIACALL_PAUSE"] = 2;
+window['AscFormat'].MEDIACALL_STOP = window['AscFormat']["MEDIACALL_STOP"] = 3;
 window['AscFormat'].MOTION_CUSTOM_PATH = window['AscFormat']["MOTION_CUSTOM_PATH"] = 0;
 window['AscFormat'].MOTION_CIRCLE = window['AscFormat']["MOTION_CIRCLE"] = 1;
 window['AscFormat'].MOTION_RIGHT_TRIANGLE = window['AscFormat']["MOTION_RIGHT_TRIANGLE"] = 2;

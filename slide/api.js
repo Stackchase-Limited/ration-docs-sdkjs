@@ -8278,7 +8278,19 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype.callTimelineMediaCommand = function(sCmd, oMediaData)
 	{
 		let oManager = this.WordControl && this.WordControl.DemonstrationManager;
-		if (!this.isSlideShow() || !oManager || sCmd.indexOf("play") !== 0)
+		// each timeline command is a step of its own: a Pause after a Pause resumes, a Play after the viewer
+		// paused in the player plays again; callMediaPlayerCommand must not drop it as a repeat of the last one
+		this.lastPlCompareOayerData = null;
+		if (this.isSlideShow() && oManager && sCmd.indexOf("play") !== 0)
+		{
+			// Pause/Stop act on the media's own player; when another media's player is open, this one
+			// is not playing and the other one must not be paused or stopped instead
+			let oOpenMediaData = this.getMediaData();
+			if (oOpenMediaData && oOpenMediaData.getDrawing() === oMediaData.getDrawing())
+				this.callMediaPlayerCommand(sCmd, oOpenMediaData);
+			return;
+		}
+		if (!this.isSlideShow() || !oManager)
 		{
 			this.callMediaPlayerCommand(sCmd, oMediaData);
 			return;

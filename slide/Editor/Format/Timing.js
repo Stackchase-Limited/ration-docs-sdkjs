@@ -2050,6 +2050,9 @@
 
     };
     CTiming.prototype.createEffect = function (sObjectId, nPresetClass, nPresetId, nPresetSubtype, oColor) {
+        if (nPresetClass === AscFormat.PRESET_CLASS_MEDIACALL) {
+            return this.createMediaCallEffect(sObjectId, nPresetId);
+        }
         var aPresetClass = ANIMATION_PRESET_CLASSES[nPresetClass];
         if (aPresetClass) {
             var aPresetType = aPresetClass[nPresetId];
@@ -2081,6 +2084,34 @@
             }
         }
         return null;
+    };
+    // the media effects (Animation > Media) as PowerPoint writes them: a par with presetClass="mediacall" holding
+    // <p:cmd type="call" cmd="..."> on the video/audio. Play is "playFrom(0.0)", Pause "togglePause" (a second
+    // Pause resumes), Stop "stop"; in a slide show CCmd.setState hands them to the desktop players.
+    // Only a video or audio can get one. The command's own duration is 1 ms as PowerPoint writes it for
+    // Pause and Stop; for Play PowerPoint writes the media's length, which is not known here, so an
+    // "After previous" effect after a Play starts with the media, not at its end
+    CTiming.prototype.createMediaCallEffect = function (sObjectId, nPresetId) {
+        let sCmd = MEDIACALL_COMMANDS[nPresetId];
+        let oDrawing = AscCommon.g_oTableId.Get_ById(sObjectId);
+        if (!sCmd || !oDrawing || !oDrawing.getMediaFileName || !oDrawing.getMediaFileName()) {
+            return null;
+        }
+        let oPar = new CPar();
+        let oCTn = this.createCCTn(null, NODE_FILL_HOLD, "0", null, null, true);
+        oCTn.setPresetID(nPresetId);
+        oCTn.setPresetClass(AscFormat.PRESET_CLASS_MEDIACALL);
+        oCTn.setPresetSubtype(0);
+        oPar.setCTn(oCTn);
+        let oCmd = new CCmd();
+        oCmd.setType(TLCommandTypeCall);
+        oCmd.setCmd(sCmd);
+        let oBhvr = new CCBhvr();
+        oBhvr.setCTn(this.createCCTn("1", NODE_FILL_HOLD, null, null, null, false));
+        oBhvr.setTgtEl(CTimeNodeBase.prototype.createSpTgt(sObjectId));
+        oCmd.setCBhvr(oBhvr);
+        oCTn.pushToChildTnLst(oCmd);
+        return oPar;
     };
     CTiming.prototype.isMainSequenceAtEnd = function () {
         var oRoot = this.getTimingRootNode();
@@ -8617,6 +8648,12 @@
     const TLCommandTypeCall = 0;
     const TLCommandTypeEvt = 1;
     const TLCommandTypeVerb = 2;
+
+    // the commands of the media effects by presetID (presetClass="mediacall"), as PowerPoint writes them
+    const MEDIACALL_COMMANDS = {};
+    MEDIACALL_COMMANDS[AscFormat.MEDIACALL_PLAY] = "playFrom(0.0)";
+    MEDIACALL_COMMANDS[AscFormat.MEDIACALL_PAUSE] = "togglePause";
+    MEDIACALL_COMMANDS[AscFormat.MEDIACALL_STOP] = "stop";
 
     function CCmd() {
         CTimeNodeBase.call(this);
