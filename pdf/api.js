@@ -3022,6 +3022,14 @@
 			this.sync_StartAddShapeCallback(false);
 		}
 	};
+	// #1687: a new text box takes the style of the last one (CPDFDoc.RememberTextBoxStyle /
+	// ApplyLastTextBoxStyle, called from NewShapeTrack.getShape). Off by default.
+	PDFEditorApi.prototype.asc_setTextBoxLastStyle = function(value) {
+		this.textBoxLastStyle = !!value;
+	};
+	PDFEditorApi.prototype.asc_getTextBoxLastStyle = function() {
+		return !!this.textBoxLastStyle;
+	};
 	PDFEditorApi.prototype.ShapeApply = function(prop) {
 		let oDoc	= this.getPDFDoc();
 		let oDrDoc	= oDoc.GetDrawingDocument();
@@ -5573,6 +5581,8 @@
 	PDFEditorApi.prototype['asc_CheckPrintPassword']		= PDFEditorApi.prototype.asc_CheckPrintPassword;
 	
 	PDFEditorApi.prototype['getJsApi'] = PDFEditorApi.prototype.getJsApi;
+	PDFEditorApi.prototype['asc_setTextBoxLastStyle'] = PDFEditorApi.prototype.asc_setTextBoxLastStyle;
+	PDFEditorApi.prototype['asc_getTextBoxLastStyle'] = PDFEditorApi.prototype.asc_getTextBoxLastStyle;
 	
 	window["PDFEditorApi"] = PDFEditorApi;
 	AscCommon['PDFEditorApi'] = AscCommon.PDFEditorApi = PDFEditorApi;

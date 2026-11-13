@@ -812,6 +812,13 @@ function NewShapeTrack(presetGeom, startX, startY, theme, master, layout, slide,
                         }
                     }
                     shape.txBody.setBodyPr(body_pr);
+                    // #1687: a text box drawn in the PDF editor can take the style of the last one
+                    // (option, off by default); before the extents check, which depends on the font
+                    if(isPdf && Asc.editor.isStartAddShape && !Asc.editor.isStartAddAnnot &&
+                        Asc.editor.asc_getTextBoxLastStyle && Asc.editor.asc_getTextBoxLastStyle()) {
+                        let oPdfDoc = Asc.editor.getPDFDoc && Asc.editor.getPDFDoc();
+                        oPdfDoc && oPdfDoc.ApplyLastTextBoxStyle(shape);
+                    }
                     if(bNeedCheckExtents){
                         var dOldX = shape.spPr.xfrm.offX;
                         var dOldY = shape.spPr.xfrm.offY;

@@ -1805,6 +1805,9 @@ var CPresentation = CPresentation || function(){};
             oContent = oActiveObj.GetDocContent();
             this.activeDrawing = null;
 
+            // #1687: a text box being left is "the last text box" for New text boxes use the last style
+            this.RememberTextBoxStyle(oActiveObj);
+
             oActiveObj.OnBlur();
         }
         else if (oActiveObj.IsForm()) {
@@ -6547,6 +6550,62 @@ var CPresentation = CPresentation || function(){};
         }
 
         return bResult;
+    };
+    /**
+     * #1687: "New text boxes use the last style" (option, off by default). The style of the text box
+     * last left (BlurActiveObject) is kept: its fill, line and effects (shadow), and the text and
+     * paragraph properties where its text ends - what typing at the end would get.
+     */
+    CPDFDoc.prototype.RememberTextBoxStyle = function(oDrawing) {
+        if (!this.Api || !this.Api.asc_getTextBoxLastStyle || !this.Api.asc_getTextBoxLastStyle())
+            return;
+        if (!oDrawing || !oDrawing.isTextBox || !oDrawing.isTextBox() || !oDrawing.spPr || !oDrawing.txBody)
+            return;
+
+        let oContent = oDrawing.txBody.content;
+        let oPara = oContent && oContent.Content.length ? oContent.Content[oContent.Content.length - 1] : null;
+        if (!oPara || oPara.GetType() !== AscCommonWord.type_Paragraph)
+            return;
+
+        // the last run with text; an empty box has only its paragraph mark
+        let oTextPr = oPara.TextPr.Value;
+        for (let i = oPara.Content.length - 1; i >= 0; i--) {
+            let oRun = oPara.Content[i];
+            if (oRun.Type === para_Run && !oRun.IsParaEndRun() && !oRun.IsEmpty()) {
+                oTextPr = oRun.Pr;
+                break;
+            }
+        }
+
+        let oSpPr = oDrawing.spPr;
+        this.lastTextBoxStyle = {
+            fill:   oSpPr.Fill ? oSpPr.Fill.createDuplicate() : null,
+            ln:     oSpPr.ln ? oSpPr.ln.createDuplicate() : null,
+            effect: oSpPr.effectProps ? oSpPr.effectProps.createDuplicate() : null,
+            textPr: oTextPr.Copy(),
+            jc:     oPara.Pr.Jc
+        };
+    };
+    /**
+     * #1687: gives a text box being drawn (NewShapeTrack.getShape, still empty) the remembered style.
+     */
+    CPDFDoc.prototype.ApplyLastTextBoxStyle = function(oShape) {
+        let oStyle = this.lastTextBoxStyle;
+        if (!oStyle || !oShape || !oShape.spPr || !oShape.txBody || !oShape.txBody.content)
+            return false;
+
+        oShape.spPr.setFill(oStyle.fill ? oStyle.fill.createDuplicate() : null);
+        oShape.spPr.setLn(oStyle.ln ? oStyle.ln.createDuplicate() : null);
+        oStyle.effect && oShape.spPr.setEffectPr(oStyle.effect.createDuplicate());
+
+        let oContent = oShape.txBody.content;
+        oContent.SetApplyToAll(true);
+        oContent.AddToParagraph(new AscCommonWord.ParaTextPr(oStyle.textPr.Copy()));
+        oContent.SetApplyToAll(false);
+        if (undefined !== oStyle.jc) {
+            oContent.Content[0].Set_Align(oStyle.jc);
+        }
+        return true;
     };
     CPDFDoc.prototype.CreateAndAddShapeFromSelectedContent = function (oDocContent) {
         let nPage   = this.GetCurPage();
