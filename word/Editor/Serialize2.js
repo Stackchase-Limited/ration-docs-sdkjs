@@ -11703,10 +11703,15 @@ function Binary_DocumentTableReader(doc, oReadResult, openParams, stream, curNot
 			{
 			    oCommon.oParent = paragraphContent;
 				var item = this.oComments[oCommon.Id];
+				
+				if (item && item.Start)
+					return res;
+				
 				if(item)
 					item.Start = oCommon;
 				else
 					this.oComments[oCommon.Id] = {Start: oCommon};
+				
 				if(null == this.oCurComments[oCommon.Id])
 				{
 					this.nCurCommentsCount++;
@@ -11731,6 +11736,9 @@ function Binary_DocumentTableReader(doc, oReadResult, openParams, stream, curNot
 					item = {};
 					this.oComments[oCommon.Id] = item;
 				}
+				if (item.End)
+					return res;
+				
 				item.End = oCommon;
 				var sQuoteText = this.oCurComments[oCommon.Id];
 				if(null != sQuoteText)
