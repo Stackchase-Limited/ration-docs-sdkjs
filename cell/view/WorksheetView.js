@@ -26178,8 +26178,9 @@ function isAllowPasteLink(pastedWb) {
 		}
 
 		var i, startSortCol, colMap = [];
-		for (i = 0; i < props.columnList.length; i++) {
-			if (props.columnList[i].asc_getVisible()) {
+		var colCount = selection.c2 - selection.c1 + 1;
+		for (i = 0; i < colCount; i++) {
+			if (i >= props.columnList.length || props.columnList[i].asc_getVisible()) {
 				var _colIndex = i + selection.c1;
 				colMap[_colIndex] = 1;
 				if(undefined === startSortCol) {
@@ -26192,6 +26193,28 @@ function isAllowPasteLink(pastedWb) {
 			revertSelection();
 			return;
 		}
+		
+		//TODO fix for release with minimal changes. later need add more fast functions 
+		var getDuplicateKey = function(row, col) {
+			var key;
+			t.model._getCellNoEmpty(row, col, function(cell) {
+				var val = AscCommonExcel.checkTypeCell(cell, true);
+				switch (val.type) {
+					case AscCommonExcel.cElementType.number:
+						key = val.type + "_" + val.value + "_" + cell.getValue().toLowerCase();
+						break;
+					case AscCommonExcel.cElementType.bool:
+						key = AscCommonExcel.cElementType.string + "_" + cell.getValueWithoutFormat().toUpperCase();
+						break;
+					case AscCommonExcel.cElementType.string:
+						key = val.type + "_" + val.value.toUpperCase();
+						break;
+					default:
+						key = val.type + "_" + val.value;
+				}
+			});
+			return key;
+		};
 
 		var  firstLockRow;
 		var deleteIndexes = [];
@@ -26199,8 +26222,7 @@ function isAllowPasteLink(pastedWb) {
 		var oRepeatMap = {};
 		var aSortElems = [];
 		for (i = selection.r1; i <= selection.r2; i++) {
-			var cell = t.model.getCell3(i, startSortCol);
-			var value = cell.getValueWithFormat();
+			var value = getDuplicateKey(i, startSortCol);
 			aSortElems.push({index: i});
 			if (oRepeatMap.hasOwnProperty(value)) {
 				for (var n = 0; n < oRepeatMap[value].length; n++) {
@@ -26209,11 +26231,7 @@ function isAllowPasteLink(pastedWb) {
 						if (!colMap[j]) {
 							continue;
 						}
-						var cell1 = t.model.getCell3(i, j);
-						var cell2 = t.model.getCell3(oRepeatMap[value][n], j);
-						var val1 = cell1.getValueWithFormat();
-						var val2 = cell2.getValueWithFormat();
-						if (val1 !== val2) {
+						if (getDuplicateKey(i, j) !== getDuplicateKey(oRepeatMap[value][n], j)) {
 							_notEqual = true;
 							break;
 						}
