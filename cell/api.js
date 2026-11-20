@@ -5697,6 +5697,8 @@ var editor;
   };
 
   spreadsheet_api.prototype.asyncImageEndLoadedBackground = function() {
+    if (this.FontLoader.isFontLoadInProgress())
+      return;
     var worksheet = this.wb.getWorksheet();
     if (worksheet && worksheet.objectRender) {
       var drawing_area = worksheet.objectRender.drawingArea;
