@@ -10976,19 +10976,22 @@ drawAreaChart.prototype = {
 			pen = seria.pen;
 
 			numCache = this.cChartDrawer.getNumCache(seria.val);
-			if (numCache && numCache.pts[0].pen) {
+			if (numCache && numCache.pts[0] && numCache.pts[0].pen) {
 				pen = numCache.pts[0].pen;
 			}
-			if (numCache && numCache.pts[0].brush) {
+			if (numCache && numCache.pts[0] && numCache.pts[0].brush) {
 				brush = numCache.pts[0].brush;
 			}
 
-			this._drawBar3D(this.paths.series[j][1], pen, brush, 1);
-			this._drawBar3D(this.paths.series[j][4], pen, brush, 4);
-			this._drawBar3D(this.paths.series[j][2], pen, brush, 2);
-			this._drawBar3D(this.paths.series[j][3], pen, brush, 3);
-			this._drawBar3D(this.paths.series[j][5], pen, brush, 5);
-			this._drawBar3D(this.paths.series[j][0], pen, brush, 0);
+			// a series without points gets no compiled brush: nothing to draw, and _drawBar3D needs a brush
+			if (brush) {
+				this._drawBar3D(this.paths.series[j][1], pen, brush, 1);
+				this._drawBar3D(this.paths.series[j][4], pen, brush, 4);
+				this._drawBar3D(this.paths.series[j][2], pen, brush, 2);
+				this._drawBar3D(this.paths.series[j][3], pen, brush, 3);
+				this._drawBar3D(this.paths.series[j][5], pen, brush, 5);
+				this._drawBar3D(this.paths.series[j][0], pen, brush, 0);
+			}
 
 			j = isReverse ? j + 1 : j - 1;
 		}
@@ -15485,6 +15488,9 @@ drawStockChart.prototype = {
 
 		let _numCache = this.chart.series[ser].getNumLit();
 		var point = _numCache && _numCache.pts[val];
+		if (!point) {
+			return {x: null, y: null};
+		}
 
 		var x = this.chartProp.chartGutter._left + (val) * koffX + koffX / 2;
 		var y = this.chartProp.trueHeight - (point.val - min) * koffY + this.chartProp.chartGutter._top;
